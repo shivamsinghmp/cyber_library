@@ -24,8 +24,8 @@ jobs:
             git pull origin main
             npm install
             npm run build
-            if pm2 list | grep -q "cyber-lib"; then
-              pm2 restart cyber-lib
+            if pm2 list | grep -q "cyber-library"; then
+              pm2 restart cyber-library
             else
-              pm2 start npm --name "cyber-lib" -- start
+              pm2 start npm --name "cyber-library" -- start
             fi
