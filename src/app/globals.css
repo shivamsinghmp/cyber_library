@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f0b07;
+  --foreground: #f5f0e8;
+  --cream: #f5f0e8;
+  --cream-muted: #e8dfd4;
+  --wood: #d4c4b0;
+  --ink: #2c2419;
+  --accent: #8b7355;
+  --accent-hover: #6d5a45;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-cream: var(--cream);
+  --color-cream-muted: var(--cream-muted);
+  --color-wood: var(--wood);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+@keyframes streakPop {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

@@ -1,0 +1,16 @@
+
+--- ERROR AT 2026-03-10T21:01:03.239Z ---
+{
+  "error": {
+    "errors": [
+      {
+        "domain": "global",
+        "reason": "invalid",
+        "message": "Invalid conference type value."
+      }
+    ],
+    "code": 400,
+    "message": "Invalid conference type value."
+  }
+}
+Calendar Event Generation returned null for: ghjghjyt at 2026-03-10T21:01:03.242Z
