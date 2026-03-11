@@ -1,0 +1,28 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - main  # Agar aap master branch use karte hain toh yaha master likhein
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /var/www/cyber_library
+            git pull origin main
+            npm install
+            npm run build
+            # PM2 ko restart karein taaki naya code live ho jaye
+            pm2 restart all || pm2 start npm --name "cyber-lib" -- start
