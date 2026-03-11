@@ -35,13 +35,21 @@ export async function PUT(
     }
     const updated = await prisma.profileFieldDefinition.update({
       where: { id },
+      // Cast to any to satisfy Prisma's JSON input type for options
       data: {
         ...(parsed.data.label !== undefined && { label: parsed.data.label }),
         ...(parsed.data.type !== undefined && { type: parsed.data.type }),
         ...(parsed.data.required !== undefined && { required: parsed.data.required }),
-        ...(parsed.data.options !== undefined && { options: parsed.data.options }),
-        ...(parsed.data.sortOrder !== undefined && { sortOrder: parsed.data.sortOrder }),
-      },
+        ...(parsed.data.options !== undefined && {
+          options:
+            parsed.data.options === null
+              ? (null as any)
+              : (parsed.data.options as any),
+        }),
+        ...(parsed.data.sortOrder !== undefined && {
+          sortOrder: parsed.data.sortOrder,
+        }),
+      } as any,
     });
     return NextResponse.json(updated);
   } catch (e) {

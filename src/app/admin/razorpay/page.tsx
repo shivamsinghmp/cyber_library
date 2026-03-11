@@ -34,22 +34,32 @@ export default function AdminRazorpayPage() {
     Promise.all([
       fetch("/api/admin/razorpay/status", { credentials: "include" })
         .then((res) => (res.ok ? res.json() : {}))
-        .then((data) => setConfigured(data.configured === true)),
+        .then((data: { configured?: boolean }) =>
+          setConfigured(data.configured === true)
+        ),
       fetch("/api/admin/razorpay/settings", { credentials: "include" })
         .then((res) => (res.ok ? res.json() : {}))
-        .then((data) => {
+        .then((data: { keyId?: string | null; hasSecret?: boolean }) => {
           setKeyId(data.keyId ?? "");
           setHasSecret(data.hasSecret === true);
         }),
       fetch("/api/admin/smtp/settings", { credentials: "include" })
         .then((res) => (res.ok ? res.json() : {}))
-        .then((data) => {
-          if (data.host) setSmtpHost(data.host);
-          if (data.port) setSmtpPort(String(data.port));
-          if (data.user) setSmtpUser(data.user);
-          if (data.from) setSmtpFrom(data.from);
-          setSmtpHasPass(data.hasPass === true);
-        }),
+        .then(
+          (data: {
+            host?: string | null;
+            port?: number | null;
+            user?: string | null;
+            from?: string | null;
+            hasPass?: boolean;
+          }) => {
+            if (data.host) setSmtpHost(data.host);
+            if (data.port) setSmtpPort(String(data.port));
+            if (data.user) setSmtpUser(data.user);
+            if (data.from) setSmtpFrom(data.from);
+            setSmtpHasPass(data.hasPass === true);
+          }
+        ),
     ])
       .catch(() => {})
       .finally(() => setLoading(false));

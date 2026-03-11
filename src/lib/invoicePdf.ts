@@ -21,7 +21,8 @@ const BORDER = [200, 195, 188] as const;
 
 export function generateInvoicePdf(data: InvoiceData): void {
   const doc = new jsPDF({ format: "a4", unit: "mm" });
-  const w = doc.getPageWidth();
+  // A4 in mm: 210 x 297
+  const w = 210;
   const h = 297;
   const margin = 20;
   const contentW = w - 2 * margin;

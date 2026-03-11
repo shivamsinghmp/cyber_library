@@ -19,7 +19,6 @@ export async function GET() {
     }
 
     const now = new Date();
-    const today = toDateOnly(now);
 
     const [profile, sessionsToday, allSessions, firstSub, user] = await Promise.all([
       prisma.profile.findUnique({
@@ -57,8 +56,6 @@ export async function GET() {
       }),
     ]);
 
-    const startDate = firstSub?.createdAt ?? user?.createdAt ?? null;
-
     const minutesByDate: Record<string, number> = {};
     for (const s of allSessions) {
       const key = new Date(s.startedAt).toISOString().slice(0, 10);
@@ -66,7 +63,7 @@ export async function GET() {
     }
     const totalAttendance = Object.values(minutesByDate).filter((m) => m >= 30).length;
 
-    const startDate = firstSubOrUser ?? userCreated;
+    const startDate = firstSub?.createdAt ?? user?.createdAt ?? null;
     const totalDaysSinceStart = startDate
       ? Math.max(0, Math.ceil((now.getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000)))
       : 0;

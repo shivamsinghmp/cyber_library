@@ -72,9 +72,13 @@ export async function POST(request: Request) {
         label: data.label,
         type: data.type,
         required: data.required,
-        options: data.options ?? null,
+        // Cast options to any to satisfy Prisma's JSON type
+        options:
+          data.options === undefined
+            ? null
+            : ((data.options ?? null) as any),
         sortOrder: data.sortOrder,
-      },
+      } as any,
     });
     return NextResponse.json(created, { status: 201 });
   } catch (e) {
