@@ -1,26 +1,10 @@
-name: Deploy to DigitalOcean
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4 # Version update kiya warning hatane ke liye
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3 # Latest version use karein
+- name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          # Agar connection timeout ho raha hai toh ye lines help karengi:
           port: 22
-          timeout: 60s
           script: |
             cd /var/www/cyber_library
             git pull origin main

@@ -20,6 +20,7 @@ export const APP_SETTING_KEYS = {
   SITE_TITLE: { label: "Site title (browser tab, SEO)", secret: false },
   SITE_TAGLINE: { label: "Site tagline (e.g. The Focus Hub – shown under logo in navbar)", secret: false },
   SITE_HEADLINE: { label: "Main headline (homepage hero text)", secret: false },
+  FOOTER_TEXT: { label: "Footer text (shown at bottom of site)", secret: false },
 } as const;
 
 const SECRET_KEYS = new Set(

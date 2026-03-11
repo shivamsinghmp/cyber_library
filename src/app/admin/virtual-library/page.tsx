@@ -5,13 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, ImageIcon, Save } from "lucide-react";
 import toast from "react-hot-toast";
 
-const BRANDING_KEYS = [
-  "SITE_LOGO_URL",
-  "SITE_FAVICON_URL",
-  "SITE_TITLE",
-  "SITE_TAGLINE",
-  "SITE_HEADLINE",
-] as const;
+const BRANDING_KEYS = ["SITE_LOGO_URL", "SITE_FAVICON_URL", "SITE_TITLE", "SITE_TAGLINE", "SITE_HEADLINE", "FOOTER_TEXT"] as const;
 
 const LABELS: Record<string, string> = {
   SITE_LOGO_URL: "Logo URL",
@@ -19,6 +13,7 @@ const LABELS: Record<string, string> = {
   SITE_TITLE: "Site title",
   SITE_TAGLINE: "Tagline",
   SITE_HEADLINE: "Main headline (homepage hero)",
+   FOOTER_TEXT: "Footer text",
 };
 
 export default function AdminVirtualLibraryPage() {
@@ -30,6 +25,7 @@ export default function AdminVirtualLibraryPage() {
     SITE_TITLE: "",
     SITE_TAGLINE: "",
     SITE_HEADLINE: "",
+    FOOTER_TEXT: "",
   });
 
   useEffect(() => {
@@ -113,6 +109,20 @@ export default function AdminVirtualLibraryPage() {
             className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Shown in navbar, login, sidebar. Empty = /logo.svg</p>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
+            {LABELS.FOOTER_TEXT}
+          </label>
+          <textarea
+            value={values.FOOTER_TEXT}
+            onChange={(e) => setValue("FOOTER_TEXT", e.target.value)}
+            placeholder="© 2026 Virtual Library – The Focus Hub."
+            rows={2}
+            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none resize-none"
+          />
+          <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Shown at the very bottom of all public pages.</p>
         </div>
 
         <div>
