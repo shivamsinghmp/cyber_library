@@ -3,26 +3,27 @@ name: Deploy to DigitalOcean
 on:
   push:
     branches:
-      - main  # Agar aap master branch use karte hain toh yaha master likhein
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4 # Version update kiya warning hatane ke liye
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3 # Latest version use karein
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          # Agar connection timeout ho raha hai toh ye lines help karengi:
+          port: 22
+          timeout: 60s
           script: |
             cd /var/www/cyber_library
             git pull origin main
             npm install
             npm run build
-            # PM2 ko restart karein taaki naya code live ho jaye
             pm2 restart all || pm2 start npm --name "cyber-lib" -- start
