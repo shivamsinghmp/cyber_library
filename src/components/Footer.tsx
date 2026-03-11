@@ -38,7 +38,6 @@ async function FooterLoader() {
 export function Footer() {
   return (
     <Suspense fallback={<FooterInner footerText={null} />}>
-      {/* @ts-expect-error Async Server Component */}
       <FooterLoader />
     </Suspense>
   );
