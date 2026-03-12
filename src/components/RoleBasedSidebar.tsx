@@ -47,6 +47,7 @@ const roleNav: Record<
     { href: "/admin/students", label: "Student Management", icon: Users },
     { href: "/admin/staff", label: "Staff Management", icon: Briefcase },
     { href: "/admin/profile-fields", label: "Profile Fields", icon: UserCircle },
+    { href: "/admin/leads", label: "Leads", icon: ClipboardList },
     { href: "/admin/slots", label: "Study Room Management", icon: Calendar },
     { href: "/admin/coupons", label: "Coupons", icon: Tag },
     { href: "/admin/transactions", label: "Transactions", icon: Receipt },

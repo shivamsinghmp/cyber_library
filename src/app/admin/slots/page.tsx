@@ -38,6 +38,11 @@ type StudySlot = {
   updatedAt: string;
 };
 
+type CalendarAttendee = {
+  email: string | null;
+  responseStatus: string | null;
+};
+
 export default function AdminSlotsPage() {
   const [slots, setSlots] = useState<StudySlot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +60,9 @@ export default function AdminSlotsPage() {
   const [formPrice, setFormPrice] = useState(0);
   const [formIsActive, setFormIsActive] = useState(true);
   const [formSlotType, setFormSlotType] = useState<"STUDY" | "MENTORSHIP" | "MENTAL">("STUDY");
+  const [attendeesModalSlot, setAttendeesModalSlot] = useState<StudySlot | null>(null);
+  const [attendees, setAttendees] = useState<CalendarAttendee[] | null>(null);
+  const [attendeesLoading, setAttendeesLoading] = useState(false);
 
   const fetchSlots = useCallback(async () => {
     try {
@@ -107,6 +115,34 @@ export default function AdminSlotsPage() {
   function closeModals() {
     setCreateOpen(false);
     setEditSlot(null);
+    setAttendeesModalSlot(null);
+    setAttendees(null);
+  }
+
+  async function openAttendees(slot: StudySlot) {
+    if (!slot.calendarEventId) {
+      toast.error("No Calendar Event ID set for this slot.");
+      return;
+    }
+    setAttendeesModalSlot(slot);
+    setAttendees(null);
+    setAttendeesLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/calendar/event-attendees?eventId=${encodeURIComponent(slot.calendarEventId)}`
+      );
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(j.error || "Failed to load attendees");
+        setAttendeesLoading(false);
+        return;
+      }
+      const data = (await res.json()) as { attendees?: CalendarAttendee[] };
+      setAttendees(data.attendees ?? []);
+    } catch {
+      toast.error("Could not load attendees");
+    }
+    setAttendeesLoading(false);
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -330,6 +366,16 @@ export default function AdminSlotsPage() {
                             title="Copy Meet Link"
                           >
                             <LinkIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                        {slot.calendarEventId && (
+                          <button
+                            type="button"
+                            onClick={() => openAttendees(slot)}
+                            className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-[var(--cream-muted)] transition hover:bg-white/10 hover:text-[var(--cream)]"
+                            title="View Calendar Attendees (auto-admit)"
+                          >
+                            View attendees
                           </button>
                         )}
                         <button
@@ -662,6 +708,48 @@ export default function AdminSlotsPage() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* Attendees modal */}
+      <Modal
+        isOpen={!!attendeesModalSlot}
+        title={
+          attendeesModalSlot
+            ? `Calendar attendees – ${attendeesModalSlot.name}`
+            : "Calendar attendees"
+        }
+        onClose={() => {
+          setAttendeesModalSlot(null);
+          setAttendees(null);
+        }}
+      >
+        {attendeesLoading ? (
+          <p className="text-sm text-[var(--cream-muted)]">Loading attendees…</p>
+        ) : !attendeesModalSlot ? null : attendees == null ? (
+          <p className="text-sm text-[var(--cream-muted)]">
+            No data loaded. Try again.
+          </p>
+        ) : attendees.length === 0 ? (
+          <p className="text-sm text-[var(--cream-muted)]">
+            No attendees found for this Calendar event yet.
+          </p>
+        ) : (
+          <div className="space-y-2 text-sm">
+            {attendees.map((a, idx) => (
+              <div
+                key={`${a.email ?? "no-email"}-${idx}`}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2"
+              >
+                <span className="font-mono text-xs text-[var(--cream)]">
+                  {a.email || "—"}
+                </span>
+                <span className="text-xs text-[var(--cream-muted)]">
+                  {a.responseStatus || "unknown"}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </Modal>
     </div>

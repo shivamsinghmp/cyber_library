@@ -9,6 +9,7 @@ const ROLES = [
   { value: "STUDENT", label: "Student" },
   { value: "EMPLOYEE", label: "Staff" },
   { value: "AUTHOR", label: "Author" },
+  { value: "LEAD", label: "Landing form (new student)" },
 ] as const;
 
 const TYPES = [
@@ -179,7 +180,9 @@ export default function AdminProfileFieldsPage() {
           Profile fields
         </h1>
         <p className="mt-1 text-sm text-[var(--cream-muted)]">
-          Add custom fields to Student, Staff, or Author profiles. They will appear on the user’s profile form.
+          Add custom fields to Student, Staff, or Author profiles. They will appear on the user’s
+          profile form. Use the “Landing form (new student)” role to configure fields for the public
+          join page.
         </p>
       </div>
 

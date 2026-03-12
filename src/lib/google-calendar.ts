@@ -38,6 +38,43 @@ async function getCalendarClient(): Promise<{ client: calendar_v3.Calendar; cale
 
 export const calendarId = process.env.GOOGLE_CALENDAR_ID || "primary";
 
+/** Fetch attendees for a calendar event (for admin diagnostics / auto-admit visibility). */
+export async function getCalendarEventAttendees(
+  eventId: string
+): Promise<{ email: string | null; responseStatus: string | null }[] | null> {
+  const cal = await getCalendarClient();
+  if (!cal) return null;
+  const { client, calendarId: cid } = cal;
+
+  try {
+    const res = await client.events.get({
+      calendarId: cid,
+      eventId,
+    });
+    const attendees = res.data.attendees || [];
+    return attendees.map((a) => ({
+      email: a.email ?? null,
+      responseStatus: a.responseStatus ?? null,
+    }));
+  } catch (error: any) {
+    console.error(`Failed to fetch attendees for Calendar Event ${eventId}:`, error);
+    let errorString = "";
+    if (error.response?.data) {
+      errorString = JSON.stringify(error.response.data, null, 2);
+    } else {
+      errorString = error.toString();
+    }
+    try {
+      fs.writeFileSync(
+        "calendar-invite-error.txt",
+        `\n--- ATTENDEE FETCH ERROR AT ${new Date().toISOString()} ---\n${errorString}\n`,
+        { flag: "a" }
+      );
+    } catch (e) {}
+    return null;
+  }
+}
+
 /**
  * Automatically adds a student's email as an attendee (Guest) to an existing
  * Google Calendar event, allowing them to bypass the waiting room.

@@ -62,6 +62,32 @@ export default function AdminBinPage() {
     }
   }
 
+  async function handlePermanentDelete(item: BinItem) {
+    if (
+      !confirm(
+        `Permanently delete "${item.email}"? This will remove the user and related data and cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/bin/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: item.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("User permanently deleted.");
+        fetchBin();
+      } else {
+        toast.error(data?.error ?? "Failed to delete permanently.");
+      }
+    } catch {
+      toast.error("Failed to delete permanently.");
+    }
+  }
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";
     return new Date(dateStr).toLocaleString("en-IN", {
@@ -108,7 +134,7 @@ export default function AdminBinPage() {
                 <th className="px-4 py-3 font-medium text-[var(--cream-muted)]">Name / Email</th>
                 <th className="px-4 py-3 font-medium text-[var(--cream-muted)]">Unique ID</th>
                 <th className="px-4 py-3 font-medium text-[var(--cream-muted)]">Deleted at</th>
-                <th className="px-4 py-3 font-medium text-[var(--cream-muted)]">Action</th>
+                <th className="px-4 py-3 font-medium text-[var(--cream-muted)]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -130,14 +156,24 @@ export default function AdminBinPage() {
                     {formatDate(item.deletedAt)}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => handleRestore(item)}
-                      className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Restore
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(item)}
+                        className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Restore
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePermanentDelete(item)}
+                        className="flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-300 transition hover:bg-red-500/20"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete forever
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

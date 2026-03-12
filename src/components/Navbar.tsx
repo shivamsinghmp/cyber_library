@@ -17,6 +17,7 @@ const navLinks = [
   { href: "/blog", label: "Blog" },
   { href: "/rules", label: "Rules" },
   { href: "/about", label: "About" },
+  { href: "/join", label: "Join now" },
   { href: "/#contact", label: "Contact" },
 ];
 

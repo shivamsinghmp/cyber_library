@@ -11,39 +11,39 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  studentId     String?   @unique // VL-YYYY-MM-XXXXX (e.g. VL-2026-03-47291)
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?   // hashed; null for OAuth-only users
-  goal          String?   // e.g. UPSC, JEE, etc.
-  role          String    @default("STUDENT") // ADMIN | EMPLOYEE | STUDENT | INFLUENCER | AUTHOR
-  referralCode  String?   @unique // for influencers/referrals (e.g. INV-ABC123)
-  referredById  String?   // user who referred this account (typically an INFLUENCER)
-  referralRewarded Boolean @default(false) // has first-purchase referral reward been granted
-  deletedAt     DateTime? // soft delete: moved to bin; auto-deleted after 30 days
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  studentId        String?   @unique // VL-YYYY-MM-XXXXX (e.g. VL-2026-03-47291)
+  name             String?
+  email            String    @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String? // hashed; null for OAuth-only users
+  goal             String? // e.g. UPSC, JEE, etc.
+  role             String    @default("STUDENT") // ADMIN | EMPLOYEE | STUDENT | INFLUENCER | AUTHOR
+  referralCode     String?   @unique // for influencers/referrals (e.g. INV-ABC123)
+  referredById     String? // user who referred this account (typically an INFLUENCER)
+  referralRewarded Boolean   @default(false) // has first-purchase referral reward been granted
+  deletedAt        DateTime? // soft delete: moved to bin; auto-deleted after 30 days
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  accounts           Account[]
-  sessions           Session[]
-  studySessions      StudySession[]
-  profile            Profile?
-  loginLogs          LoginLog[]
-  couponRedemptions  CouponRedemption[]
-  roomSubscriptions  RoomSubscription[]
-  roomCheckIns       RoomCheckIn[]
-  transactions       Transaction[]
-  rewardWinnings     RewardWinner[]
-  whatsAppMessages   WhatsAppMessage[]
-  formSubmissions    StudentFormSubmission[]
-  digitalPurchases   DigitalPurchase[]
-  author             Author?   // one-to-one: user linked as blog author
+  accounts          Account[]
+  sessions          Session[]
+  studySessions     StudySession[]
+  profile           Profile?
+  loginLogs         LoginLog[]
+  couponRedemptions CouponRedemption[]
+  roomSubscriptions RoomSubscription[]
+  roomCheckIns      RoomCheckIn[]
+  transactions      Transaction[]
+  rewardWinnings    RewardWinner[]
+  whatsAppMessages  WhatsAppMessage[]
+  formSubmissions   StudentFormSubmission[]
+  digitalPurchases  DigitalPurchase[]
+  author            Author? // one-to-one: user linked as blog author
 
-  referredBy  User?  @relation("UserReferrals", fields: [referredById], references: [id])
-  referrals   User[] @relation("UserReferrals")
+  referredBy User?  @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals  User[] @relation("UserReferrals")
 }
 
 model LoginLog {
@@ -56,40 +56,40 @@ model LoginLog {
 }
 
 model Profile {
-  id                 String    @id @default(cuid())
-  userId             String    @unique
-  fullName           String?
-  phone              String?
-  whatsappNumber     String?
-  studyGoal          String?
-  targetExam         String?
-  targetYear         String?
-  primaryPainPoint   String?
-  institution        String?
-  bio                String?
-  totalStudyHours    Int       @default(0)
-  profilePicUrl      String?
-  currentStreak      Int       @default(0)
-  lastStudyDate      DateTime?
-  longestStreak      Int       @default(0)
-  totalPoints        Int       @default(0)
-  customFields       Json?     // admin-defined custom fields (key -> value)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  fullName         String?
+  phone            String?
+  whatsappNumber   String?
+  studyGoal        String?
+  targetExam       String?
+  targetYear       String?
+  primaryPainPoint String?
+  institution      String?
+  bio              String?
+  totalStudyHours  Int       @default(0)
+  profilePicUrl    String?
+  currentStreak    Int       @default(0)
+  lastStudyDate    DateTime?
+  longestStreak    Int       @default(0)
+  totalPoints      Int       @default(0)
+  customFields     Json? // admin-defined custom fields (key -> value)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Admin-defined profile fields per role (Student, Staff, Author)
 model ProfileFieldDefinition {
-  id        String   @id @default(cuid())
-  role      String   // STUDENT | EMPLOYEE | AUTHOR
-  key       String   // unique key (e.g. father_name)
-  label     String   // display label
-  type      String   @default("text") // text | number | email | textarea | select
-  required  Boolean  @default(false)
-  options   Json?    // for select: ["Option A", "Option B"]
-  sortOrder Int      @default(0)
+  id        String  @id @default(cuid())
+  role      String // STUDENT | EMPLOYEE | AUTHOR
+  key       String // unique key (e.g. father_name)
+  label     String // display label
+  type      String  @default("text") // text | number | email | textarea | select
+  required  Boolean @default(false)
+  options   Json? // for select: ["Option A", "Option B"]
+  sortOrder Int     @default(0)
 
   @@unique([role, key])
 }
@@ -101,12 +101,12 @@ model Account {
   provider          String
   providerAccountId String
   refresh_token     String?
-  access_token     String?
-  expires_at       Int?
-  token_type       String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
   scope             String?
-  id_token         String?
-  session_state    String?
+  id_token          String?
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -125,26 +125,26 @@ model Session {
 model VerificationToken {
   identifier String
   token      String   @unique
-  expires   DateTime
+  expires    DateTime
 
   @@unique([identifier, token])
 }
 
 // Bookable study slots (admin-managed)
 model StudySlot {
-  id        String   @id @default(cuid())
-  roomId    String?  @unique // e.g. RM-2026-03-47291 (unique room ID)
-  name      String   // e.g. "Morning"
-  timeLabel String   // e.g. "8:00 AM – 12:00 PM"
-  goal      String?  // e.g. UPSC, JEE, NEET, or null for any
-  slotType  String   @default("STUDY") // STUDY | MENTORSHIP | MENTAL
-  meetLink  String?  // Google Meet URL
+  id              String   @id @default(cuid())
+  roomId          String?  @unique // e.g. RM-2026-03-47291 (unique room ID)
+  name            String // e.g. "Morning"
+  timeLabel       String // e.g. "8:00 AM – 12:00 PM"
+  goal            String? // e.g. UPSC, JEE, NEET, or null for any
+  slotType        String   @default("STUDY") // STUDY | MENTORSHIP | MENTAL
+  meetLink        String? // Google Meet URL
   calendarEventId String? // Associated Google Calendar Event ID for auto-admit
-  capacity  Int      @default(10)
-  price     Int      @default(0) // price in rupees (0 = free)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  capacity        Int      @default(10)
+  price           Int      @default(0) // price in rupees (0 = free)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   subscriptions RoomSubscription[]
   checkIns      RoomCheckIn[]
@@ -167,14 +167,14 @@ model RoomSubscription {
 model Coupon {
   id             String    @id @default(cuid())
   code           String    @unique // e.g. SAVE10, WELCOME20
-  discountType   String    // PERCENT | FIXED
-  discountValue  Int       // e.g. 10 for 10%, or 50 for ₹50
-  minOrderAmount Int?      // optional minimum order (in rupees)
-  maxTotalUses   Int?      // optional; null = unlimited total redemptions
+  discountType   String // PERCENT | FIXED
+  discountValue  Int // e.g. 10 for 10%, or 50 for ₹50
+  minOrderAmount Int? // optional minimum order (in rupees)
+  maxTotalUses   Int? // optional; null = unlimited total redemptions
   validFrom      DateTime? // optional start date
   validUntil     DateTime? // optional end date
   isActive       Boolean   @default(true)
-  description    String?   // e.g. "10% off"
+  description    String? // e.g. "10% off"
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -182,10 +182,10 @@ model Coupon {
 }
 
 model CouponRedemption {
-  id        String   @id @default(cuid())
-  couponId  String
-  userId    String
-  usedAt    DateTime @default(now())
+  id       String   @id @default(cuid())
+  couponId String
+  userId   String
+  usedAt   DateTime @default(now())
 
   coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -196,8 +196,8 @@ model CouponRedemption {
 // WhatsApp OTP for Sign Up
 model WhatsAppOTP {
   id          String   @id @default(cuid())
-  phoneNumber String   // The number receiving the OTP
-  otp         String   // The 6-digit code
+  phoneNumber String // The number receiving the OTP
+  otp         String // The 6-digit code
   expiresAt   DateTime // Expiration timestamp
   verified    Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -208,9 +208,9 @@ model WhatsAppOTP {
 // WhatsApp Message History (Admin to Student, Student to Admin)
 model WhatsAppMessage {
   id          String   @id @default(cuid())
-  userId      String?  
-  phoneNumber String   // Destination/origin number
-  direction   String   // "INBOUND" | "OUTBOUND"
+  userId      String?
+  phoneNumber String // Destination/origin number
+  direction   String // "INBOUND" | "OUTBOUND"
   content     String   @db.Text
   status      String   @default("SENT") // SENT, DELIVERED, READ, FAILED
   createdAt   DateTime @default(now())
@@ -225,11 +225,11 @@ model BlogPost {
   title           String
   excerpt         String?   @db.Text
   body            String    @db.Text
-  metaTitle       String?   // SEO title
+  metaTitle       String? // SEO title
   metaDescription String?   @db.Text // SEO meta description
   customCss       String?   @db.Text // optional custom CSS for this post (sanitized)
   publishedAt     DateTime? // null = draft
-  authorId        String?   // optional link to Author
+  authorId        String? // optional link to Author
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -244,7 +244,7 @@ model Author {
   bio          String?  @db.Text
   imageUrl     String?
   userId       String?  @unique // when set, this user can log in and manage their posts at /author
-  customFields Json?    // admin-defined custom fields for AUTHOR profile
+  customFields Json? // admin-defined custom fields for AUTHOR profile
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -255,7 +255,7 @@ model Author {
 // Razorpay API keys (Key Secret stored encrypted; admin only)
 model RazorpaySetting {
   id                 String   @id @default(cuid())
-  keyId              String?  // Key ID (public, for frontend)
+  keyId              String? // Key ID (public, for frontend)
   keySecretEncrypted String?  @db.Text // Key Secret encrypted with ENCRYPTION_KEY
   iv                 String?  @db.Text // IV for decryption
   updatedAt          DateTime @updatedAt
@@ -264,26 +264,26 @@ model RazorpaySetting {
 // SMTP / email settings (password stored encrypted; admin only)
 model SmtpSetting {
   id            String   @id @default(cuid())
-  host          String?  // SMTP_HOST
-  port          Int?     // SMTP_PORT
-  user          String?  // SMTP_USER
+  host          String? // SMTP_HOST
+  port          Int? // SMTP_PORT
+  user          String? // SMTP_USER
   passEncrypted String?  @db.Text // SMTP_PASS encrypted with ENCRYPTION_KEY
   iv            String?  @db.Text // IV for decryption
-  from          String?  // SMTP_FROM
+  from          String? // SMTP_FROM
   updatedAt     DateTime @updatedAt
 }
 
 // Student order/transaction (after checkout)
 model Transaction {
-  id                String   @id @default(cuid())
-  transactionId      String   @unique // e.g. TXN-2026-03-47291
-  userId            String
-  amount            Int      // total amount in rupees
-  currency          String   @default("INR")
-  status            String   @default("SUCCESS") // SUCCESS | PENDING | FAILED
-  paymentGatewayId  String?  // e.g. Razorpay payment_id
-  orderDetails      Json?    // [{ slotId?, productId?, name, price }]
-  createdAt         DateTime @default(now())
+  id               String   @id @default(cuid())
+  transactionId    String   @unique // e.g. TXN-2026-03-47291
+  userId           String
+  amount           Int // total amount in rupees
+  currency         String   @default("INR")
+  status           String   @default("SUCCESS") // SUCCESS | PENDING | FAILED
+  paymentGatewayId String? // e.g. Razorpay payment_id
+  orderDetails     Json? // [{ slotId?, productId?, name, price }]
+  createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -293,8 +293,8 @@ model DigitalProduct {
   id          String   @id @default(cuid())
   name        String
   description String?  @db.Text
-  price       Int      // rupees
-  imageUrl    String?  // optional cover image
+  price       Int // rupees
+  imageUrl    String? // optional cover image
   downloadUrl String?  @db.Text // link or path to file (e.g. S3 URL, or /api/download/xxx)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -308,39 +308,47 @@ model DigitalPurchase {
   id            String   @id @default(cuid())
   userId        String
   productId     String
-  transactionId String?  // link to payment
+  transactionId String? // link to payment
   purchasedAt   DateTime @default(now())
 
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   DigitalProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product DigitalProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([productId])
 }
 
+// Marketing / lead capture form submissions (public landing form)
+model LeadSubmission {
+  id        String   @id @default(cuid())
+  data      Json // dynamic key -> value pairs from landing form
+  source    String? // optional source/utm or notes
+  createdAt DateTime @default(now())
+}
+
 // Reward program: admin creates rewards; winners get amount
 model Reward {
-  id                 String   @id @default(cuid())
-  name               String   // e.g. "Top Streak of the Month"
-  description        String?  @db.Text
-  amount             Int      // prize amount in rupees (what winner receives)
-  enrollmentAmount   Int      @default(0) // rupees student pays to enroll in this reward
-  type               String   @default("OTHER") // STREAK, REFERRAL, CONTEST, OTHER
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String // e.g. "Top Streak of the Month"
+  description      String?  @db.Text
+  amount           Int // prize amount in rupees (what winner receives)
+  enrollmentAmount Int      @default(0) // rupees student pays to enroll in this reward
+  type             String   @default("OTHER") // STREAK, REFERRAL, CONTEST, OTHER
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   winners RewardWinner[]
 }
 
 model RewardWinner {
-  id        String   @id @default(cuid())
-  userId    String
-  rewardId  String
-  status    String   @default("PENDING") // PENDING | PAID
-  wonAt     DateTime @default(now())
-  paidAt    DateTime?
-  notes     String?  @db.Text
+  id       String    @id @default(cuid())
+  userId   String
+  rewardId String
+  status   String    @default("PENDING") // PENDING | PAID
+  wonAt    DateTime  @default(now())
+  paidAt   DateTime?
+  notes    String?   @db.Text
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
@@ -350,22 +358,22 @@ model RewardWinner {
 
 // Tracks study hours per user
 model StudySession {
-  id        String   @id @default(cuid())
-  userId    String
-  startedAt DateTime
-  endedAt   DateTime?
-  durationMinutes Int?  // optional; can be computed from startedAt/endedAt
-  createdAt DateTime @default(now())
+  id              String    @id @default(cuid())
+  userId          String
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationMinutes Int? // optional; can be computed from startedAt/endedAt
+  createdAt       DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Room check-in: student marks attendance for a subscribed slot (dashboard or WhatsApp)
 model RoomCheckIn {
-  id           String   @id @default(cuid())
-  userId       String
-  studySlotId  String
-  checkedInAt  DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  studySlotId String
+  checkedInAt DateTime @default(now())
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   studySlot StudySlot @relation(fields: [studySlotId], references: [id], onDelete: Cascade)
@@ -377,7 +385,7 @@ model RoomCheckIn {
 // Admin-created form that students fill from dashboard (e.g. feedback, survey)
 model StudentForm {
   id          String   @id @default(cuid())
-  title       String   // e.g. "Student Feedback Form"
+  title       String // e.g. "Student Feedback Form"
   description String?  @db.Text
   isActive    Boolean  @default(true) // only one active form shown to students
   createdAt   DateTime @default(now())
@@ -388,13 +396,13 @@ model StudentForm {
 }
 
 model StudentFormField {
-  id        String   @id @default(cuid())
-  formId    String
-  label     String   // e.g. "Full Name"
-  type      String   @default("TEXT") // TEXT, EMAIL, NUMBER, TEXTAREA, SELECT
-  required  Boolean  @default(false)
-  options   String?  @db.Text // for SELECT: comma-separated options
-  order     Int      @default(0)
+  id       String  @id @default(cuid())
+  formId   String
+  label    String // e.g. "Full Name"
+  type     String  @default("TEXT") // TEXT, EMAIL, NUMBER, TEXTAREA, SELECT
+  required Boolean @default(false)
+  options  String? @db.Text // for SELECT: comma-separated options
+  order    Int     @default(0)
 
   form StudentForm @relation(fields: [formId], references: [id], onDelete: Cascade)
 
@@ -402,14 +410,14 @@ model StudentFormField {
 }
 
 model StudentFormSubmission {
-  id         String   @id @default(cuid())
-  formId     String
-  userId     String
-  data       Json     // { fieldId: value, ... }
+  id          String   @id @default(cuid())
+  formId      String
+  userId      String
+  data        Json // { fieldId: value, ... }
   submittedAt DateTime @default(now())
 
   form StudentForm @relation(fields: [formId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([formId])
   @@index([userId])
@@ -420,7 +428,7 @@ model TrafficVisit {
   id         String   @id @default(cuid())
   ip         String
   userAgent  String?  @db.Text
-  deviceType String  // MOBILE | TABLET | LAPTOP | DESKTOP
+  deviceType String // MOBILE | TABLET | LAPTOP | DESKTOP
   path       String?
   createdAt  DateTime @default(now())
 
@@ -430,9 +438,9 @@ model TrafficVisit {
 
 // Admin-configurable app settings (env vars stored in DB; secrets encrypted)
 model AppSetting {
-  id              String   @id @default(cuid())
-  key             String   @unique  // e.g. WHATSAPP_PHONE_NUMBER_ID, CRON_SECRET
-  valueEncrypted  String?  @db.Text // value (plain or encrypted; if iv set then encrypted)
-  iv              String?  @db.Text
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  key            String   @unique // e.g. WHATSAPP_PHONE_NUMBER_ID, CRON_SECRET
+  valueEncrypted String?  @db.Text // value (plain or encrypted; if iv set then encrypted)
+  iv             String?  @db.Text
+  updatedAt      DateTime @updatedAt
 }

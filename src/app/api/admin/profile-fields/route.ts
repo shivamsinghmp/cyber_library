@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const role = (u: unknown) => (u as { role?: string })?.role;
-const ROLES = ["STUDENT", "EMPLOYEE", "AUTHOR"] as const;
+const ROLES = ["STUDENT", "EMPLOYEE", "AUTHOR", "LEAD"] as const;
 const TYPES = ["text", "number", "email", "textarea", "select"] as const;
 
 /** GET: List profile field definitions, optionally by role. Query: ?role=STUDENT */
