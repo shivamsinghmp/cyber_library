@@ -70,8 +70,10 @@ export default function HomePage() {
           </h1>
 
           <p className="max-w-xl text-sm leading-relaxed text-[var(--cream-muted)] sm:text-base">
-            Virtual Library ek 24/7 silent online study room hai jahan log Google Meet par saath
-            baith kar kaam karte hain. Cameras on, mics muted – bas deep work.
+            Virtual Library ek 24/7 structured online study program hai jahan students aur learners
+            Google Meet ke through silent study sessions join karte hain. Har session me clear
+            rules, timed focus blocks aur mentor-led guidance hoti hai – koi social networking
+            nahi, sirf focused padhai.
           </p>
 
           <div className="flex flex-wrap gap-3">
@@ -163,9 +165,9 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--cream-muted)]">
-                <span>Built for students, freelancers &amp; self‑learners.</span>
+                <span>Built for students and serious learners preparing for exams and career goals.</span>
                 <span className="rounded-full bg-white/10 px-3 py-1">
-                  No small talk. Just deep work.
+                  Not a social network. Just structured study support.
                 </span>
               </div>
             </div>

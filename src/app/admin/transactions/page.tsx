@@ -94,7 +94,7 @@ export default function AdminTransactionsPage() {
         Transactions
       </h1>
       <p className="mb-6 text-sm text-[var(--cream-muted)]">
-        All orders and payments across the platform.
+        All student orders and subscription payments processed through Virtual Library.
       </p>
 
       {loading ? (

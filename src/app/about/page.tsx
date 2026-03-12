@@ -8,7 +8,9 @@ export default function AboutPage() {
           What is Virtual Library?
         </h1>
         <p className="mt-2 text-sm text-[var(--cream-muted)] md:text-base">
-          A 24/7 online focus room where people study together in silence on Google Meet.
+          A 24/7 online study support service where students join structured, silent study sessions
+          on Google Meet. Sessions are designed for exam preparation and deep work – with clear
+          rules, timers and a distraction‑free environment.
         </p>
       </div>
 
@@ -17,8 +19,8 @@ export default function AboutPage() {
           Virtual Library is an always-on study space built around the idea of{" "}
           <strong className="text-[var(--cream)]">body doubling</strong>: working in the presence of
           others so you actually show up and stay on task. You join a silent Google Meet where
-          everyone has their camera on and mic muted. No small talk — just deep work, Pomodoro
-          blocks, and optional lo-fi ambience.
+          everyone has their camera on and mic muted. No social networking or public posts —
+          just guided deep work, Pomodoro blocks, and optional lo-fi ambience.
         </p>
         <p>
           <strong className="text-[var(--cream)]">Body doubling</strong> means doing a task while

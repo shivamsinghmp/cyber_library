@@ -21,9 +21,10 @@ export default function ShippingPage() {
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">2. When you get access</h2>
           <p>
             After successful payment, your access is activated immediately. You will receive a
-            confirmation email with instructions to join sessions, access your dashboard, and
-            (where applicable) links to our community (e.g. WhatsApp). No shipping address is
-            required; access is tied to your account and the email used at checkout.
+            confirmation email with instructions to join study sessions, access your dashboard,
+            and (where applicable) support or information channels for enrolled learners (e.g.
+            WhatsApp announcement group). No shipping address is required; access is tied to your
+            account and the email used at checkout.
           </p>
         </section>
         <section>
