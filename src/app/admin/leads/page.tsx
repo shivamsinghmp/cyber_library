@@ -56,6 +56,18 @@ export default function AdminLeadsPage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-[var(--cream-muted)]">
+          Total leads: <span className="font-semibold text-[var(--cream)]">{leads.length}</span>
+        </p>
+        <Link
+          href="/api/admin/export/leads"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-black/40 px-3 py-1.5 text-xs font-medium text-[var(--cream)] hover:bg-white/10"
+        >
+          Export as CSV (Excel)
+        </Link>
+      </div>
+
       {loading ? (
         <p className="text-sm text-[var(--cream-muted)]">Loading…</p>
       ) : leads.length === 0 ? (
