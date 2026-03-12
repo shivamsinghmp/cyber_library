@@ -1,6 +1,6 @@
- "use client";
+"use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Users, Clock, Focus, Sparkles } from "lucide-react";
@@ -14,7 +14,7 @@ type FieldDef = {
   options: string[] | null;
 };
 
-export default function JoinPage() {
+function JoinPageContent() {
   const searchParams = useSearchParams();
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -282,6 +282,20 @@ export default function JoinPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
+          <p className="text-sm text-[var(--cream-muted)]">Loading…</p>
+        </div>
+      }
+    >
+      <JoinPageContent />
+    </Suspense>
   );
 }
 
