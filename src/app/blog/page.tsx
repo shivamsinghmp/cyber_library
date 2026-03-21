@@ -8,11 +8,17 @@ function formatDate(s: Date | string) {
 }
 
 export default async function BlogPage() {
-  const posts = await prisma.blogPost.findMany({
-    where: { publishedAt: { not: null } },
-    orderBy: { publishedAt: "desc" },
-    select: { slug: true, title: true, excerpt: true, publishedAt: true },
-  });
+  let posts: { slug: string; title: string; excerpt: string | null; publishedAt: Date | null }[] = [];
+  try {
+    posts = await prisma.blogPost.findMany({
+      where: { publishedAt: { not: null } },
+      orderBy: { publishedAt: "desc" },
+      select: { slug: true, title: true, excerpt: true, publishedAt: true },
+    });
+  } catch {
+    // DB not migrated yet (e.g. AppSetting/BlogPost missing) — still allow build & show empty list
+    posts = [];
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:py-12">

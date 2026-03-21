@@ -41,6 +41,9 @@ model User {
   formSubmissions   StudentFormSubmission[]
   digitalPurchases  DigitalPurchase[]
   author            Author? // one-to-one: user linked as blog author
+  dailyTasks        DailyTask[]
+  meetPollResponses MeetPollResponse[]
+  meetAddonLinkCodes MeetAddonLinkCode[]
 
   referredBy User?  @relation("UserReferrals", fields: [referredById], references: [id])
   referrals  User[] @relation("UserReferrals")
@@ -324,6 +327,64 @@ model LeadSubmission {
   data      Json // dynamic key -> value pairs from landing form
   source    String? // optional source/utm or notes
   createdAt DateTime @default(now())
+}
+
+// Meet add-on: today's task (shown in Meet side panel; completion synced to dashboard)
+model DailyTask {
+  id          String    @id @default(cuid())
+  userId      String
+  taskDate    DateTime  @db.Date // which day this task is for
+  title       String    @db.Text // e.g. "Complete Chapter 5"
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskDate])
+  @@index([userId])
+  @@index([taskDate])
+}
+
+// Meet add-on: poll/quiz (admin-created; shown in Meet side panel)
+model MeetPoll {
+  id        String   @id @default(cuid())
+  question  String   @db.Text
+  options   Json     // ["Option A", "Option B", ...]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  responses MeetPollResponse[]
+}
+
+// Meet add-on: student's poll/quiz response (shown on dashboard)
+model MeetPollResponse {
+  id        String   @id @default(cuid())
+  userId    String
+  pollId    String
+  answer    String   // selected option text or answer
+  createdAt DateTime @default(now())
+
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poll MeetPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pollId])
+  @@index([userId])
+  @@index([pollId])
+}
+
+// Meet add-on: one-time code to link add-on without typing password (from dashboard)
+model MeetAddonLinkCode {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String   // 6-digit code
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([code])
+  @@index([code])
+  @@index([expiresAt])
 }
 
 // Reward program: admin creates rewards; winners get amount

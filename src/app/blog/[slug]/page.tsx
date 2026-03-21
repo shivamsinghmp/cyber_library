@@ -14,22 +14,31 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = await prisma.blogPost.findFirst({
-    where: { slug, publishedAt: { not: null } },
-    select: { title: true, metaTitle: true, metaDescription: true, excerpt: true },
-  });
-  if (!post) return { title: "Post not found" };
-  return {
-    title: post.metaTitle || post.title,
-    description: post.metaDescription || post.excerpt || undefined,
-  };
+  try {
+    const post = await prisma.blogPost.findFirst({
+      where: { slug, publishedAt: { not: null } },
+      select: { title: true, metaTitle: true, metaDescription: true, excerpt: true },
+    });
+    if (!post) return { title: "Post not found" };
+    return {
+      title: post.metaTitle || post.title,
+      description: post.metaDescription || post.excerpt || undefined,
+    };
+  } catch {
+    return { title: "Blog" };
+  }
 }
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = await prisma.blogPost.findFirst({
-    where: { slug, publishedAt: { not: null } },
-  });
+  let post: Awaited<ReturnType<typeof prisma.blogPost.findFirst>> = null;
+  try {
+    post = await prisma.blogPost.findFirst({
+      where: { slug, publishedAt: { not: null } },
+    });
+  } catch {
+    notFound();
+  }
   if (!post) notFound();
 
   return (

@@ -30,7 +30,7 @@ export async function GET() {
     if (!session?.user || role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    let slots = await prisma.studySlot.findMany({
+    const slots = await prisma.studySlot.findMany({
       orderBy: { createdAt: "asc" },
     });
     for (const s of slots) {
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     const roomId = await generateRoomId();
-    const validSlotData = { ...parsed.data } as Record<string, any>;
+    const validSlotData = { ...parsed.data } as Record<string, unknown>;
     delete validSlotData.autoGenerateMeet;
     delete validSlotData.meetLink;
     delete validSlotData.calendarEventId;

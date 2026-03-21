@@ -31,6 +31,7 @@ import {
   PenLine,
   Plus,
   ImageIcon,
+  Video,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -49,6 +50,7 @@ const roleNav: Record<
     { href: "/admin/profile-fields", label: "Profile Fields", icon: UserCircle },
     { href: "/admin/leads", label: "Leads", icon: ClipboardList },
     { href: "/admin/slots", label: "Study Room Management", icon: Calendar },
+    { href: "/admin/meet-polls", label: "Meet Polls", icon: Video },
     { href: "/admin/coupons", label: "Coupons", icon: Tag },
     { href: "/admin/transactions", label: "Transactions", icon: Receipt },
     { href: "/admin/bin", label: "Bin", icon: Trash2 },

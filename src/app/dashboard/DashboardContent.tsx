@@ -97,6 +97,11 @@ type ReferredUser = {
   rewarded: boolean;
 };
 
+type MeetAddonData = {
+  todayTask: { id: string; title: string; completedAt: string | null } | null;
+  pollResponses: { id: string; question: string; answer: string; createdAt: string }[];
+};
+
 const NOTICES = [
   "New weekend marathon session from 6 AM – 6 PM.",
   "Maintenance: Sunday 2–3 AM. Rooms may be briefly unavailable.",
@@ -138,6 +143,37 @@ export function DashboardContent({ userName }: { userName: string }) {
   const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([]);
   const [referralLoading, setReferralLoading] = useState(true);
   const [referralGenerating, setReferralGenerating] = useState(false);
+  const [meetAddonData, setMeetAddonData] = useState<MeetAddonData | null>(null);
+  const [meetAddonLoading, setMeetAddonLoading] = useState(true);
+  const [meetAddonCode, setMeetAddonCode] = useState<string | null>(null);
+  const [meetAddonCodeLoading, setMeetAddonCodeLoading] = useState(false);
+  const [meetAddonCodeExpiry, setMeetAddonCodeExpiry] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/dashboard/meet-addon", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setMeetAddonData(d))
+      .catch(() => {})
+      .finally(() => setMeetAddonLoading(false));
+  }, []);
+
+  async function handleGetMeetAddonCode() {
+    setMeetAddonCodeLoading(true);
+    setMeetAddonCode(null);
+    setMeetAddonCodeExpiry(null);
+    try {
+      const res = await fetch("/api/meet-addon/link-code", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.code) {
+        setMeetAddonCode(data.code);
+        setMeetAddonCodeExpiry(data.expiresInMinutes ?? 5);
+      }
+    } catch {
+      toast.error("Could not get code");
+    } finally {
+      setMeetAddonCodeLoading(false);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/study/session", { credentials: "include" })
@@ -550,6 +586,86 @@ export function DashboardContent({ userName }: { userName: string }) {
           </Link>
         </motion.div>
 
+        {/* Meet add-on: Get code (no password in Meet) + Today's task & poll responses */}
+        <motion.section
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="rounded-2xl border border-white/10 bg-black/30 p-4"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-[var(--cream)] flex items-center gap-2">
+              <Video className="h-4 w-4 text-[var(--accent)]" />
+              Meet add-on
+            </h2>
+            <Link
+              href="/meet-addon/panel"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[var(--accent)] hover:underline"
+            >
+              Open add-on
+            </Link>
+          </div>
+          <p className="text-xs text-[var(--cream-muted)] mb-3">
+            Use the add-on in Google Meet without typing password: get a code here and enter it in the add-on.
+          </p>
+          <div className="mb-4">
+            {meetAddonCode ? (
+              <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-3 text-center">
+                <p className="text-xs text-[var(--cream-muted)] mb-1">Enter this code in the Meet add-on (valid for {meetAddonCodeExpiry ?? 5} min)</p>
+                <p className="font-mono text-2xl font-bold tracking-[0.3em] text-[var(--cream)]">{meetAddonCode}</p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleGetMeetAddonCode}
+                disabled={meetAddonCodeLoading}
+                className="rounded-lg border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-4 py-2 text-sm font-medium text-[var(--cream)] hover:bg-[var(--accent)]/20 flex items-center gap-2"
+              >
+                {meetAddonCodeLoading ? (
+                  <>
+                    <span className="animate-pulse">Generating…</span>
+                  </>
+                ) : (
+                  "Get code for Meet add-on"
+                )}
+              </button>
+            )}
+          </div>
+          {!meetAddonLoading && (meetAddonData?.todayTask || (meetAddonData?.pollResponses?.length ?? 0) > 0) && (
+            <div className="space-y-3 border-t border-white/5 pt-3">
+              {meetAddonData?.todayTask && (
+                <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                  <p className="text-xs font-medium text-[var(--cream-muted)]">Today&apos;s task</p>
+                  <p className={`text-sm text-[var(--cream)] ${meetAddonData.todayTask.completedAt ? "line-through text-[var(--cream-muted)]" : ""}`}>
+                    {meetAddonData.todayTask.title}
+                  </p>
+                  {meetAddonData.todayTask.completedAt && (
+                    <p className="text-xs text-emerald-400/90 mt-1 flex items-center gap-1">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Completed
+                    </p>
+                  )}
+                </div>
+              )}
+              {meetAddonData?.pollResponses && meetAddonData.pollResponses.length > 0 && (
+                <div className="rounded-xl border border-white/5 bg-black/20 p-3">
+                  <p className="text-xs font-medium text-[var(--cream-muted)] mb-2">Your poll answers</p>
+                  <ul className="space-y-1.5 text-sm">
+                    {meetAddonData.pollResponses.map((r) => (
+                      <li key={r.id} className="text-[var(--cream)]">
+                        <span className="text-[var(--cream-muted)]">{r.question}</span>
+                        <span className="ml-1 font-medium">→ {r.answer}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </motion.section>
+
         {/* My Subscribed Study Rooms */}
         <motion.section
           initial={{ opacity: 0, y: 16 }}
@@ -576,7 +692,7 @@ export function DashboardContent({ userName }: { userName: string }) {
           ) : subscribedRooms.length === 0 ? (
             <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-center flex flex-col items-center">
               <p className="text-sm text-[var(--cream-muted)] mb-3">
-                You haven't subscribed to any study rooms yet.
+                You haven&apos;t subscribed to any study rooms yet.
               </p>
               <Link href="/study-room" className="inline-flex rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:opacity-90">
                 Explore Study Rooms

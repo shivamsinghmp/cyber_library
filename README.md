@@ -14,11 +14,13 @@ Next.js app with PostgreSQL (Prisma), NextAuth.js (Email/Password + Google), and
    - Set `DATABASE_URL` (PostgreSQL) and `AUTH_SECRET`
    - Optional: `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` for Google login
 
-3. **Database**
+3. **Database** (required before `npm run build` works fully, and for the site to run)
    ```bash
+   npx prisma generate
    npx prisma db push
    # or: npx prisma migrate dev --name init
    ```
+   If you see **`The table public.AppSetting does not exist`** (or `BlogPost`), your `DATABASE_URL` database has no schema yet — run `db push` or `migrate deploy` on **that same database** (local + production).
 
 4. **Run**
    ```bash
