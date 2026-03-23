@@ -1,15 +1,15 @@
-name: Deploy to GCP VM
+name: CI/CD Deploy to GCP
 
 on:
   push:
     branches:
-      - main  # Jab aap 'main' branch par push karenge tabhi chalega
+      - main  # Agar aapka branch 'master' hai toh yahan master likhein
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Deploy via SSH
@@ -19,9 +19,16 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            # Folder mein jayein
             cd /var/www/cyber_library
+            
+            # Latest code pull karein
             git pull origin main
+            
+            # Dependencies aur Build
             npm install
             npx prisma generate
-            npm run build
-            pm2 restart cyber-app
+            NODE_OPTIONS="--max-old-space-size=1024" npm run build
+            
+            # PM2 Restart
+            pm2 restart cyber-app || pm2 start npm --name "cyber-app" -- start
