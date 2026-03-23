@@ -1,40 +1,14 @@
-name: CI/CD Deploy to GCP
-
-on:
-  push:
-    branches:
-      - main  # Agar aapka branch 'master' hai toh yahan 'master' likhein
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Deploy via SSH
+- name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}      # GitHub Secrets mein 'SSH_HOST' hona chahiye
-          username: ${{ secrets.SSH_USER }}  # GitHub Secrets mein 'SSH_USER' hona chahiye
-          key: ${{ secrets.SSH_KEY }}        # GitHub Secrets mein 'SSH_KEY' hona chahiye
+          host: ${{ secrets.SSH_HOST }}      # Ye exact naam hona chahiye
+          username: ${{ secrets.SSH_USER }}  # Ye exact naam hona chahiye
+          key: ${{ secrets.SSH_KEY }}        # Ye exact naam hona chahiye
           port: 22
           script: |
-            # 1. Project folder mein jayein
-            cd /var/www/cyber_library || exit
-            
-            # 2. GitHub se naya code lein
+            cd /var/www/cyber_library
             git pull origin main
-            
-            # 3. Dependencies install karein
             npm install
-            
-            # 4. Prisma client regenerate karein (Database fix ke liye)
             npx prisma generate
-            
-            # 5. Project build karein (RAM limit ke saath taaki VM crash na ho)
             NODE_OPTIONS="--max-old-space-size=1024" npm run build
-            
-            # 6. PM2 se app restart karein
-            # Agar app pehle se chal raha hai toh restart, warna naya start
-            pm2 restart cyber-app || pm2 start npm --name "cyber-app" -- start
+            pm2 restart cyber-app
