@@ -1,9 +1,9 @@
-name: Deploy to DigitalOcean
+name: Deploy to GCP VM
 
 on:
   push:
     branches:
-      - main
+      - main  # Jab aap 'main' branch par push karenge tabhi chalega
 
 jobs:
   deploy:
@@ -15,17 +15,13 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: 22
           script: |
             cd /var/www/cyber_library
             git pull origin main
             npm install
+            npx prisma generate
             npm run build
-            if pm2 list | grep -q "cyber-library"; then
-              pm2 restart cyber-library
-            else
-              pm2 start npm --name "cyber-library" -- start
-            fi
+            pm2 restart cyber-app
