@@ -1,9 +1,23 @@
-- name: Deploy via SSH
+name: Deploy to GCP VM
+
+on:
+  push:
+    branches:
+      - main  # Agar aapka branch 'master' hai toh yahan master likhein
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}      # Ye exact naam hona chahiye
-          username: ${{ secrets.SSH_USER }}  # Ye exact naam hona chahiye
-          key: ${{ secrets.SSH_KEY }}        # Ye exact naam hona chahiye
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
           port: 22
           script: |
             cd /var/www/cyber_library
@@ -11,4 +25,4 @@
             npm install
             npx prisma generate
             NODE_OPTIONS="--max-old-space-size=1024" npm run build
-            pm2 restart cyber-app
+            pm2 restart cyber-app || pm2 start npm --name "cyber-app" -- start
