@@ -14,9 +14,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  // If no secret is configured, next-auth/jwt will throw. Treat as unauthenticated
+  // so users can still reach `/login` instead of hitting a runtime error page.
+  if (!secret) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(login);
+  }
+
   const token = await getToken({
     req: request,
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    secret,
   });
 
   if (!token) {
