@@ -3,7 +3,7 @@ name: CI/CD Deploy to GCP
 on:
   push:
     branches:
-      - main  # Agar aapka branch 'master' hai toh yahan master likhein
+      - main  # Agar aapka branch 'master' hai toh yahan 'master' likhein
 
 jobs:
   deploy:
@@ -15,20 +15,26 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.SSH_HOST }}      # GitHub Secrets mein 'SSH_HOST' hona chahiye
+          username: ${{ secrets.SSH_USER }}  # GitHub Secrets mein 'SSH_USER' hona chahiye
+          key: ${{ secrets.SSH_KEY }}        # GitHub Secrets mein 'SSH_KEY' hona chahiye
+          port: 22
           script: |
-            # Folder mein jayein
-            cd /var/www/cyber_library
+            # 1. Project folder mein jayein
+            cd /var/www/cyber_library || exit
             
-            # Latest code pull karein
+            # 2. GitHub se naya code lein
             git pull origin main
             
-            # Dependencies aur Build
+            # 3. Dependencies install karein
             npm install
+            
+            # 4. Prisma client regenerate karein (Database fix ke liye)
             npx prisma generate
+            
+            # 5. Project build karein (RAM limit ke saath taaki VM crash na ho)
             NODE_OPTIONS="--max-old-space-size=1024" npm run build
             
-            # PM2 Restart
+            # 6. PM2 se app restart karein
+            # Agar app pehle se chal raha hai toh restart, warna naya start
             pm2 restart cyber-app || pm2 start npm --name "cyber-app" -- start
