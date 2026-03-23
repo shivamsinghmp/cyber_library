@@ -7,7 +7,8 @@ const SALT_LEN = 16;
 const TAG_LEN = 16;
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.ENCRYPTION_KEY || process.env.AUTH_SECRET;
+  const secret =
+    process.env.ENCRYPTION_KEY || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret || secret.length < 16) {
     throw new Error("ENCRYPTION_KEY or AUTH_SECRET must be set (min 16 chars)");
   }

@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
-const SECRET = process.env.AUTH_SECRET || "meet-addon-fallback";
+const SECRET =
+  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "meet-addon-fallback";
 const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export type MeetAddonPayload = { userId: string; exp: number };
