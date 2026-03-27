@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { signMeetAddonToken } from "@/lib/meet-addon-token";
 import { getMeetAddonCorsHeaders } from "../cors";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: { "Access-Control-Max-Age": "86400" } });
@@ -11,6 +12,15 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   const cors = getMeetAddonCorsHeaders(request);
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const limit = checkRateLimit(`meet-login:${ip}`, 10, 60_000);
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please retry later." },
+        { status: 429, headers: cors }
+      );
+    }
+
     const body = await request.json();
     const email = typeof body.email === "string" ? body.email.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
@@ -32,8 +42,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401, headers: cors });
     }
     const token = signMeetAddonToken(user.id);
+    console.info("meet-addon-login-success", { userId: user.id, ip });
     return NextResponse.json({ token, userId: user.id }, { headers: cors });
   } catch (e) {
+    console.error("meet-addon-login-failed", e);
     return NextResponse.json({ error: "Login failed" }, { status: 500, headers: cors });
   }
 }

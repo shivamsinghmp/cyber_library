@@ -2,8 +2,39 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-function toDateOnly(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/** Local calendar day bounds (matches `studySession` “today” queries). */
+function localDayBounds(d: Date): { start: Date; end: Date } {
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+}
+
+function sumMeetPresenceSecondsForWindow(
+  rows: { startedAt: Date; endedAt: Date | null }[],
+  windowStart: Date,
+  windowEnd: Date,
+  now: Date
+): number {
+  let total = 0;
+  for (const s of rows) {
+    const end = s.endedAt ?? now;
+    const a = Math.max(s.startedAt.getTime(), windowStart.getTime());
+    const b = Math.min(end.getTime(), windowEnd.getTime());
+    if (b > a) total += (b - a) / 1000;
+  }
+  return total;
+}
+
+function sumMeetPresenceSecondsAllTime(
+  rows: { startedAt: Date; endedAt: Date | null }[],
+  now: Date
+): number {
+  let total = 0;
+  for (const s of rows) {
+    const end = s.endedAt ?? now;
+    total += Math.max(0, (end.getTime() - s.startedAt.getTime()) / 1000);
+  }
+  return total;
 }
 
 export async function GET() {
@@ -20,7 +51,7 @@ export async function GET() {
 
     const now = new Date();
 
-    const [profile, sessionsToday, allSessions, firstSub, user] = await Promise.all([
+    const [profile, sessionsToday, allSessions, meetPresenceRows, firstSub, user] = await Promise.all([
       prisma.profile.findUnique({
         where: { userId },
         select: {
@@ -45,6 +76,10 @@ export async function GET() {
         where: { userId, durationMinutes: { not: null } },
         select: { startedAt: true, durationMinutes: true },
       }),
+      prisma.meetPresenceSession.findMany({
+        where: { userId },
+        select: { startedAt: true, endedAt: true },
+      }),
       prisma.roomSubscription.findFirst({
         where: { userId },
         orderBy: { createdAt: "asc" },
@@ -67,10 +102,24 @@ export async function GET() {
     const totalDaysSinceStart = startDate
       ? Math.max(0, Math.ceil((now.getTime() - new Date(startDate).getTime()) / (24 * 60 * 60 * 1000)))
       : 0;
-    const totalUnattendance = Math.max(0, totalDaysSinceStart - totalAttendance);
+    const totalAbsent = Math.max(0, totalDaysSinceStart - totalAttendance);
 
-    const hoursToday =
-      sessionsToday.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0) / 60;
+    const { start: localTodayStart, end: localTodayEnd } = localDayBounds(now);
+    const meetSecondsToday = sumMeetPresenceSecondsForWindow(
+      meetPresenceRows,
+      localTodayStart,
+      localTodayEnd,
+      now
+    );
+    const meetSecondsTotal = sumMeetPresenceSecondsAllTime(meetPresenceRows, now);
+
+    const studyHoursToday = sessionsToday.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0) / 60;
+    const meetHoursToday = meetSecondsToday / 3600;
+    const hoursToday = Math.round((studyHoursToday + meetHoursToday) * 10) / 10;
+
+    const profileHours = profile?.totalStudyHours ?? 0;
+    const meetHoursTotal = meetSecondsTotal / 3600;
+    const totalStudyHours = Math.round((profileHours + meetHoursTotal) * 10) / 10;
     const targetYear = profile?.targetYear ? parseInt(profile.targetYear, 10) : null;
     const endOfTarget =
       targetYear != null && !Number.isNaN(targetYear)
@@ -84,14 +133,14 @@ export async function GET() {
     return NextResponse.json({
       currentStreak: profile?.currentStreak ?? 0,
       longestStreak: profile?.longestStreak ?? 0,
-      totalStudyHours: profile?.totalStudyHours ?? 0,
-      hoursToday: Math.round(hoursToday * 10) / 10,
+      totalStudyHours,
+      hoursToday,
       sessionsToday: sessionsToday.length,
       goalCountdown,
       targetYear,
       targetExam: profile?.targetExam ?? null,
       totalAttendance,
-      totalUnattendance,
+      totalAbsent,
     });
   } catch (e) {
     console.error("GET /api/dashboard/stats:", e);

@@ -21,6 +21,9 @@ export const APP_SETTING_KEYS = {
   SITE_TAGLINE: { label: "Site tagline (e.g. The Focus Hub – shown under logo in navbar)", secret: false },
   SITE_HEADLINE: { label: "Main headline (homepage hero text)", secret: false },
   FOOTER_TEXT: { label: "Footer text (shown at bottom of site)", secret: false },
+  MEET_ADDON_REALTIME_ENABLED: { label: "Enable Meet add-on realtime messaging features", secret: false },
+  MEET_ADDON_FOCUS_GUARD_ENABLED: { label: "Enable Meet add-on focus guard alerts", secret: false },
+  MEET_ADDON_GAMIFICATION_ENABLED: { label: "Enable Meet add-on coins and leaderboard", secret: false },
 } as const;
 
 const SECRET_KEYS = new Set(

@@ -27,6 +27,12 @@ export async function POST(request: NextRequest) {
   if (!poll) {
     return NextResponse.json({ error: "Poll not found" }, { status: 404, headers: cors });
   }
+  const pollOptions = Array.isArray(poll.options)
+    ? poll.options.map((v) => String(v))
+    : [];
+  if (!pollOptions.includes(answer)) {
+    return NextResponse.json({ error: "Answer must match a poll option" }, { status: 400, headers: cors });
+  }
   await prisma.meetPollResponse.upsert({
     where: { userId_pollId: { userId: payload.userId, pollId } },
     create: { userId: payload.userId, pollId, answer },

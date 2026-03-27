@@ -44,6 +44,11 @@ model User {
   dailyTasks        DailyTask[]
   meetPollResponses MeetPollResponse[]
   meetAddonLinkCodes MeetAddonLinkCode[]
+  focusSessions          FocusSession[]
+  meetPresenceSessions   MeetPresenceSession[]
+  pomodoroTimerSessions  PomodoroTimerSession[]
+  studyCoinLogs          StudyCoinLog[]
+  studyStreak           StudyStreak?
 
   referredBy User?  @relation("UserReferrals", fields: [referredById], references: [id])
   referrals  User[] @relation("UserReferrals")
@@ -329,19 +334,21 @@ model LeadSubmission {
   createdAt DateTime @default(now())
 }
 
-// Meet add-on: today's task (shown in Meet side panel; completion synced to dashboard)
+// Meet add-on: today's tasks (multiple per day; shown in Meet side panel + dashboard)
 model DailyTask {
   id          String    @id @default(cuid())
   userId      String
   taskDate    DateTime  @db.Date // which day this task is for
-  title       String    @db.Text // e.g. "Complete Chapter 5"
+  title       String    @db.Text // main heading
+  description String?   @db.Text // optional details
+  priority    Int       @default(2) // 1 = High, 2 = Medium, 3 = Normal
   completedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, taskDate])
+  @@index([userId, taskDate])
   @@index([userId])
   @@index([taskDate])
 }
@@ -355,6 +362,38 @@ model MeetPoll {
   createdAt DateTime @default(now())
 
   responses MeetPollResponse[]
+}
+
+// Meet add-on: shared room context for real-time features
+model MeetRoom {
+  id          String   @id @default(cuid())
+  roomKey     String   @unique // Meet meetingCode or fallback room identifier
+  title       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions                FocusSession[]
+  coinLogs                StudyCoinLog[]
+  presenceSessions        MeetPresenceSession[]
+  pomodoroTimerSessions   PomodoroTimerSession[]
+}
+
+// Meet add-on: time student had add-on open in a meeting (heartbeat + end)
+model MeetPresenceSession {
+  id              String    @id @default(cuid())
+  userId          String
+  roomId          String
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  lastHeartbeatAt DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room MeetRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([roomId])
 }
 
 // Meet add-on: student's poll/quiz response (shown on dashboard)
@@ -385,6 +424,69 @@ model MeetAddonLinkCode {
   @@unique([code])
   @@index([code])
   @@index([expiresAt])
+}
+
+// Meet add-on: pomodoro/focus sessions
+model FocusSession {
+  id          String   @id @default(cuid())
+  roomId      String
+  userId      String
+  workMinutes Int      @default(25)
+  breakMinutes Int     @default(5)
+  cycles      Int      @default(0)
+  startedAt   DateTime @default(now())
+  endedAt     DateTime?
+
+  room MeetRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, userId])
+}
+
+// Meet add-on: Pomodoro watch timer (start → stop or full complete)
+model PomodoroTimerSession {
+  id               String   @id @default(cuid())
+  userId           String
+  roomId           String
+  plannedSeconds   Int // countdown length when Start was pressed
+  completedSeconds Int // seconds actually run
+  completedFully   Boolean  @default(false)
+  startedAt        DateTime @default(now())
+  endedAt          DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room MeetRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([roomId])
+}
+
+// Meet add-on: coin ledger for gamification
+model StudyCoinLog {
+  id        String   @id @default(cuid())
+  roomId    String?
+  userId    String
+  coins     Int
+  reason    String
+  createdAt DateTime @default(now())
+
+  room MeetRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([roomId])
+}
+
+// Meet add-on: persistent streak counter
+model StudyStreak {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  currentDays Int      @default(0)
+  longestDays Int      @default(0)
+  lastStudyOn DateTime?
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Reward program: admin creates rewards; winners get amount

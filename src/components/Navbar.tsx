@@ -30,6 +30,7 @@ export function Navbar() {
   const { data: session, status } = useSession();
   const { count: cartCount } = useCart();
   const isLoggedIn = !!session?.user;
+
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [siteTitle, setSiteTitle] = useState(DEFAULT_TITLE);
   const [tagline, setTagline] = useState(DEFAULT_TAGLINE);
@@ -44,6 +45,11 @@ export function Navbar() {
       })
       .catch(() => {});
   }, []);
+
+  /* Public marketing nav only — after all hooks (Rules of Hooks). */
+  if (status === "authenticated" && session?.user) {
+    return null;
+  }
 
   const logoSrc = logoUrl && logoUrl.trim() ? logoUrl.trim() : "/logo.svg";
   const isExternalLogo = logoSrc.startsWith("http");

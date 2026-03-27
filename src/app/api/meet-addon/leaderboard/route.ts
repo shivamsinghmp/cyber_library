@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getMeetAddonCorsHeaders } from "../cors";
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: { "Access-Control-Max-Age": "86400" } });
+}
+
+export async function GET(request: NextRequest) {
+  const cors = getMeetAddonCorsHeaders(request);
+  const roomId = request.nextUrl.searchParams.get("roomId")?.trim();
+
+  const where = roomId ? { room: { roomKey: roomId } } : {};
+  const logs = await prisma.studyCoinLog.findMany({
+    where,
+    select: { userId: true, coins: true },
+  });
+
+  const totals = new Map<string, number>();
+  for (const row of logs) totals.set(row.userId, (totals.get(row.userId) ?? 0) + row.coins);
+
+  const sorted = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const userIds = sorted.map(([id]) => id);
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds }, deletedAt: null },
+    select: { id: true, name: true, studyStreak: { select: { currentDays: true } } },
+  });
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  const leaderboard = sorted.map(([userId, coins], i) => ({
+    rank: i + 1,
+    userId,
+    name: userMap.get(userId)?.name ?? "Student",
+    coins,
+    streakDays: userMap.get(userId)?.studyStreak?.currentDays ?? 0,
+  }));
+
+  return NextResponse.json({ leaderboard }, { headers: cors });
+}

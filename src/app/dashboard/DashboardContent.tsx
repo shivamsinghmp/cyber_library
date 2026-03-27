@@ -25,6 +25,10 @@ import {
   ClipboardList,
   CalendarCheck,
   CalendarX,
+  Coins,
+  History,
+  Timer,
+  Activity,
 } from "lucide-react";
 
 type DashboardStats = {
@@ -37,7 +41,7 @@ type DashboardStats = {
   targetYear: number | null;
   targetExam: string | null;
   totalAttendance: number;
-  totalUnattendance: number;
+  totalAbsent: number;
 };
 
 type StudyRoomItem = {
@@ -97,10 +101,97 @@ type ReferredUser = {
   rewarded: boolean;
 };
 
-type MeetAddonData = {
-  todayTask: { id: string; title: string; completedAt: string | null } | null;
-  pollResponses: { id: string; question: string; answer: string; createdAt: string }[];
+type MeetAddonTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  priority?: number;
+  completedAt: string | null;
+  taskDate: string;
 };
+
+type MeetAddonData = {
+  todayTasks: MeetAddonTask[];
+  pastTasks?: MeetAddonTask[];
+  pollResponses: { id: string; question: string; answer: string; createdAt: string }[];
+  coinLogs?: { id: string; coins: number; reason: string; createdAt: string; roomId: string | null }[];
+  focusSessions?: {
+    id: string;
+    workMinutes: number;
+    breakMinutes: number;
+    cycles: number;
+    startedAt: string;
+    endedAt: string | null;
+    roomTitle: string | null;
+    roomKey: string;
+  }[];
+  presenceSessions?: {
+    id: string;
+    roomKey: string;
+    roomTitle: string | null;
+    startedAt: string;
+    endedAt: string | null;
+    lastHeartbeatAt: string;
+    durationSeconds: number | null;
+    active: boolean;
+  }[];
+  pomodoroTimerSessions?: {
+    id: string;
+    roomKey: string;
+    roomTitle: string | null;
+    plannedSeconds: number;
+    completedSeconds: number;
+    completedFully: boolean;
+    startedAt: string;
+    endedAt: string;
+  }[];
+  gamification?: {
+    totalCoins: number;
+    streakDays: number;
+    longestStreakDays: number;
+    lastStudyOn: string | null;
+  };
+};
+
+function meetAddonPriorityLabel(p: number | undefined): string {
+  if (p === 1) return "High";
+  if (p === 3) return "Normal";
+  return "Medium";
+}
+
+function formatMeetAddonDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T12:00:00.000Z`);
+  return d.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+}
+
+function groupPastTasksByDate(tasks: MeetAddonTask[]): [string, MeetAddonTask[]][] {
+  const map = new Map<string, MeetAddonTask[]>();
+  for (const t of tasks) {
+    const key = t.taskDate;
+    const arr = map.get(key);
+    if (arr) arr.push(t);
+    else map.set(key, [t]);
+  }
+  return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+}
+
+function formatPresenceDuration(seconds: number | null): string {
+  if (seconds == null) return "—";
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m < 60) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return mm > 0 ? `${h}h ${mm}m` : `${h}h`;
+}
+
+function formatPomodoroSeconds(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m <= 0) return `${s}s`;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
 
 const NOTICES = [
   "New weekend marathon session from 6 AM – 6 PM.",
@@ -503,10 +594,10 @@ export function DashboardContent({ userName }: { userName: string }) {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-[var(--cream-muted)]">
-                    Total Unattendance
+                    Total absent
                   </p>
                   <p className="text-xl font-bold text-[var(--cream)]">
-                    {loading ? "—" : (stats?.totalUnattendance ?? 0)} days
+                    {loading ? "—" : (stats?.totalAbsent ?? 0)} days
                   </p>
                 </div>
               </div>
@@ -531,6 +622,9 @@ export function DashboardContent({ userName }: { userName: string }) {
               </div>
             </motion.div>
           </div>
+          <p className="text-[10px] text-[var(--cream-muted)] mt-2 max-w-2xl leading-relaxed">
+            Hours today and total study hours count your study sessions plus Google Meet add-on time (when the add-on side panel is open and linked).
+          </p>
         </motion.div>
 
         {/* Active study session widget */}
@@ -633,36 +727,272 @@ export function DashboardContent({ userName }: { userName: string }) {
               </button>
             )}
           </div>
-          {!meetAddonLoading && (meetAddonData?.todayTask || (meetAddonData?.pollResponses?.length ?? 0) > 0) && (
-            <div className="space-y-3 border-t border-white/5 pt-3">
-              {meetAddonData?.todayTask && (
-                <div className="rounded-xl border border-white/5 bg-black/20 p-3">
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">Today&apos;s task</p>
-                  <p className={`text-sm text-[var(--cream)] ${meetAddonData.todayTask.completedAt ? "line-through text-[var(--cream-muted)]" : ""}`}>
-                    {meetAddonData.todayTask.title}
+          {meetAddonLoading ? (
+            <p className="text-xs text-[var(--cream-muted)] border-t border-white/5 pt-3">Loading add-on activity…</p>
+          ) : meetAddonData ? (
+            <div className="space-y-4 border-t border-white/5 pt-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-xl border border-white/10 bg-black/25 px-2 py-2.5 text-center">
+                  <Coins className="h-4 w-4 mx-auto text-amber-400/90 mb-1" />
+                  <p className="text-lg font-semibold text-[var(--cream)] tabular-nums">
+                    {meetAddonData.gamification?.totalCoins ?? 0}
                   </p>
-                  {meetAddonData.todayTask.completedAt && (
-                    <p className="text-xs text-emerald-400/90 mt-1 flex items-center gap-1">
-                      <CheckCircle className="h-3.5 w-3.5" />
-                      Completed
-                    </p>
-                  )}
+                  <p className="text-[10px] text-[var(--cream-muted)]">Study coins</p>
                 </div>
-              )}
-              {meetAddonData?.pollResponses && meetAddonData.pollResponses.length > 0 && (
-                <div className="rounded-xl border border-white/5 bg-black/20 p-3">
-                  <p className="text-xs font-medium text-[var(--cream-muted)] mb-2">Your poll answers</p>
-                  <ul className="space-y-1.5 text-sm">
-                    {meetAddonData.pollResponses.map((r) => (
-                      <li key={r.id} className="text-[var(--cream)]">
-                        <span className="text-[var(--cream-muted)]">{r.question}</span>
-                        <span className="ml-1 font-medium">→ {r.answer}</span>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-2 py-2.5 text-center">
+                  <Flame className="h-4 w-4 mx-auto text-orange-400/90 mb-1" />
+                  <p className="text-lg font-semibold text-[var(--cream)] tabular-nums">
+                    {meetAddonData.gamification?.streakDays ?? 0}
+                  </p>
+                  <p className="text-[10px] text-[var(--cream-muted)]">Day streak</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 px-2 py-2.5 text-center">
+                  <Trophy className="h-4 w-4 mx-auto text-[var(--accent)] mb-1" />
+                  <p className="text-lg font-semibold text-[var(--cream)] tabular-nums">
+                    {meetAddonData.gamification?.longestStreakDays ?? 0}
+                  </p>
+                  <p className="text-[10px] text-[var(--cream-muted)]">Best streak</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-[var(--cream-muted)] leading-relaxed px-0.5">
+                Day streak updates when you complete your first task today in the add-on, or when you stay logged in with the add-on open for at least <span className="text-[var(--cream)]/90">10 minutes</span> in Google Meet (total time per UTC day).
+              </p>
+
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-3">
+                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
+                  <Target className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  Today&apos;s tasks
+                </p>
+                {meetAddonData.todayTasks.length === 0 ? (
+                  <p className="text-xs text-[var(--cream-muted)]">No tasks set for today in the add-on yet.</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {meetAddonData.todayTasks.map((task) => (
+                      <li key={task.id} className="border-b border-white/5 pb-3 last:border-0 last:pb-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p
+                            className={`text-sm font-medium text-[var(--cream)] ${task.completedAt ? "line-through text-[var(--cream-muted)]" : ""}`}
+                          >
+                            {task.title}
+                          </p>
+                          {typeof task.priority === "number" && (
+                            <span className="shrink-0 text-[10px] uppercase tracking-wide rounded border border-white/15 px-2 py-0.5 text-[var(--cream-muted)]">
+                              {meetAddonPriorityLabel(task.priority)}
+                            </span>
+                          )}
+                        </div>
+                        {task.description ? (
+                          <p
+                            className={`text-xs mt-1 whitespace-pre-wrap ${task.completedAt ? "line-through text-[var(--cream-muted)]" : "text-[var(--cream-muted)]"}`}
+                          >
+                            {task.description}
+                          </p>
+                        ) : null}
+                        {task.completedAt && (
+                          <p className="text-xs text-emerald-400/90 mt-1 flex items-center gap-1">
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Completed
+                          </p>
+                        )}
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
+                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
+                  <History className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  Past daily tasks
+                </p>
+                {!(meetAddonData.pastTasks?.length ?? 0) ? (
+                  <p className="text-xs text-[var(--cream-muted)]">No previous days recorded yet.</p>
+                ) : (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {groupPastTasksByDate(meetAddonData.pastTasks ?? []).map(([dateKey, dayTasks]) => (
+                      <div key={dateKey}>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--cream-muted)] mb-1.5">
+                          {formatMeetAddonDate(dateKey)}
+                        </p>
+                        <ul className="space-y-2 border-l border-white/10 pl-3">
+                          {dayTasks.map((task) => (
+                            <li key={task.id} className="text-sm">
+                              <div className="flex items-start justify-between gap-2">
+                                <p
+                                  className={`font-medium text-[var(--cream)] ${task.completedAt ? "line-through text-[var(--cream-muted)]" : ""}`}
+                                >
+                                  {task.title}
+                                </p>
+                                {typeof task.priority === "number" && (
+                                  <span className="shrink-0 text-[10px] uppercase rounded border border-white/15 px-1.5 py-0.5 text-[var(--cream-muted)]">
+                                    {meetAddonPriorityLabel(task.priority)}
+                                  </span>
+                                )}
+                              </div>
+                              {task.description ? (
+                                <p className="text-xs text-[var(--cream-muted)] mt-0.5 whitespace-pre-wrap">{task.description}</p>
+                              ) : null}
+                              {task.completedAt ? (
+                                <p className="text-[10px] text-emerald-400/80 mt-0.5">Done</p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
+                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
+                  <Megaphone className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  Poll &amp; quiz answers
+                </p>
+                {!meetAddonData.pollResponses || meetAddonData.pollResponses.length === 0 ? (
+                  <p className="text-xs text-[var(--cream-muted)]">No poll responses yet.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm max-h-56 overflow-y-auto">
+                    {meetAddonData.pollResponses.map((r) => (
+                      <li key={r.id} className="border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                        <p className="text-[var(--cream)]">
+                          <span className="text-[var(--cream-muted)]">{r.question}</span>
+                          <span className="ml-1 font-medium">→ {r.answer}</span>
+                        </p>
+                        <p className="text-[10px] text-[var(--cream-muted)] mt-0.5">
+                          {new Date(r.createdAt).toLocaleString()}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
+                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
+                  <Receipt className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  Coin activity
+                </p>
+                {!(meetAddonData.coinLogs?.length ?? 0) ? (
+                  <p className="text-xs text-[var(--cream-muted)]">No coin events yet.</p>
+                ) : (
+                  <ul className="space-y-1.5 text-xs max-h-48 overflow-y-auto">
+                    {(meetAddonData.coinLogs ?? []).map((l) => (
+                      <li key={l.id} className="border-b border-white/5 pb-1.5 last:border-0">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-[var(--cream-muted)] truncate">{l.reason}</span>
+                          <span className={`shrink-0 font-medium tabular-nums ${l.coins >= 0 ? "text-emerald-400/90" : "text-red-400/90"}`}>
+                            {l.coins >= 0 ? "+" : ""}
+                            {l.coins}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[var(--cream-muted)]/70 mt-0.5">{new Date(l.createdAt).toLocaleString()}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
+                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  Pomodoro timer (Meet add-on)
+                </p>
+                <p className="text-[10px] text-[var(--cream-muted)] leading-relaxed">
+                  Saved when you press Stop or when the countdown reaches zero. Shows planned length vs time completed.
+                </p>
+                {!(meetAddonData.pomodoroTimerSessions?.length ?? 0) ? (
+                  <p className="text-xs text-[var(--cream-muted)]">No Pomodoro runs yet — use the timer in the Meet add-on.</p>
+                ) : (
+                  <ul className="space-y-2 text-xs max-h-56 overflow-y-auto">
+                    {(meetAddonData.pomodoroTimerSessions ?? []).map((row) => (
+                      <li key={row.id} className="border-b border-white/5 pb-2 last:border-0">
+                        <div className="flex justify-between gap-2 flex-wrap">
+                          <span className="text-[var(--cream)] font-medium">
+                            {row.roomTitle ?? row.roomKey}
+                            {row.completedFully ? (
+                              <span className="ml-2 text-emerald-400/90 font-normal">· complete</span>
+                            ) : (
+                              <span className="ml-2 text-amber-400/90 font-normal">· stopped early</span>
+                            )}
+                          </span>
+                          <span className="text-[var(--cream-muted)] tabular-nums shrink-0">
+                            {formatPomodoroSeconds(row.completedSeconds)} / {formatPomodoroSeconds(row.plannedSeconds)}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[var(--cream-muted)]/85 mt-0.5">
+                          {new Date(row.startedAt).toLocaleString()} → {new Date(row.endedAt).toLocaleString()}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
+                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
+                  <Activity className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  Meet presence (add-on open)
+                </p>
+                <p className="text-[10px] text-[var(--cream-muted)] leading-relaxed">
+                  Time is tracked while the Meet add-on panel is open and linked to your account (heartbeat every 60s). It is not the same as raw Google Meet attendance.
+                </p>
+                {!(meetAddonData.presenceSessions?.length ?? 0) ? (
+                  <p className="text-xs text-[var(--cream-muted)]">No presence sessions yet — open the add-on in a meeting.</p>
+                ) : (
+                  <ul className="space-y-2 text-xs max-h-52 overflow-y-auto">
+                    {(meetAddonData.presenceSessions ?? []).map((p) => (
+                      <li key={p.id} className="border-b border-white/5 pb-2 last:border-0">
+                        <div className="flex justify-between gap-2 items-start">
+                          <p className="text-[var(--cream)] font-medium">
+                            {p.roomTitle ?? p.roomKey}
+                            {p.active ? (
+                              <span className="ml-2 text-emerald-400/90 font-normal">· active</span>
+                            ) : null}
+                          </p>
+                          <span className="shrink-0 text-[var(--cream-muted)] tabular-nums">
+                            {p.active ? "…" : formatPresenceDuration(p.durationSeconds)}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[var(--cream-muted)]/85 mt-0.5">
+                          {new Date(p.startedAt).toLocaleString()}
+                          {p.endedAt ? ` → ${new Date(p.endedAt).toLocaleString()}` : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
+                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
+                  <Timer className="h-3.5 w-3.5 text-[var(--accent)]" />
+                  Focus / Pomodoro sessions
+                </p>
+                {!(meetAddonData.focusSessions?.length ?? 0) ? (
+                  <p className="text-xs text-[var(--cream-muted)]">No logged sessions yet (when the add-on records them).</p>
+                ) : (
+                  <ul className="space-y-2 text-xs max-h-48 overflow-y-auto">
+                    {(meetAddonData.focusSessions ?? []).map((s) => (
+                      <li key={s.id} className="border-b border-white/5 pb-2 last:border-0">
+                        <p className="text-[var(--cream)]">
+                          {s.workMinutes}m work / {s.breakMinutes}m break · {s.cycles} cycle{s.cycles === 1 ? "" : "s"}
+                        </p>
+                        <p className="text-[var(--cream-muted)] mt-0.5">
+                          {s.roomTitle ?? s.roomKey}
+                        </p>
+                        <p className="text-[10px] text-[var(--cream-muted)]/80 mt-0.5">
+                          {new Date(s.startedAt).toLocaleString()}
+                          {s.endedAt ? ` → ${new Date(s.endedAt).toLocaleString()}` : " · in progress"}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
+          ) : (
+            <p className="text-xs text-[var(--cream-muted)] border-t border-white/5 pt-3">Could not load add-on data.</p>
           )}
         </motion.section>
 

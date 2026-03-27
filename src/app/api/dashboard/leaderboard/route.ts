@@ -47,9 +47,18 @@ export async function GET() {
         id: true,
         name: true,
         profile: { select: { fullName: true } },
+        studyStreak: { select: { currentDays: true } },
       },
     });
     const userMap = new Map(users.map((u) => [u.id, u]));
+    const coinsByUser = new Map<string, number>();
+    const coinRows = await prisma.studyCoinLog.groupBy({
+      by: ["userId"],
+      where: { userId: { in: sorted } },
+      _sum: { coins: true },
+    });
+    for (const row of coinRows) coinsByUser.set(row.userId, row._sum.coins ?? 0);
+
     const leaderboard = sorted.map((userId, i) => {
       const u = userMap.get(userId);
       const mins = byUser.get(userId) ?? 0;
@@ -59,6 +68,8 @@ export async function GET() {
         name: u?.name || u?.profile?.fullName || "Anonymous",
         weeklyMinutes: mins,
         weeklyHours: Math.round((mins / 60) * 10) / 10,
+        coins: coinsByUser.get(userId) ?? 0,
+        streakDays: u?.studyStreak?.currentDays ?? 0,
       };
     });
 

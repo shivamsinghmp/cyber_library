@@ -8,7 +8,9 @@
       "web": {
         "sidePanelUrl": "https://cyberlib.in/meet-addon/panel",
         "supportsScreenSharing": false,
-        "addOnOrigins": ["https://cyberlib.in"],
+        "addOnOrigins": [
+          "https://cyberlib.in"
+        ],
         "logoUrl": "https://cyberlib.in/logo.svg",
         "darkModeLogoUrl": "https://cyberlib.in/logo.svg"
       }

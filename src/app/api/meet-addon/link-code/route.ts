@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const CODE_LENGTH = 6;
 const EXPIRY_MINUTES = 5;
@@ -27,6 +28,10 @@ export async function POST() {
   if (role !== "STUDENT" && role !== "ADMIN") {
     return NextResponse.json({ error: "Only students can get Meet add-on code" }, { status: 403 });
   }
+  const limit = checkRateLimit(`meet-link-code:${userId}`, 8, 60_000);
+  if (!limit.ok) {
+    return NextResponse.json({ error: "Too many code generations. Please wait." }, { status: 429 });
+  }
 
   const expiresAt = new Date(Date.now() + EXPIRY_MINUTES * 60 * 1000);
   let code = generateCode();
@@ -40,6 +45,7 @@ export async function POST() {
   await prisma.meetAddonLinkCode.create({
     data: { userId, code, expiresAt },
   });
+  console.info("meet-addon-link-code-generated", { userId });
 
   return NextResponse.json({
     code,
