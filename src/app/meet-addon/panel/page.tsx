@@ -81,6 +81,26 @@ export default function MeetAddonPanelPage() {
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
 
+  // --- GOOGLE MEET SDK INITIALIZATION ---
+  useEffect(() => {
+    let sessionCreated = false;
+    async function initMeetAddon() {
+      try {
+        const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
+        if (!sessionCreated) {
+           sessionCreated = true;
+           await meet.addon.createAddonSession({
+             cloudProjectNumber: "273461550329",
+           });
+           console.log("Successfully handshaked with Google Meet!");
+        }
+      } catch (err) {
+        console.error("Failed to initialize Meet Addon SDK:", err);
+      }
+    }
+    initMeetAddon();
+  }, []);
+
   // Load Token and Timer State on mount
   useEffect(() => {
     setTokenState(getToken());
