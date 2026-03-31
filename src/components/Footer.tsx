@@ -12,6 +12,10 @@ function FooterInner({ footerText }: { footerText: string | null }) {
           <FooterContact />
         </div>
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--cream-muted)]">
+          <Link href="/support" className="transition font-semibold text-[var(--accent)] hover:text-[var(--wood)]">
+            Contact Support
+          </Link>
+          <span className="text-[var(--wood)]/30">|</span>
           <Link href="/privacy" className="transition hover:text-[var(--cream)]/90">
             Privacy Policy
           </Link>
