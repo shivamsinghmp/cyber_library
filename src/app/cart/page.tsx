@@ -23,14 +23,14 @@ export default function CartPage() {
 
   if (status === "loading" || status === "unauthenticated") {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-12 text-center text-sm text-[var(--cream-muted)]">
+      <div className="mx-auto max-w-2xl px-4 pt-32 pb-12 text-center text-sm text-[var(--cream-muted)]">
         Redirecting to login…
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 md:py-12">
+    <div className="mx-auto max-w-2xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
       <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
         Cart
       </h1>

@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 import { SessionProvider } from "@/components/SessionProvider";
 import { CartProvider } from "@/context/CartContext";
 import { Navbar } from "@/components/Navbar";
@@ -14,11 +18,34 @@ export async function generateMetadata(): Promise<Metadata> {
     getAppSetting("SITE_TITLE"),
     getAppSetting("SITE_FAVICON_URL"),
   ]);
-  const siteTitle = title?.trim() || "Virtual Library – The Focus Hub";
+  const siteTitle = title?.trim() || "The Cyber Library | Live 24/7 Focus Hub & Study Rooms";
+  const siteDescription = "Join the ultimate cyber library & focus hub. Study with ambitious peers via live Google Meet body doubling. Pomodoro sprints, silent accountability, and extreme productivity for UPSC, JEE, NEET & Professionals.";
+  
   return {
-    title: siteTitle,
-    description:
-      "Focus together with live body doubling. Study with others in a silent, structured space.",
+    title: {
+      template: `%s | The Cyber Library`,
+      default: siteTitle,
+    },
+    description: siteDescription,
+    keywords: ["the cyber library", "cyber library", "virtual library", "study room", "pomodoro timer", "body doubling", "study with me", "UPSC focus group", "JEE study room", "NEET study group", "online library"],
+    authors: [{ name: "The Cyber Library Team" }],
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in"),
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      title: siteTitle,
+      description: siteDescription,
+      url: "/",
+      siteName: "The Cyber Library",
+      locale: "en_IN",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteTitle,
+      description: siteDescription,
+    },
     icons: faviconUrl?.trim()
       ? { icon: faviconUrl.trim() }
       : undefined,
@@ -30,9 +57,29 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "The Cyber Library",
+    url: siteUrl,
+    description: "Live 24/7 Focus Hub & Study Rooms for body doubling.",
+    publisher: {
+      "@type": "Organization",
+      name: "The Cyber Library",
+      url: siteUrl
+    }
+  };
+
   return (
     <html lang="en">
-      <body className="antialiased min-h-screen flex flex-col">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
+      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased min-h-screen flex flex-col`}>
         <SessionProvider>
           <CartProvider>
             <TrafficTracker />

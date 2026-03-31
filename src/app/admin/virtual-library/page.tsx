@@ -59,7 +59,7 @@ export default function AdminVirtualLibraryPage() {
           })
         )
       );
-      toast.success("Virtual Library settings saved");
+      toast.success("The Cyber Library settings saved");
     } catch {
       toast.error("Failed to save");
     }
@@ -86,7 +86,7 @@ export default function AdminVirtualLibraryPage() {
         </Link>
         <h1 className="mt-2 flex items-center gap-2 text-2xl font-bold text-[var(--cream)]">
           <ImageIcon className="h-7 w-7 text-[var(--accent)]" />
-          Edit Virtual Library
+          Edit The Cyber Library
         </h1>
         <p className="mt-1 text-sm text-[var(--cream-muted)]">
           Logo, favicon, site title, tagline and main headline. Leave blank to use defaults.
@@ -118,7 +118,7 @@ export default function AdminVirtualLibraryPage() {
           <textarea
             value={values.FOOTER_TEXT}
             onChange={(e) => setValue("FOOTER_TEXT", e.target.value)}
-            placeholder="© 2026 Virtual Library – The Focus Hub."
+            placeholder="© 2026 The Cyber Library – The Focus Hub."
             rows={2}
             className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none resize-none"
           />
@@ -147,7 +147,7 @@ export default function AdminVirtualLibraryPage() {
             type="text"
             value={values.SITE_TITLE}
             onChange={(e) => setValue("SITE_TITLE", e.target.value)}
-            placeholder="Virtual Library"
+            placeholder="The Cyber Library"
             className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Browser title and name next to logo</p>

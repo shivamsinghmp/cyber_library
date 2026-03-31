@@ -32,7 +32,7 @@ export function generateInvoicePdf(data: InvoiceData): void {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(24);
   doc.setTextColor(PRIMARY[0], PRIMARY[1], PRIMARY[2]);
-  doc.text("Virtual Library", margin, y);
+  doc.text("The Cyber Library", margin, y);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -159,7 +159,7 @@ export function generateInvoicePdf(data: InvoiceData): void {
   doc.rect(0, h - 12, w, 12, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8);
-  doc.text("Virtual Library · Study Rooms & Subscriptions", margin, h - 5);
+  doc.text("The Cyber Library · Study Rooms & Subscriptions", margin, h - 5);
   doc.text("This document is proof of your transaction.", w - margin, h - 5, { align: "right" });
 
   doc.save(`Invoice-${data.transactionId}.pdf`);

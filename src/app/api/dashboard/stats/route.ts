@@ -113,13 +113,13 @@ export async function GET() {
     );
     const meetSecondsTotal = sumMeetPresenceSecondsAllTime(meetPresenceRows, now);
 
-    const studyHoursToday = sessionsToday.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0) / 60;
+    const studyHoursToday = sessionsToday.reduce((sum: number, s: any) => sum + (s.durationMinutes ?? 0), 0) / 60;
     const meetHoursToday = meetSecondsToday / 3600;
-    const hoursToday = Math.round((studyHoursToday + meetHoursToday) * 10) / 10;
+    const hoursToday = studyHoursToday + meetHoursToday;
 
     const profileHours = profile?.totalStudyHours ?? 0;
     const meetHoursTotal = meetSecondsTotal / 3600;
-    const totalStudyHours = Math.round((profileHours + meetHoursTotal) * 10) / 10;
+    const totalStudyHours = profileHours + meetHoursTotal;
     const targetYear = profile?.targetYear ? parseInt(profile.targetYear, 10) : null;
     const endOfTarget =
       targetYear != null && !Number.isNaN(targetYear)

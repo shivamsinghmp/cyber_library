@@ -1,6 +1,6 @@
 export default function RefundPage() {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <article className="mx-auto max-w-3xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
       <header className="mb-8">
         <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
           Refund Policy
@@ -12,7 +12,7 @@ export default function RefundPage() {
         <section>
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">1. Overview</h2>
           <p>
-            Virtual Library offers digital access to focus sessions and study slots. This Refund
+            The Cyber Library offers digital access to focus sessions and study slots. This Refund
             Policy explains when and how we process refunds for purchases made through our
             website.
           </p>

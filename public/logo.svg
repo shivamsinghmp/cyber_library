@@ -1,7 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <rect width="48" height="48" rx="12" fill="#8b7355"/>
-  <path d="M12 16h8v16h-8a2 2 0 0 1-2-2V18a2 2 0 0 1 2-2z" fill="#f5f0e8"/>
-  <path d="M28 16h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8V16z" fill="#e8dfd4"/>
-  <path d="M20 16h8v16h-8z" fill="#f5f0e8"/>
-  <text x="24" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" letter-spacing="-0.5" fill="#2c2419" text-anchor="middle">VL</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="gold-grad" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f8f4ed" />
+      <stop offset="40%" stop-color="#c8b39c" />
+      <stop offset="100%" stop-color="#9a8264" />
+    </linearGradient>
+    <linearGradient id="glow-grad" x1="0" y1="0" x2="120" y2="120">
+      <stop offset="0%" stop-color="#b09575" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0b0805" stop-opacity="0.1"/>
+    </linearGradient>
+    <filter id="neon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <rect width="120" height="120" fill="#0b0805" rx="36" />
+  
+  <circle cx="60" cy="60" r="40" fill="url(#glow-grad)" filter="url(#neon)"/>
+
+  <path d="M60 25 L30 40 V80 L60 95 L90 80 V40 Z" stroke="url(#gold-grad)" stroke-width="4" stroke-linejoin="round" />
+  
+  <path d="M60 25 V95" stroke="url(#gold-grad)" stroke-width="4" stroke-linecap="round" filter="url(#neon)"/>
+  
+  <path d="M60 45 L42 55 V72" stroke="#e0d5c8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M60 45 L78 55 V72" stroke="#e0d5c8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <circle cx="60" cy="25" r="4" fill="#f8f4ed" filter="url(#neon)"/>
+  <circle cx="60" cy="95" r="4" fill="#f8f4ed" filter="url(#neon)"/>
+  <circle cx="30" cy="40" r="3" fill="#c8b39c" />
+  <circle cx="90" cy="40" r="3" fill="#c8b39c" />
+  <circle cx="30" cy="80" r="3" fill="#c8b39c" />
+  <circle cx="90" cy="80" r="3" fill="#c8b39c" />
+  
+  <path d="M60 55 L52 62 L60 70 L68 62 Z" fill="#f8f4ed" filter="url(#neon)"/>
 </svg>

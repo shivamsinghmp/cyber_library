@@ -1,6 +1,6 @@
 export default function PrivacyPage() {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <article className="mx-auto max-w-3xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
       <header className="mb-8">
         <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
           Privacy Policy
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">1. Introduction</h2>
           <p>
-            Virtual Library (“we”, “our”, or “us”) is committed to protecting your privacy. This
+            The Cyber Library (“we”, “our”, or “us”) is committed to protecting your privacy. This
             Privacy Policy explains how we collect, use, disclose, and safeguard your information
             when you use our website and services, including focus sessions, slot bookings, and
             payments.

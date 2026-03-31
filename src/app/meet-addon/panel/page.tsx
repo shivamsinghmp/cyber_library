@@ -1,43 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { CheckCircle, ClipboardList, Clock, LogOut, Loader2, Pencil, Plus, Send, X } from "lucide-react";
-import { getMeetRoomId, publishMeetEvent, subscribeMeetEvents } from "@/meet-addon/events/bus";
-import { useMeetAddonStore } from "@/meet-addon/state/store";
-import { startFocusGuard } from "@/meet-addon/focus/focus-guard";
-import { PomodoroWatch } from "@/meet-addon/pomodoro/PomodoroWatch";
+import { useState, useEffect } from "react";
+import { Plus, CheckCircle, Clock, Flame, X, RotateCcw, CalendarClock, Loader2, ClipboardList, LogOut, Pencil } from "lucide-react";
 
+// --- GLOBALS ---
 const TOKEN_KEY = "vl_meet_addon_token";
-const PRESENCE_HEARTBEAT_MS = 60_000;
-
-type TodayTaskItem = {
-  id: string;
-  title: string;
-  description: string | null;
-  priority: number;
-  completedAt: string | null;
-};
-
-function priorityLabel(p: number): string {
-  if (p === 1) return "High";
-  if (p === 3) return "Normal";
-  return "Medium";
-}
-
-function priorityBadgeClass(p: number): string {
-  if (p === 1) return "bg-red-500/20 text-red-300 border-red-500/40";
-  if (p === 3) return "bg-slate-500/30 text-slate-300 border-slate-500/50";
-  return "bg-amber-500/20 text-amber-200 border-amber-500/40";
-}
-type Poll = { id: string; question: string; options: string[]; alreadyAnswered?: boolean };
-type LeaderboardItem = { rank: number; name: string; coins: number; streakDays: number };
+const TIMER_STORAGE_KEY = "vl_meet_timer_state";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY);
 }
 
-function setToken(token: string) {
+function saveToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
@@ -45,211 +20,98 @@ function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-function authHeaders(): HeadersInit {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
-
-function LiveClockBar() {
+// --- WIDGETS ---
+function LiveClock() {
   const [mounted, setMounted] = useState(false);
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(new Date());
+  
   useEffect(() => {
     setMounted(true);
-    setNow(new Date());
-    const id = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(id);
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
   }, []);
-  const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
-  const dateLine = now.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  const time = now.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+
+  if (!mounted) {
+     return (
+        <div className="flex flex-col items-center justify-center text-center opacity-0 h-[80px]">
+           <span className="text-3xl md:text-4xl font-mono font-extrabold tracking-widest text-[var(--cream)]">--:--:--</span>
+        </div>
+     );
+  }
+
+  const timeString = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateString = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
   return (
-    <div className="rounded-lg border border-slate-600/80 bg-slate-800/60 px-3 py-2.5">
-      <div className="flex items-center justify-center gap-2 text-slate-500 mb-1">
-        <Clock className="w-3.5 h-3.5 shrink-0" aria-hidden />
-        <span className="text-[10px] uppercase tracking-wider">Now</span>
-      </div>
-      {!mounted ? (
-        <>
-          <p className="text-center text-sm font-semibold text-slate-500" aria-hidden>
-            …
-          </p>
-          <p className="text-center text-xs text-slate-500" aria-hidden>
-            …
-          </p>
-          <p className="text-center text-lg font-mono tabular-nums text-slate-500 mt-1" aria-hidden>
-            --:--:--
-          </p>
-        </>
-      ) : (
-        <>
-          <p className="text-center text-sm font-semibold text-slate-100">{weekday}</p>
-          <p className="text-center text-xs text-slate-400">{dateLine}</p>
-          <p className="text-center text-lg font-mono tabular-nums text-emerald-400/95 mt-1">{time}</p>
-        </>
-      )}
+    <div className="flex flex-col items-center justify-center text-center animate-in fade-in duration-500 mb-8 bg-[var(--ink)]/40 border border-[var(--wood)]/20 p-4 rounded-[1.5rem] shadow-[0_8px_32px_rgba(0,0,0,0.3)] backdrop-blur-md self-center w-full max-w-md">
+       <span className="text-3xl md:text-4xl font-mono font-extrabold tracking-widest text-[var(--cream)] drop-shadow-[0_0_12px_rgba(154,130,100,0.4)]">
+         {timeString}
+       </span>
+       <span className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-[var(--wood)] mt-2 flex items-center justify-center gap-2">
+         <CalendarClock className="w-3.5 h-3.5 text-[var(--accent)]" />
+         {dateString}
+       </span>
     </div>
   );
 }
 
 export default function MeetAddonPanelPage() {
-  const { roomId, setRoomId, onEvent, activeQuizId } = useMeetAddonStore();
+  // --- STATE: AUTH ---
   const [token, setTokenState] = useState<string | null>(null);
+  const [authTab, setAuthTab] = useState<"code" | "email">("code");
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  
   const [linkCode, setLinkCode] = useState("");
   const [linkCodeError, setLinkCodeError] = useState("");
   const [linkCodeLoading, setLinkCodeLoading] = useState(false);
 
-  const [todayTasks, setTodayTasks] = useState<TodayTaskItem[]>([]);
+  // --- STATE: TASKS ---
+  const [showTaskForm, setShowTaskForm] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
-  const [taskDescription, setTaskDescription] = useState("");
-  const [taskPriority, setTaskPriority] = useState<1 | 2 | 3>(2);
-  const [editTaskId, setEditTaskId] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(true);
-  const [taskLoading, setTaskLoading] = useState(false);
-  const [taskSaveLoading, setTaskSaveLoading] = useState(false);
-  const [markCompleteLoadingId, setMarkCompleteLoadingId] = useState<string | null>(null);
+  const [taskDesc, setTaskDesc] = useState("");
+  const [taskPriority, setTaskPriority] = useState("medium");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
-  const [polls, setPolls] = useState<Poll[]>([]);
-  const [pollsLoading, setPollsLoading] = useState(false);
-  const [pollSelections, setPollSelections] = useState<Record<string, string>>({});
-  const [submittedPolls, setSubmittedPolls] = useState<Set<string>>(new Set());
-  const [pollSubmitLoading, setPollSubmitLoading] = useState<string | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
-  const [focusNotice, setFocusNotice] = useState("");
-  const cleanupRef = useRef<null | (() => void)>(null);
+  // --- STATE: TIMER ---
+  const [timerDuration, setTimerDuration] = useState(25 * 60); // Default 25 minutes
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [isRunning, setIsRunning] = useState(false);
 
+  // Load Token and Timer State on mount
   useEffect(() => {
     setTokenState(getToken());
-  }, []);
-
-  useEffect(() => {
-    if (!token || !roomId) return;
-    const roomKey = roomId;
-
-    const ping = () => {
-      const t = getToken();
-      if (!t) return;
-      fetch("/api/meet-addon/presence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-        body: JSON.stringify({ roomKey, event: "ping" }),
-      }).catch(() => {});
-    };
-
-    ping();
-    const intervalId = window.setInterval(ping, PRESENCE_HEARTBEAT_MS);
-
-    const endPresence = () => {
-      const t = getToken();
-      if (!t) return;
-      fetch("/api/meet-addon/presence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-        body: JSON.stringify({ roomKey, event: "end" }),
-        keepalive: true,
-      }).catch(() => {});
-    };
-
-    window.addEventListener("pagehide", endPresence);
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("pagehide", endPresence);
-      endPresence();
-    };
-  }, [token, roomId]);
-
-  useEffect(() => {
-    if (!token) return;
-    let stopBus: (() => void) | null = null;
-    let stopFocus: (() => void) | null = null;
-    (async () => {
-      const id = await getMeetRoomId();
-      setRoomId(id);
-      stopBus = subscribeMeetEvents(onEvent);
-      stopFocus = startFocusGuard({
-        roomId: id,
-        userId: "self",
-        onReminder: (msg) => setFocusNotice(msg),
-      });
-      cleanupRef.current = () => {
-        stopBus?.();
-        stopFocus?.();
-      };
-    })();
-    return () => cleanupRef.current?.();
-  }, [token, onEvent, setRoomId]);
-
-  const fetchTodayTasks = useCallback(async () => {
-    const t = getToken();
-    if (!t) return;
-    setTaskLoading(true);
-    try {
-      const res = await fetch("/api/meet-addon/today-task", { headers: authHeaders() });
-      const data = await res.json();
-      if (res.ok && data?.tasks && Array.isArray(data.tasks)) {
-        setTodayTasks(
-          data.tasks.map((row: TodayTaskItem) => ({
-            ...row,
-            priority: row.priority === 1 || row.priority === 2 || row.priority === 3 ? row.priority : 2,
-          }))
-        );
-      } else {
-        setTodayTasks([]);
+    
+    // Recover Timer
+    const saved = localStorage.getItem(TIMER_STORAGE_KEY);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.isRunning && data.endTime) {
+          const remaining = Math.max(0, Math.floor((data.endTime - Date.now()) / 1000));
+          setTimerDuration(data.duration || 25 * 60);
+          if (remaining > 0) {
+            setTimeLeft(remaining);
+            setIsRunning(true);
+          } else {
+            setTimeLeft(data.duration || 25 * 60);
+            setIsRunning(false);
+          }
+        } else {
+          setTimerDuration(data.duration || 25 * 60);
+          setTimeLeft(data.pausedTimeLeft ?? data.duration ?? (25 * 60));
+          setIsRunning(false);
+        }
+      } catch (e) {
+        console.error("Timer corrupt", e);
       }
-    } catch {
-      setTodayTasks([]);
-    } finally {
-      setTaskLoading(false);
     }
   }, []);
 
-  const fetchPolls = useCallback(async () => {
-    setPollsLoading(true);
-    try {
-      const res = await fetch("/api/meet-addon/polls", { headers: authHeaders() });
-      const data = await res.json();
-      if (Array.isArray(data)) setPolls(data);
-      else setPolls([]);
-    } catch {
-      setPolls([]);
-    } finally {
-      setPollsLoading(false);
-    }
-  }, []);
-
-  const fetchLeaderboard = useCallback(async () => {
-    if (!roomId) return;
-    try {
-      const res = await fetch(`/api/meet-addon/leaderboard?roomId=${encodeURIComponent(roomId)}`);
-      const data = await res.json();
-      setLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : []);
-    } catch {
-      setLeaderboard([]);
-    }
-  }, [roomId]);
-
-  useEffect(() => {
-    if (!token) return;
-    fetchTodayTasks();
-    fetchPolls();
-  }, [token, fetchTodayTasks, fetchPolls]);
-
-  useEffect(() => {
-    if (!token || !roomId) return;
-    fetchLeaderboard();
-  }, [token, roomId, fetchLeaderboard]);
-
+  // --- ACTIONS: AUTH ---
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoginError("");
@@ -262,15 +124,13 @@ export default function MeetAddonPanelPage() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        setToken(data.token);
+        saveToken(data.token);
         setTokenState(data.token);
-        setEmail("");
-        setPassword("");
       } else {
         setLoginError(data.error || "Login failed");
       }
     } catch {
-      setLoginError("Network error");
+      setLoginError("Network connection error");
     } finally {
       setLoginLoading(false);
     }
@@ -279,10 +139,7 @@ export default function MeetAddonPanelPage() {
   async function handleLinkWithCode(e: React.FormEvent) {
     e.preventDefault();
     const code = linkCode.replace(/\D/g, "").slice(0, 6);
-    if (code.length !== 6) {
-      setLinkCodeError("Enter the 6-digit code from your dashboard");
-      return;
-    }
+    if (code.length !== 6) return setLinkCodeError("Enter 6 digits");
     setLinkCodeError("");
     setLinkCodeLoading(true);
     try {
@@ -293,457 +150,510 @@ export default function MeetAddonPanelPage() {
       });
       const data = await res.json();
       if (res.ok && data.token) {
-        setToken(data.token);
+        saveToken(data.token);
         setTokenState(data.token);
-        setLinkCode("");
       } else {
-        setLinkCodeError(data.error || "Invalid or expired code");
+        setLinkCodeError(data.error || "Invalid link code");
       }
     } catch {
-      setLinkCodeError("Network error");
+      setLinkCodeError("Network connection error");
     } finally {
       setLinkCodeLoading(false);
     }
   }
 
-  async function handleLogout() {
-    const t = getToken();
-    const rk = roomId ?? "local-room";
-    if (t) {
-      try {
-        await fetch("/api/meet-addon/presence", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
-          body: JSON.stringify({ roomKey: rk, event: "end" }),
-        });
-      } catch {
-        // ignore
-      }
-    }
+  function handleLogout() {
     clearToken();
     setTokenState(null);
-    setTodayTasks([]);
-    setTaskTitle("");
-    setTaskDescription("");
-    setTaskPriority(2);
-    setEditTaskId(null);
-    setShowAddForm(true);
-    setPolls([]);
-    setSubmittedPolls(new Set());
-    setPollSelections({});
   }
 
-  function resetNewTaskForm() {
-    setTaskTitle("");
-    setTaskDescription("");
-    setTaskPriority(2);
-    setEditTaskId(null);
-  }
+  // --- REAL-TIME DATA FETCHING ---
+  const [tasks, setTasks] = useState<{ id: string, title: string, description: string | null, priority: number, completedAt: string | null }[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
 
-  async function handleSaveTask(e: React.FormEvent) {
-    e.preventDefault();
-    if (!taskTitle.trim()) return;
-    setTaskSaveLoading(true);
+  const fetchTasks = async () => {
+    if (!token) return;
     try {
-      const body: Record<string, unknown> = {
-        title: taskTitle.trim(),
-        description: taskDescription.trim() || null,
-        priority: taskPriority,
-      };
-      if (editTaskId) body.id = editTaskId;
       const res = await fetch("/api/meet-addon/today-task", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify(body),
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        resetNewTaskForm();
-        setShowAddForm(false);
-        await fetchTodayTasks();
+        const data = await res.json();
+        setTasks(data.tasks || []);
       }
-    } finally {
-      setTaskSaveLoading(false);
-    }
-  }
+    } catch (e) { console.error(e); }
+    finally { setTasksLoading(false); }
+  };
 
-  async function handleMarkCompleteTask(taskId: string) {
-    setMarkCompleteLoadingId(taskId);
-    try {
-      const res = await fetch("/api/meet-addon/today-task", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ taskId, markComplete: true }),
-      });
-      if (res.ok) await fetchTodayTasks();
-    } finally {
-      setMarkCompleteLoadingId(null);
-    }
-  }
+  useEffect(() => {
+    if (token) fetchTasks();
+  }, [token]);
 
-  function beginEdit(task: TodayTaskItem) {
-    setEditTaskId(task.id);
-    setTaskTitle(task.title);
-    setTaskDescription(task.description ?? "");
-    setTaskPriority(task.priority === 1 || task.priority === 2 || task.priority === 3 ? task.priority : 2);
-    setShowAddForm(true);
-  }
+  const handleCreateTask = async () => {
+    if (!taskTitle.trim() || !token) return;
+    setShowTaskForm(false);
+    const PriorityMap: Record<string, number> = { high: 1, medium: 2, normal: 3 };
+    const p = PriorityMap[taskPriority] || 2;
+    
+    // Check if we are editing an existing task
+    if (editingTaskId) {
+      const targetId = editingTaskId;
+      // Optimistic Update
+      setTasks(prev => prev.map(t => t.id === targetId ? { ...t, title: taskTitle, description: taskDesc || null, priority: p } : t).sort((a, b) => a.priority - b.priority));
+      
+      setEditingTaskId(null);
+      setTaskTitle(""); setTaskDesc(""); setTaskPriority("medium");
 
-  async function handlePollSubmit(pollId: string) {
-    const answer = pollSelections[pollId];
-    if (!answer) return;
-    setPollSubmitLoading(pollId);
-    try {
-      const res = await fetch("/api/meet-addon/poll-response", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ pollId, answer }),
-      });
-      if (res.ok) {
-        setSubmittedPolls((prev) => new Set(prev).add(pollId));
-        await publishMeetEvent({
-          type: "POLL_START",
-          roomId: roomId ?? "local-room",
-          pollId,
-          ts: Date.now(),
+      try {
+        const res = await fetch("/api/meet-addon/today-task", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ taskId: targetId, title: taskTitle, description: taskDesc, priority: p })
         });
+        if (!res.ok) {
+          console.error(`Task Edit Failed: ${res.status} ${res.statusText}`);
+          fetchTasks(); // rollback if error
+        }
+      } catch (err) {
+        console.error("Network Error on Edit Task:", err);
+        fetchTasks();
       }
-    } finally {
-      setPollSubmitLoading(null);
+      return;
     }
-  }
 
-  if (token === null) {
+    // Optimistic UI Update (New Task)
+    const tempId = `temp-${Date.now()}`;
+    const newTask = { id: tempId, title: taskTitle, description: taskDesc || null, priority: p, completedAt: null };
+    setTasks(prev => [...prev, newTask].sort((a, b) => a.priority - b.priority));
+    
+    setTaskTitle(""); setTaskDesc(""); setTaskPriority("medium");
+
+    try {
+      const res = await fetch("/api/meet-addon/today-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: newTask.title, description: newTask.description, priority: newTask.priority })
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setTasks(prev => prev.map(t => t.id === tempId ? saved : t).sort((a,b) => a.priority - b.priority));
+      } else {
+        console.error(`Task Creation Failed: ${res.status} ${res.statusText}`, await res.text());
+        fetchTasks(); // rollback
+      }
+    } catch (err) {
+      console.error("Network Error on Create Task:", err);
+      fetchTasks();
+    }
+  };
+
+  const handleCompleteTask = async (taskId: string) => {
+    if (!token) return;
+    // Optimistic Update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completedAt: new Date().toISOString() } : t));
+    
+    try {
+      await fetch("/api/meet-addon/today-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ markComplete: true, taskId })
+      });
+    } catch (e) {
+      console.error(e);
+      fetchTasks(); // rollback if network fails
+    }
+  };
+
+  // --- TIMER SAVE SYNC LOGIC ---
+  const saveTimerSession = async (planned: number, completed: number, isFinished: boolean) => {
+    if (!token || completed <= 0) return;
+    try {
+      await fetch("/api/meet-addon/pomodoro-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+           roomKey: "local-room",
+           plannedSeconds: planned,
+           completedSeconds: completed,
+           completedFully: isFinished
+        })
+      });
+    } catch(e) { console.error("Failed to sync timer", e); }
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+         const saved = localStorage.getItem(TIMER_STORAGE_KEY);
+         let driftSet = false;
+         if (saved) {
+             try {
+                 const data = JSON.parse(saved);
+                 if (data.endTime) {
+                     const remaining = Math.max(0, Math.floor((data.endTime - Date.now()) / 1000));
+                     setTimeLeft(remaining);
+                     driftSet = true;
+                 }
+             } catch {}
+         }
+         if (!driftSet) setTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (isRunning && timeLeft === 0) {
+      setIsRunning(false);
+      saveTimerSession(timerDuration, timerDuration, true);
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: false, duration: timerDuration, pausedTimeLeft: timerDuration }));
+      fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
+    }
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft, timerDuration, token]);
+
+  const toggleTimer = () => {
+    if (isRunning) {
+      // User is Pausing early -> log the session chunk
+      saveTimerSession(timerDuration, timerDuration - timeLeft, false);
+      setTimerDuration(timeLeft); // set new max
+      setIsRunning(false);
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: false, duration: timeLeft, pausedTimeLeft: timeLeft }));
+      fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
+    } else {
+      setIsRunning(true);
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: true, duration: timerDuration, endTime: Date.now() + timeLeft * 1000 }));
+      fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START" }) }).catch(()=>null);
+    }
+  };
+  
+  const resetTimer = () => {
+    if (isRunning) {
+       saveTimerSession(timerDuration, timerDuration - timeLeft, false);
+       fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
+    }
+    setIsRunning(false);
+    setTimeLeft(timerDuration);
+    localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: false, duration: timerDuration, pausedTimeLeft: timerDuration }));
+  };
+  
+  const setDuration = (minutes: number) => {
+    if (isRunning) {
+       saveTimerSession(timerDuration, timerDuration - timeLeft, false);
+       fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
+    }
+    setIsRunning(false);
+    setTimerDuration(minutes * 60);
+    setTimeLeft(minutes * 60);
+    localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: false, duration: minutes * 60, pausedTimeLeft: minutes * 60 }));
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  // --- RENDER: LOGIN GATE ---
+  if (!token) {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 p-4 flex flex-col items-center justify-center">
-        <div className="w-full max-w-sm space-y-5">
-          <LiveClockBar />
-          <div className="text-center">
-            <h1 className="text-lg font-semibold flex items-center justify-center gap-2">
-              <ClipboardList className="w-5 h-5" />
-              Virtual Library – Meet Add-on
+      <div className="min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_50%_0%,_var(--accent)_0%,_transparent_60%)] mix-blend-hard-light animate-[mesh]" />
+        
+        <div className="w-full max-w-sm z-10 space-y-4">
+          <div className="text-center mb-6">
+            <h1 className="text-lg font-extrabold flex items-center justify-center gap-1.5 tracking-widest text-[var(--cream)] uppercase">
+              <ClipboardList className="w-5 h-5 text-[var(--wood)]" />
+              Identify Scholar
             </h1>
-            <p className="text-sm text-slate-400 mt-1">Sign in to sync tasks & polls with your dashboard</p>
           </div>
 
-          {/* Option 1: Code from dashboard (no password in Meet) */}
-          <div className="rounded-lg border border-slate-600 bg-slate-800/50 p-3">
-            <p className="text-xs font-medium text-slate-300 mb-2">Already on dashboard? Use code</p>
-            <form onSubmit={handleLinkWithCode} className="space-y-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                placeholder="6-digit code"
-                value={linkCode}
-                onChange={(e) => { setLinkCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setLinkCodeError(""); }}
-                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-center font-mono text-lg tracking-widest"
-              />
-              {linkCodeError && <p className="text-red-400 text-xs">{linkCodeError}</p>}
-              <button
-                type="submit"
-                disabled={linkCodeLoading || linkCode.replace(/\D/g, "").length !== 6}
-                className="w-full rounded-lg bg-slate-600 hover:bg-slate-500 text-white py-2 text-sm font-medium flex items-center justify-center gap-2"
+          <div className="rounded-[1.5rem] border border-[var(--wood)]/20 bg-[var(--ink)]/40 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.5)] overflow-hidden">
+            <div className="flex border-b border-[var(--wood)]/10 text-[11px] uppercase tracking-widest font-bold">
+              <button 
+                onClick={() => setAuthTab("code")} 
+                className={`flex-1 py-4 text-center transition-colors ${authTab === "code" ? "bg-[var(--accent)]/10 text-[var(--accent)] shadow-[inset_0_-2px_0_var(--accent)]" : "text-[var(--wood)] hover:bg-[var(--ink)]/40"}`}
               >
-                {linkCodeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Link with code
+                Passcode
               </button>
-            </form>
-            <p className="text-xs text-slate-500 mt-2">Dashboard → Open add-on → Get code</p>
-          </div>
+              <button 
+                onClick={() => setAuthTab("email")} 
+                className={`flex-1 py-4 text-center transition-colors ${authTab === "email" ? "bg-[var(--accent)]/10 text-[var(--accent)] shadow-[inset_0_-2px_0_var(--accent)]" : "text-[var(--wood)] hover:bg-[var(--ink)]/40"}`}
+              >
+                Web Email
+              </button>
+            </div>
 
-          {/* Option 2: Email + password */}
-          <div className="rounded-lg border border-slate-600 bg-slate-800/50 p-3">
-            <p className="text-xs font-medium text-slate-300 mb-2">Or log in with email & password</p>
-            <form onSubmit={handleLogin} className="space-y-2">
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm"
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm"
-                required
-              />
-              {loginError && <p className="text-red-400 text-sm">{loginError}</p>}
-              <button
-                type="submit"
-                disabled={loginLoading}
-                className="w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white py-2 text-sm font-medium flex items-center justify-center gap-2"
-              >
-                {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Log in
-              </button>
-            </form>
+            <div className="p-6">
+              {authTab === "code" ? (
+                <form onSubmit={handleLinkWithCode} className="space-y-4">
+                  <input
+                    type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6}
+                    placeholder="000 000"
+                    value={linkCode}
+                    onChange={(e) => { setLinkCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setLinkCodeError(""); }}
+                    className="w-full rounded-xl border border-[var(--wood)]/30 bg-[var(--background)]/80 px-4 py-3 text-center font-mono text-2xl tracking-[0.4em] text-[var(--cream)] shadow-inner focus:border-[var(--accent)]/50 focus:outline-none transition-colors placeholder:text-[var(--wood)]/40"
+                  />
+                  {linkCodeError && <p className="text-red-400 text-[10px] text-center font-bold uppercase tracking-wider">{linkCodeError}</p>}
+                  <button
+                    type="submit"
+                    disabled={linkCodeLoading || linkCode.length !== 6}
+                    className="w-full rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--ink)] py-3 text-[11px] font-extrabold tracking-[0.2em] uppercase flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(154,130,100,0.3)] transition-all disabled:opacity-30 disabled:hover:scale-100 hover:scale-105"
+                  >
+                    {linkCodeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Link Add-on Dashboard"}
+                  </button>
+                  <p className="text-[9px] text-[var(--wood)] font-medium text-center uppercase tracking-wider pt-2">From web app layout → get link code</p>
+                </form>
+              ) : (
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <input
+                    type="email" placeholder="Student Email"
+                    value={email} onChange={(e) => setEmail(e.target.value)} required
+                    className="w-full rounded-[1rem] border border-[var(--wood)]/20 bg-[var(--background)]/60 px-4 py-3 text-xs font-semibold text-[var(--cream)] focus:border-[var(--accent)]/50 focus:outline-none focus:bg-[var(--background)]/90 transition-colors"
+                  />
+                  <input
+                    type="password" placeholder="Key Phrase"
+                    value={password} onChange={(e) => setPassword(e.target.value)} required
+                    className="w-full rounded-[1rem] border border-[var(--wood)]/20 bg-[var(--background)]/60 px-4 py-3 text-xs font-semibold text-[var(--cream)] focus:border-[var(--accent)]/50 focus:outline-none focus:bg-[var(--background)]/90 transition-colors"
+                  />
+                  {loginError && <p className="text-red-400 text-[10px] font-bold text-center uppercase tracking-wider">{loginError}</p>}
+                  <button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="w-full rounded-[1rem] border border-[var(--wood)]/30 bg-[var(--ink)] hover:bg-[var(--ink)]/80 text-[var(--cream)] py-3 text-[11px] tracking-widest uppercase font-extrabold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Secure Log In"}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+  // --- RENDER: DASHBOARD ---
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-4 pb-8">
-      <LiveClockBar />
-      <div className="flex items-center justify-between mb-4 mt-3">
-        <h1 className="text-base font-semibold flex items-center gap-2">
-          <ClipboardList className="w-4 h-4" />
-          Virtual Library
-        </h1>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              if (!window.meet?.addon?.createSpace) return;
-              const url = `${window.location.origin}/meet-addon/main`;
-              await window.meet.addon.createSpace({ url });
-            }}
-            className="text-xs rounded-md bg-indigo-600 hover:bg-indigo-500 px-2 py-1"
-          >
-            Open Stage
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="text-slate-400 hover:text-white flex items-center gap-1 text-sm"
-          >
-            <LogOut className="w-4 h-4" />
-            Log out
-          </button>
-        </div>
-      </div>
-      <div className="mb-4 space-y-3">
-        <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-3 text-xs text-slate-300">
-          <p>Room: {roomId ?? "Loading..."}</p>
-          {focusNotice ? <p className="text-amber-300 mt-1">{focusNotice}</p> : null}
-          {activeQuizId ? <p className="text-emerald-300 mt-1">Live Quiz: {activeQuizId}</p> : null}
-        </div>
-        <PomodoroWatch roomKey={roomId ?? "local-room"} />
+    <div className="min-h-[100dvh] bg-[var(--background)] flex flex-col items-center justify-start pt-28 pb-4 px-4 relative overflow-y-auto scrollbar-hide">
+      {/* Premium Animated Mesh Background */}
+      <div className="pointer-events-none absolute inset-0 opacity-40 mix-blend-hard-light animate-[mesh] bg-[radial-gradient(circle_at_50%_0%,_var(--accent)_0%,_transparent_60%),radial-gradient(circle_at_80%_80%,_var(--wood)_0%,_transparent_50%),radial-gradient(circle_at_10%_80%,_var(--accent)_0%,_transparent_40%)]" />
+
+      {/* GLOBAL LOGOUT HEADER */}
+      <div className="fixed top-24 right-4 z-[9000]">
+         <button onClick={handleLogout} className="p-2 rounded-full border border-[var(--wood)]/30 bg-[var(--ink)]/40 hover:bg-red-500/10 hover:border-red-500/30 text-[var(--wood)] hover:text-red-400 transition-all shadow-sm group">
+            <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+         </button>
       </div>
 
-      {/* Today's tasks (multiple) */}
-      <section className="mb-6">
-        <h2 className="text-sm font-medium text-slate-300 mb-2">Today&apos;s tasks</h2>
-        {taskLoading ? (
-          <div className="flex items-center gap-2 text-slate-400 text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading…
-          </div>
-        ) : (
-          <>
-            <div className="space-y-3 mb-3">
-              {todayTasks.length === 0 ? (
-                <p className="text-slate-500 text-sm">No tasks yet — add one below.</p>
-              ) : (
-                todayTasks.map((task) => (
-                  <div key={task.id} className="rounded-lg border border-slate-700 bg-slate-800/50 p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-sm text-slate-200 ${task.completedAt ? "line-through text-slate-400" : ""}`}
-                        >
-                          {task.title}
-                        </p>
-                        {task.description ? (
-                          <p
-                            className={`text-xs text-slate-400 mt-1 whitespace-pre-wrap ${
-                              task.completedAt ? "line-through opacity-70" : ""
-                            }`}
-                          >
-                            {task.description}
-                          </p>
-                        ) : null}
-                      </div>
-                      <span
-                        className={`shrink-0 rounded border px-2 py-0.5 text-[10px] font-medium uppercase ${priorityBadgeClass(task.priority)}`}
-                      >
-                        {priorityLabel(task.priority)}
-                      </span>
-                    </div>
-                    {task.completedAt ? (
-                      <p className="text-emerald-400 text-xs flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        Completed
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => beginEdit(task)}
-                          className="rounded-lg border border-slate-600 hover:bg-slate-700/80 text-slate-200 px-3 py-1.5 text-sm font-medium flex items-center gap-1.5"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMarkCompleteTask(task.id)}
-                          disabled={markCompleteLoadingId === task.id}
-                          className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-sm font-medium flex items-center gap-1.5"
-                        >
-                          {markCompleteLoadingId === task.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-3.5 h-3.5" />
-                          )}
-                          Mark complete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+      <div className="w-full max-w-4xl z-10 flex flex-col">
+        {/* LIVE CLOCK HEADER */}
+        <LiveClock />
 
-            {showAddForm ? (
-              <form
-                onSubmit={handleSaveTask}
-                className="space-y-2 rounded-lg border border-slate-700 bg-slate-800/30 p-3"
+        {/* TWO COLUMN WIDGETS */}
+        <div className="w-full flex flex-col md:flex-row gap-6 items-start justify-center">
+        
+        {/* TASK WIDGET - LEFT SIDE */}
+        <section className="flex-1 w-full flex flex-col">
+          <div className="flex justify-start items-center mb-3">
+             <button 
+                onClick={() => setShowTaskForm(!showTaskForm)}
+                className="group flex items-center gap-2 rounded-full bg-[var(--ink)]/40 border border-[var(--wood)]/30 hover:border-[var(--accent)] hover:bg-[var(--ink)]/70 transition-all py-2 px-4 shadow-[0_4px_16px_rgba(0,0,0,0.3)] focus:outline-none"
               >
-                <input
-                  type="text"
-                  placeholder="Task title"
+                <Plus className={`w-4 h-4 text-[var(--accent)] transition-all duration-300 ${showTaskForm ? 'rotate-45 text-red-500' : 'group-hover:rotate-90'}`} />
+                <span className="text-[11px] font-extrabold tracking-[0.1em] uppercase text-[var(--cream)]">
+                   Create Task
+                </span>
+             </button>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-[var(--wood)]/20 bg-[var(--ink)]/30 backdrop-blur-md p-3 shadow-[0_8px_24px_rgba(0,0,0,0.2)] flex flex-col gap-2 min-h-[300px]">
+            {showTaskForm && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300 mb-2 shrink-0 bg-[var(--ink)]/60 border border-[var(--wood)]/20 rounded-[1.2rem] p-3.5 shadow-inner space-y-3">
+                <input 
+                  autoFocus
+                  type="text" 
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm"
+                  placeholder="Task Heading" 
+                  className="w-full bg-transparent border-b border-[var(--wood)]/30 text-[var(--cream)] px-2 py-1.5 text-[12px] font-bold focus:outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--wood)]/50 tracking-wide"
+                  onKeyDown={(e) => {
+                     if (e.key === 'Enter' && taskTitle.trim()) {
+                        handleCreateTask();
+                     }
+                  }}
                 />
-                <textarea
-                  placeholder="Description (optional)"
-                  value={taskDescription}
-                  onChange={(e) => setTaskDescription(e.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200 resize-y min-h-[72px]"
+                
+                <textarea 
+                  value={taskDesc}
+                  onChange={(e) => setTaskDesc(e.target.value)}
+                  placeholder="Task description..." 
+                  rows={2}
+                  className="w-full bg-transparent border-b border-[var(--wood)]/30 text-[var(--cream-muted)] px-2 py-1.5 text-[10px] resize-none focus:outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--wood)]/40 scrollbar-hide font-medium leading-relaxed"
                 />
-                <label className="block text-xs text-slate-400">
-                  Priority
-                  <select
-                    value={taskPriority}
-                    onChange={(e) => setTaskPriority(Number(e.target.value) as 1 | 2 | 3)}
-                    className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
-                  >
-                    <option value={1}>High</option>
-                    <option value={2}>Medium</option>
-                    <option value={3}>Normal</option>
-                  </select>
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="submit"
-                    disabled={taskSaveLoading || !taskTitle.trim()}
-                    className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-sm font-medium flex items-center gap-1.5"
-                  >
-                    {taskSaveLoading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                    {editTaskId ? "Save changes" : "Create task"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetNewTaskForm();
-                      if (todayTasks.length > 0) setShowAddForm(false);
-                    }}
-                    className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 flex items-center gap-1"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  resetNewTaskForm();
-                  setShowAddForm(true);
-                }}
-                className="rounded-lg border border-dashed border-slate-600 hover:bg-slate-800/80 text-slate-300 px-3 py-2 text-sm font-medium flex items-center gap-2 w-full justify-center"
-              >
-                <Plus className="w-4 h-4" />
-                Add another task
-              </button>
-            )}
-          </>
-        )}
-      </section>
+                
+                <div className="flex items-center justify-between pt-1 gap-2">
+                   <div className="relative">
+                     <select 
+                        value={taskPriority}
+                        onChange={(e) => setTaskPriority(e.target.value)}
+                        className="bg-[var(--ink)]/80 border border-[var(--wood)]/30 rounded-[0.6rem] text-[var(--cream)] pl-3 pr-7 py-2 text-[9px] font-bold uppercase tracking-widest focus:outline-none focus:border-[var(--accent)] appearance-none cursor-pointer shadow-sm"
+                     >
+                       <option value="high">High</option>
+                       <option value="medium">Medium</option>
+                       <option value="normal">Normal</option>
+                     </select>
+                     {/* Custom Select Arrow */}
+                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--wood)]">
+                       <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                     </div>
+                   </div>
 
-      {/* Polls / Quiz */}
-      <section>
-        <h2 className="text-sm font-medium text-slate-300 mb-2">Polls & quiz</h2>
-        {pollsLoading ? (
-          <div className="flex items-center gap-2 text-slate-400 text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading…
-          </div>
-        ) : polls.length === 0 ? (
-          <p className="text-slate-500 text-sm">No active polls right now.</p>
-        ) : (
-          <div className="space-y-4">
-            {polls.map((poll) => (
-              <div key={poll.id} className="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
-                <p className="text-sm font-medium text-slate-200 mb-2">{poll.question}</p>
-                {submittedPolls.has(poll.id) || poll.alreadyAnswered ? (
-                  <p className="text-emerald-400 text-xs flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    {poll.alreadyAnswered ? "Already submitted in this room." : `You answered: ${pollSelections[poll.id]}`}
-                  </p>
-                ) : (
-                  <>
-                    <div className="space-y-1.5 mb-2">
-                      {(poll.options as string[]).map((opt) => (
-                        <label key={opt} className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input
-                            type="radio"
-                            name={`poll-${poll.id}`}
-                            checked={pollSelections[poll.id] === opt}
-                            onChange={() => setPollSelections((prev) => ({ ...prev, [poll.id]: opt }))}
-                            className="rounded-full border-slate-500 text-emerald-600"
-                          />
-                          <span className="text-slate-300">{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePollSubmit(poll.id)}
-                      disabled={!pollSelections[poll.id] || pollSubmitLoading === poll.id}
-                      className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-sm font-medium flex items-center gap-1.5"
-                    >
-                      {pollSubmitLoading === poll.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                      Submit
-                    </button>
-                  </>
-                )}
+                   <div className="flex items-center gap-1.5 shrink-0">
+                     <button 
+                       onClick={() => {
+                          setTaskTitle(""); setTaskDesc(""); setTaskPriority("medium");
+                          setEditingTaskId(null);
+                          setShowTaskForm(false);
+                       }}
+                       className="px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-[var(--wood)] hover:text-[var(--cream)] transition-colors"
+                     >
+                       Cancel
+                     </button>
+                     <button 
+                       onClick={handleCreateTask}
+                       disabled={!taskTitle.trim()}
+                       className="px-4 py-2 rounded-[0.6rem] bg-[var(--accent)] text-[var(--ink)] text-[9px] font-extrabold uppercase tracking-widest hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:hover:scale-100 shadow-[0_2px_8px_rgba(154,130,100,0.3)] flex items-center gap-1.5"
+                     >
+                       <CheckCircle className="w-3 h-3" /> Save
+                     </button>
+                   </div>
+                </div>
               </div>
-            ))}
+            )}
+            
+            {/* Live Data Task List */}
+            <div className="flex-1 overflow-y-auto space-y-2 scrollbar-hide pr-1">
+               {tasksLoading && tasks.length === 0 ? (
+                 <div className="h-full flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 text-[var(--wood)] animate-spin" />
+                 </div>
+               ) : tasks.length === 0 && !showTaskForm ? (
+                 <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-[var(--wood)]">No active tasks</p>
+                    <p className="text-[10px] text-[var(--wood)] mt-1">Enjoy a deeply focused session.</p>
+                 </div>
+               ) : (
+                 tasks.map(task => (
+                   <div key={task.id} className={`group rounded-[1rem] border border-[var(--wood)]/10 bg-[var(--ink)]/40 p-2.5 flex items-start gap-2.5 transition-all hover:border-[var(--wood)]/30 hover:bg-[var(--ink)]/60 ${task.completedAt ? "opacity-50" : ""}`}>
+                     <button 
+                        onClick={() => !task.completedAt && handleCompleteTask(task.id)}
+                        disabled={!!task.completedAt}
+                        className={`mt-0.5 shrink-0 w-4 h-4 rounded-full border border-[var(--wood)]/40 flex items-center justify-center transition-colors ${task.completedAt ? "bg-[var(--accent)] text-[var(--ink)] border-transparent" : "hover:border-[var(--accent)] hover:text-[var(--accent)] text-transparent cursor-pointer"}`}
+                     >
+                        <CheckCircle className="w-3 h-3" />
+                     </button>
+                     <div className="flex-1 min-w-0">
+                        <p className={`text-[11px] font-semibold truncate transition-colors ${task.completedAt ? "text-[var(--wood)] line-through" : "text-[var(--cream)] group-hover:text-[var(--accent)]"}`}>{task.title}</p>
+                        {task.description && <p className="text-[9px] text-[var(--cream-muted)] truncate mt-0.5">{task.description}</p>}
+                     </div>
+                     {!task.completedAt && (
+                        <div className="shrink-0 flex items-center gap-2">
+                           {task.priority === 1 && <span className="text-[8px] font-bold uppercase text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-sm">High</span>}
+                           <button 
+                             onClick={() => {
+                               setEditingTaskId(task.id);
+                               setTaskTitle(task.title);
+                               setTaskDesc(task.description || "");
+                               setTaskPriority(task.priority === 1 ? "high" : task.priority === 3 ? "normal" : "medium");
+                               setShowTaskForm(true);
+                             }}
+                             className="w-5 h-5 flex items-center justify-center text-[var(--wood)] hover:text-[var(--accent)] transition-colors hover:bg-[var(--accent)]/10 rounded-md"
+                           >
+                              <Pencil className="w-3 h-3" />
+                           </button>
+                        </div>
+                     )}
+                   </div>
+                 ))
+               )}
+            </div>
           </div>
-        )}
-      </section>
-      <section className="mt-6">
-        <h2 className="text-sm font-medium text-slate-300 mb-2">Scholar Leaderboard</h2>
-        <div className="space-y-1.5">
-          {leaderboard.length === 0 ? (
-            <p className="text-slate-500 text-sm">No scores yet.</p>
-          ) : (
-            leaderboard.slice(0, 5).map((row) => (
-              <div key={`${row.rank}-${row.name}`} className="text-sm text-slate-200 flex justify-between">
-                <span>
-                  #{row.rank} {row.name}
-                </span>
-                <span>{row.coins} coins • {row.streakDays}d streak</span>
+        </section>
+
+        {/* TIMER WIDGET - RIGHT SIDE */}
+        <section className="flex-1 w-full rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/40 backdrop-blur-md p-6 shadow-[0_12px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex justify-between items-center mb-6">
+             <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--wood)] flex items-center gap-1.5">
+               <Clock className="w-3.5 h-3.5 text-[var(--accent)]" /> 
+               Focus Engine
+             </h2>
+             {isRunning && (
+               <span className="animate-pulse bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md text-[8px] font-extrabold uppercase tracking-widest">
+                 Live
+               </span>
+             )}
+          </div>
+          
+          <div className="text-center py-4 mb-2">
+            <span className="text-6xl font-mono font-extrabold tracking-widest text-[var(--cream)] drop-shadow-[0_0_16px_rgba(154,130,100,0.4)] tabular-nums">
+              {formatTime(timeLeft)}
+            </span>
+          </div>
+
+          <div className="min-h-[2.5rem] mb-6 flex flex-col justify-center items-center gap-3">
+            {(!isRunning && timeLeft === timerDuration) ? (
+              <div className="flex flex-wrap justify-center items-center gap-2">
+                {[15, 25, 45, 60].map((mins) => (
+                  <button
+                    key={mins}
+                    onClick={() => setDuration(mins)}
+                    className={`px-3 py-1.5 rounded-[0.8rem] text-[9px] font-extrabold uppercase tracking-wider transition-all shadow-sm ${timerDuration === mins * 60 ? "bg-[var(--accent)] text-[var(--ink)] scale-105" : "bg-[var(--ink)]/50 border border-[var(--wood)]/20 text-[var(--wood)] hover:text-[var(--cream)] hover:border-[var(--wood)]/50"}`}
+                  >
+                    {mins}m
+                  </button>
+                ))}
+                
+                {/* Custom Input */}
+                <div className="flex items-center bg-[var(--ink)]/40 border border-[var(--wood)]/20 rounded-[0.8rem] transition-colors focus-within:border-[var(--accent)]/50 focus-within:bg-[var(--ink)]/70 shadow-inner ml-0.5">
+                  <input
+                    type="number"
+                    min="1"
+                    max="999"
+                    value={Math.floor(timerDuration / 60)}
+                    onChange={(e) => {
+                       const val = parseInt(e.target.value);
+                       if (!isNaN(val) && val > 0) setDuration(val);
+                    }}
+                    className="w-10 bg-transparent text-center text-[10px] font-bold text-[var(--cream)] py-1.5 focus:outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-none"
+                    placeholder="Min"
+                  />
+                  <span className="text-[9px] font-extrabold uppercase tracking-widest text-[var(--wood)] pr-2.5 select-none opacity-80">m</span>
+                </div>
               </div>
-            ))
-          )}
+            ) : (
+               <p className="text-[10px] font-medium tracking-widest uppercase text-[var(--wood)] mt-1">
+                 Deep work in progress
+               </p>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <button
+               onClick={toggleTimer}
+               className={`flex-1 rounded-full py-3.5 text-xs font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_4px_16px_rgba(0,0,0,0.3)] ${isRunning ? "bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" : "bg-[var(--accent)] text-[var(--ink)] hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(154,130,100,0.4)]"}`}
+            >
+              {isRunning ? <><X className="w-4 h-4"/> Pause</> : <><Flame className="w-4 h-4"/> Start</>}
+            </button>
+            
+            <button
+               onClick={resetTimer}
+               className="w-14 shrink-0 rounded-full bg-[var(--ink)] border border-[var(--wood)]/30 hover:bg-[var(--ink)]/70 hover:border-[var(--wood)]/60 transition-all text-[var(--wood)] hover:text-[var(--cream)] flex items-center justify-center shadow-inner"
+            >
+               <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
+        </section>
+
         </div>
-      </section>
+      </div>
     </div>
   );
 }
+

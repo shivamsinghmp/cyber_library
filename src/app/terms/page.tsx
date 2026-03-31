@@ -12,7 +12,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">1. Acceptance of terms</h2>
           <p>
-            By accessing or using Virtual Library (“the Service”), you agree to be bound by these
+            By accessing or using The Cyber Library (“the Service”), you agree to be bound by these
             Terms and Conditions and our Privacy Policy. If you do not agree, please do not use
             the Service.
           </p>
@@ -20,7 +20,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">2. Description of service</h2>
           <p>
-            Virtual Library provides an online focus environment via video sessions (e.g. Google
+            The Cyber Library provides an online focus environment via video sessions (e.g. Google
             Meet), slot bookings, and related features including body-doubling sessions and
             optional Pomodoro-style structure. Access is subject to the plan you purchase and our
             Code of Conduct.
@@ -47,7 +47,7 @@ export default function TermsPage() {
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">5. Intellectual property</h2>
           <p>
             The Service, including its design, branding, and content (excluding user-generated
-            content), is owned by Virtual Library or its licensors. You may not copy, modify, or
+            content), is owned by The Cyber Library or its licensors. You may not copy, modify, or
             distribute our materials without prior written permission.
           </p>
         </section>

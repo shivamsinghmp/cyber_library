@@ -1,4 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Code of Conduct & Rules",
+  description: "The Cyber Library code of conduct. Maintain silence, keep cameras on, and stay focused during our online body doubling sessions.",
+};
 
 const RULES = [
   {
@@ -29,13 +35,13 @@ const RULES = [
 
 export default function RulesPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <div className="mx-auto max-w-3xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
       <div className="mb-10">
         <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
           Code of Conduct
         </h1>
         <p className="mt-2 text-sm text-[var(--cream-muted)] md:text-base">
-          Virtual Library works when everyone treats the room like a real library: quiet, respectful, and focused.
+          The Cyber Library works when everyone treats the room like a real library: quiet, respectful, and focused.
         </p>
       </div>
 

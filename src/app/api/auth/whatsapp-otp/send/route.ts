@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     });
 
     // Send the WhatsApp Message
-    const textMessage = `*Virtual Library Verification*\n\nYour secret code is: *${otp}*\n\nThis code will expire in 10 minutes. Do not share it.`;
+    const textMessage = `*The Cyber Library Verification*\n\nYour secret code is: *${otp}*\n\nThis code will expire in 10 minutes. Do not share it.`;
     
     // We do not wait for true API response to avoid blocking if the API is slow, 
     // but in a production environment with approved Template we want to know if it failed.

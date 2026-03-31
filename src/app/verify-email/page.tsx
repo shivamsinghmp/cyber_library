@@ -82,7 +82,7 @@ function VerifyEmailContent() {
         </h1>
         <p className="text-xs text-[var(--cream-muted)] mb-6">
           We&apos;ve sent a 6-digit code to your email. Enter it below to activate your
-          Virtual Library account.
+          The Cyber Library account.
         </p>
 
         <form onSubmit={handleVerify} className="space-y-4">

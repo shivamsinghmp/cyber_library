@@ -287,7 +287,7 @@ export default function AdminRazorpayPage() {
               type="text"
               value={smtpFrom}
               onChange={(e) => setSmtpFrom(e.target.value)}
-              placeholder='Virtual Library <no-reply@virtuallibrary.com>'
+              placeholder='The Cyber Library <no-reply@virtuallibrary.com>'
               className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
               autoComplete="off"
             />

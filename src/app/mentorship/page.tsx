@@ -1,4 +1,10 @@
 import { SlotsBooking } from "@/components/SlotsBooking";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Mentorship Sessions",
+  description: "Book one-on-one or group mentorship sessions. Get guidance from experienced mentors on your goals, career, and preparation.",
+};
 
 export default function MentorshipPage() {
   return (

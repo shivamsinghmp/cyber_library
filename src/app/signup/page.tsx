@@ -31,7 +31,7 @@ function SignupContent() {
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState("Virtual Library");
+  const [siteTitle, setSiteTitle] = useState("The Cyber Library");
 
   useEffect(() => {
     fetch("/api/site-branding")

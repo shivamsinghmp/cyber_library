@@ -1,6 +1,6 @@
 export default function ShippingPage() {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <article className="mx-auto max-w-3xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
       <header className="mb-8">
         <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
           Shipping &amp; Delivery Policy
@@ -12,7 +12,7 @@ export default function ShippingPage() {
         <section>
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">1. Digital delivery only</h2>
           <p>
-            Virtual Library provides only digital products and services. We do not ship physical
+            The Cyber Library provides only digital products and services. We do not ship physical
             goods. All offerings—including access to focus sessions, study slots, and membership
             plans—are delivered electronically.
           </p>

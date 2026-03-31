@@ -44,7 +44,7 @@ const roleNav: Record<
     { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
     { href: "/admin/traffic", label: "Traffic", icon: Activity },
     { href: "/admin/settings", label: "Settings", icon: Settings },
-    { href: "/admin/virtual-library", label: "Virtual Library", icon: ImageIcon },
+    { href: "/admin/virtual-library", label: "The Cyber Library", icon: ImageIcon },
     { href: "/admin/students", label: "Student Management", icon: Users },
     { href: "/admin/staff", label: "Staff Management", icon: Briefcase },
     { href: "/admin/profile-fields", label: "Profile Fields", icon: UserCircle },
@@ -92,7 +92,7 @@ export function RoleBasedSidebar() {
   const role = (session?.user as { role?: string })?.role ?? "STUDENT";
   const links = roleNav[role] ?? roleNav.STUDENT;
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState("Virtual Library");
+  const [siteTitle, setSiteTitle] = useState("The Cyber Library");
   useEffect(() => {
     fetch("/api/site-branding")
       .then((r) => (r.ok ? r.json() : {}))

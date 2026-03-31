@@ -40,7 +40,7 @@ async function loadSmtpConfig(): Promise<SmtpConfig | null> {
         const from =
           row.from ||
           process.env.SMTP_FROM ||
-          "Virtual Library <no-reply@virtuallibrary.com>";
+          "The Cyber Library <no-reply@virtuallibrary.com>";
         cachedConfig = {
           host: row.host,
           port,
@@ -63,7 +63,7 @@ async function loadSmtpConfig(): Promise<SmtpConfig | null> {
   const pass = process.env.SMTP_PASS;
   const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
   const from =
-    process.env.SMTP_FROM || "Virtual Library <no-reply@virtuallibrary.com>";
+    process.env.SMTP_FROM || "The Cyber Library <no-reply@virtuallibrary.com>";
 
   if (host && user && pass) {
     cachedConfig = { host, port, user, pass, from };
@@ -76,8 +76,8 @@ async function loadSmtpConfig(): Promise<SmtpConfig | null> {
 export async function sendOtpEmail(to: string, code: string, context: OtpContext) {
   const subject =
     context === "verify"
-      ? "Verify your Virtual Library account"
-      : "Virtual Library password reset OTP";
+      ? "Verify your The Cyber Library account"
+      : "The Cyber Library password reset OTP";
 
   const headline =
     context === "verify"
@@ -86,8 +86,8 @@ export async function sendOtpEmail(to: string, code: string, context: OtpContext
 
   const intro =
     context === "verify"
-      ? "Thank you for signing up for Virtual Library. Use the code below to verify your email address."
-      : "We received a request to reset the password for your Virtual Library account.";
+      ? "Thank you for signing up for The Cyber Library. Use the code below to verify your email address."
+      : "We received a request to reset the password for your The Cyber Library account.";
 
   const outro =
     context === "verify"
@@ -105,7 +105,7 @@ export async function sendOtpEmail(to: string, code: string, context: OtpContext
       </div>
       <p style="margin:0 0 8px;font-size:12px;color:#c3bfb3;">This code will expire in 10 minutes.</p>
       <p style="margin:0 0 16px;font-size:12px;color:#a6a094;">${outro}</p>
-      <p style="margin:0;font-size:11px;color:#736f63;">– Virtual Library Team</p>
+      <p style="margin:0;font-size:11px;color:#736f63;">– The Cyber Library Team</p>
     </div>
   </div>
   `;
@@ -120,12 +120,12 @@ This code will expire in 10 minutes.
 
 ${outro}
 
-– Virtual Library Team`;
+– The Cyber Library Team`;
 
   const cfg = await loadSmtpConfig();
   if (!cfg) {
     console.warn(
-      "[Virtual Library] SMTP is not configured. OTP email not sent. Code:",
+      "[The Cyber Library] SMTP is not configured. OTP email not sent. Code:",
       code,
       "to:",
       to

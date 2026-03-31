@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       const sDate = new Date(parsed.data.startTime);
       const eDate = new Date(parsed.data.endTime);
       
-      const generated = await createStudyRoomEvent(`Virtual Library: ${parsed.data.name}`, sDate, eDate);
+      const generated = await createStudyRoomEvent(`The Cyber Library: ${parsed.data.name}`, sDate, eDate);
       if (generated) {
         finalMeetLink = generated.meetLink;
         finalCalendarEventId = generated.calendarEventId;

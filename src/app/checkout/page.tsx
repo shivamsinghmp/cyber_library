@@ -251,7 +251,7 @@ function CheckoutForm() {
         key: keyId,
         amount,
         order_id: orderId,
-        name: "Virtual Library",
+        name: "The Cyber Library",
         description: displayName,
         handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string }) => {
           if (isCartMode && payableItems.length > 0) {

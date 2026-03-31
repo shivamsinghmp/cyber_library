@@ -44,7 +44,7 @@ export function StudentSidebar() {
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState("Virtual Library");
+  const [siteTitle, setSiteTitle] = useState("The Cyber Library");
 
   useEffect(() => {
     fetch("/api/site-branding")

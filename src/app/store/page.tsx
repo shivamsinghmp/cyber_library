@@ -26,7 +26,7 @@ export default function StorePage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 md:py-14">
+    <div className="mx-auto max-w-6xl px-4 pt-32 pb-10 md:pt-40 md:pb-14">
       <div className="mb-10">
         <h1 className="text-3xl font-bold text-[var(--cream)] md:text-4xl">Digital Store</h1>
         <p className="mt-2 text-[var(--cream-muted)]">PDFs, courses, and digital resources. Buy once, download anytime.</p>

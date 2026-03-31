@@ -42,14 +42,14 @@ export default function LeaderboardPage() {
 
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/dashboard/leaderboard` : "";
   const shareText = myRank != null && myHours != null
-    ? `I'm #${myRank} on the Virtual Library study leaderboard with ${myHours}h! Join the race: ${shareUrl}`
-    : `Check out the Virtual Library study leaderboard: ${shareUrl}`;
+    ? `I'm #${myRank} on the The Cyber Library study leaderboard with ${myHours}h! Join the race: ${shareUrl}`
+    : `Check out the The Cyber Library study leaderboard: ${shareUrl}`;
 
   function handleShare() {
     if (typeof navigator !== "undefined" && navigator.share) {
       navigator
         .share({
-          title: "Virtual Library Leaderboard",
+          title: "The Cyber Library Leaderboard",
           text: shareText,
           url: shareUrl,
         })
@@ -141,7 +141,7 @@ export default function LeaderboardPage() {
 
       {shareCardVisible && (myRank != null || myHours != null) && (
         <div className="rounded-2xl border-2 border-white/20 bg-gradient-to-br from-[var(--accent)]/20 to-black/50 p-6 text-center">
-          <p className="text-xs uppercase tracking-wider text-[var(--cream-muted)]">Virtual Library</p>
+          <p className="text-xs uppercase tracking-wider text-[var(--cream-muted)]">The Cyber Library</p>
           <p className="mt-2 text-3xl font-bold text-[var(--cream)]">Study Leaderboard</p>
           <p className="mt-4 text-5xl font-black text-[var(--accent)]">
             #{myRank ?? "—"}

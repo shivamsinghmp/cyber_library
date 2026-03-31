@@ -193,6 +193,31 @@ function formatPomodoroSeconds(sec: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+function formatHoursToHMS(decimalHours: number): React.ReactNode {
+  if (!decimalHours || Number.isNaN(decimalHours)) {
+    return (
+      <span className="flex items-baseline flex-wrap leading-tight tabular-nums">
+        <span key="h">0<span className="text-[0.6em] text-[var(--wood)] font-extrabold ml-0.5 mr-1.5 uppercase tracking-widest">h</span></span>
+        <span key="m">0<span className="text-[0.6em] text-[var(--wood)] font-extrabold ml-0.5 mr-1.5 uppercase tracking-widest">m</span></span>
+        <span key="s">0<span className="text-[0.6em] text-[var(--wood)] font-extrabold ml-0.5 uppercase tracking-widest">s</span></span>
+      </span>
+    );
+  }
+  
+  const totalSeconds = Math.round(decimalHours * 3600);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  
+  return (
+    <span className="flex items-baseline flex-wrap leading-tight tabular-nums">
+      {h > 0 && <span key="h">{h}<span className="text-[0.6em] text-[var(--wood)] font-extrabold ml-0.5 mr-1.5 uppercase tracking-widest">h</span></span>}
+      <span key="m">{m}<span className="text-[0.6em] text-[var(--wood)] font-extrabold ml-0.5 mr-1.5 uppercase tracking-widest">m</span></span>
+      <span key="s">{s}<span className="text-[0.6em] text-[var(--wood)] font-extrabold ml-0.5 uppercase tracking-widest">s</span></span>
+    </span>
+  );
+}
+
 const NOTICES = [
   "New weekend marathon session from 6 AM – 6 PM.",
   "Maintenance: Sunday 2–3 AM. Rooms may be briefly unavailable.",
@@ -267,12 +292,24 @@ export function DashboardContent({ userName }: { userName: string }) {
   }
 
   useEffect(() => {
-    fetch("/api/study/session", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data: { activeSession?: { id: string; startedAt: string } | null }) => {
-        setActiveSession(data.activeSession ?? null);
-      })
-      .catch(() => {});
+    function fetchSession() {
+      fetch("/api/study/session", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : {}))
+        .then((data: { activeSession?: { id: string; startedAt: string } | null }) => {
+          // Compare with existing state so we don't trigger unnecessary re-renders
+          setActiveSession((prev) => {
+            if (!prev && data.activeSession) return data.activeSession;
+            if (prev && !data.activeSession) return null;
+            if (prev && data.activeSession && prev.id !== data.activeSession.id) return data.activeSession;
+            return prev;
+          });
+        })
+        .catch(() => {});
+    }
+    fetchSession();
+    // Poll every 5 seconds to catch Meet Addon pushes quickly
+    const id = setInterval(fetchSession, 5000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -293,12 +330,15 @@ export function DashboardContent({ userName }: { userName: string }) {
           setStats(data);
         }
       } catch {
-        setStats(null);
+        // preserve existing if failed silently
       } finally {
         setLoading(false);
       }
     }
     fetchStats();
+    // Poll stats every 30 seconds to update external Add-on hours
+    const id = setInterval(fetchStats, 30000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -510,6 +550,9 @@ export function DashboardContent({ userName }: { userName: string }) {
     `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
+  const liveHoursToday = (stats?.hoursToday ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
+  const liveTotalStudyHours = (stats?.totalStudyHours ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 lg:flex lg:gap-6">
       <div className="min-w-0 flex-1 space-y-6">
@@ -526,97 +569,88 @@ export function DashboardContent({ userName }: { userName: string }) {
           >
             Welcome, {userName}!
           </motion.h1>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <motion.div variants={item}>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
-                  <Flame className="h-5 w-5" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <motion.div variants={item} className="xl:col-span-2">
+              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
+                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
+                  <Flame className="h-6 w-6" />
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">
+                <div className="relative z-10">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
                     Current Streak
                   </p>
-                  <p className="text-xl font-bold text-[var(--cream)]">
-                    {loading ? "—" : (stats?.currentStreak ?? 0)} days
+                  <p className="text-2xl font-extrabold text-[var(--cream)] mt-1 tracking-tight">
+                    {loading ? "—" : (stats?.currentStreak ?? 0)} <span className="text-sm text-[var(--cream-muted)] font-medium">days</span>
                   </p>
                 </div>
               </div>
             </motion.div>
-            <motion.div variants={item}>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent)]/20 text-[var(--accent)]">
-                  <Clock className="h-5 w-5" />
+            
+            <motion.div variants={item} className="xl:col-span-2">
+              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
+                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
+                  <Clock className="h-6 w-6" />
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">
+                <div className="relative z-10">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
                     Hours Today
                   </p>
-                  <p className="text-xl font-bold text-[var(--cream)]">
-                    {loading ? "—" : (stats?.hoursToday ?? 0)}h
-                  </p>
+                  <div className="text-2xl font-extrabold text-[var(--cream)] mt-1.5 tracking-tight flex items-baseline">
+                    {loading ? "—" : formatHoursToHMS(liveHoursToday)}
+                  </div>
                 </div>
               </div>
             </motion.div>
-            <motion.div variants={item}>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
-                  <BookOpen className="h-5 w-5" />
+            
+            <motion.div variants={item} className="xl:col-span-2">
+              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
+                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
+                  <BookOpen className="h-6 w-6" />
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">
-                    Total Study Hours
+                <div className="relative z-10">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
+                    Total Hours
                   </p>
-                  <p className="text-xl font-bold text-[var(--cream)]">
-                    {loading ? "—" : (stats?.totalStudyHours ?? 0)}h
-                  </p>
+                  <div className="text-2xl font-extrabold text-[var(--cream)] mt-1.5 tracking-tight flex items-baseline">
+                    {loading ? "—" : formatHoursToHMS(liveTotalStudyHours)}
+                  </div>
                 </div>
               </div>
             </motion.div>
-            <motion.div variants={item}>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
-                  <CalendarCheck className="h-5 w-5" />
+
+            <motion.div variants={item} className="xl:col-span-3">
+              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
+                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
+                  <Target className="h-6 w-6" />
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">
-                    Total Attendance
-                  </p>
-                  <p className="text-xl font-bold text-[var(--cream)]">
-                    {loading ? "—" : (stats?.totalAttendance ?? 0)} days
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-            <motion.div variants={item}>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-500/20 text-red-400">
-                  <CalendarX className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">
-                    Total absent
-                  </p>
-                  <p className="text-xl font-bold text-[var(--cream)]">
-                    {loading ? "—" : (stats?.totalAbsent ?? 0)} days
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-            <motion.div variants={item}>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
-                  <Target className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">
+                <div className="relative z-10">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
                     Goal Countdown
                   </p>
-                  <p className="text-xl font-bold text-[var(--cream)]">
-                    {loading
-                      ? "—"
-                      : stats?.goalCountdown != null
-                        ? `${stats.goalCountdown} days`
-                        : "—"}
+                  <p className="text-2xl font-extrabold text-[var(--cream)] mt-1 tracking-tight">
+                    {loading ? "—" : stats?.goalCountdown != null ? `${stats.goalCountdown} ` : "—"} 
+                    {stats?.goalCountdown != null && <span className="text-sm text-[var(--cream-muted)] font-medium">days</span>}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div variants={item} className="xl:col-span-3">
+              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
+                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
+                  <CalendarCheck className="h-6 w-6" />
+                </div>
+                <div className="relative z-10">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
+                    Total Attendance
+                  </p>
+                  <p className="text-2xl font-extrabold text-[var(--cream)] mt-1 tracking-tight">
+                    {loading ? "—" : (stats?.totalAttendance ?? 0)} <span className="text-sm text-[var(--cream-muted)] font-medium">days</span>
                   </p>
                 </div>
               </div>

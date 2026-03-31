@@ -1,17 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f0b07;
-  --foreground: #f5f0e8;
-  --cream: #f5f0e8;
-  --cream-muted: #e8dfd4;
-  --wood: #d4c4b0;
-  --ink: #2c2419;
-  --accent: #8b7355;
-  --accent-hover: #6d5a45;
+  --background: #0b0805;
+  --foreground: #f8f4ed;
+  --cream: #f8f4ed;
+  --cream-muted: #e0d5c8;
+  --wood: #c8b39c;
+  --ink: #1f1810;
+  --accent: #9a8264;
+  --accent-hover: #b09575;
 }
 
 @theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-heading: var(--font-outfit), var(--font-sans);
+  
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-cream: var(--cream);
@@ -20,6 +23,25 @@
   --color-ink: var(--ink);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  
+  --animate-mesh: mesh 15s ease-in-out infinite alternate;
+  --animate-float: float 6s ease-in-out infinite;
+  
+  @keyframes mesh {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+  }
+  @keyframes streakPop {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.9; }
+    100% { transform: scale(1); opacity: 1; }
+  }
 }
 
 html {
@@ -29,20 +51,19 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
 }
 
-@keyframes streakPop {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.15);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Premium Glass Panel Utility */
+.glass-panel {
+  @apply relative overflow-hidden rounded-[2.5rem] border border-[var(--wood)]/10 bg-[var(--ink)]/40 backdrop-blur-3xl shadow-[0_30px_60px_rgba(0,0,0,0.4)] transition-all duration-500 hover:-translate-y-2 hover:border-[var(--accent)]/30 hover:bg-[var(--ink)]/60 hover:shadow-[0_40px_80px_rgba(0,0,0,0.6)];
+}
+
+.glass-panel::before {
+  content: '';
+  @apply pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent rounded-[2.5rem];
 }

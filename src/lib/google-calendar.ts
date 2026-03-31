@@ -157,7 +157,7 @@ export async function createStudyRoomEvent(eventName: string, startTime: Date, e
       conferenceDataVersion: 1, // Crucial for generating a Meet link
       requestBody: {
         summary: eventName,
-        description: "Auto-generated Study Room for Virtual Library",
+        description: "Auto-generated Study Room for The Cyber Library",
         start: { dateTime: startTime.toISOString() },
         end: { dateTime: endTime.toISOString() },
         conferenceData: {

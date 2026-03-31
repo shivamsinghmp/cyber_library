@@ -1,4 +1,10 @@
 import Link from "next/link";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Productivity & Focus Blog",
+  description: "Tips on deep work, focus, ADHD study habits, and making the most of The Cyber Library's live body doubling sessions.",
+};
 import { Calendar } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
@@ -21,13 +27,13 @@ export default async function BlogPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 md:py-12">
+    <div className="mx-auto max-w-3xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
       <div className="mb-10">
         <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
           Blog
         </h1>
         <p className="mt-2 text-sm text-[var(--cream-muted)] md:text-base">
-          Tips on focus, study habits, and making the most of Virtual Library.
+          Tips on focus, study habits, and making the most of The Cyber Library.
         </p>
       </div>
 

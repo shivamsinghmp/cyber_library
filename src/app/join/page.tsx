@@ -101,7 +101,7 @@ function JoinPageContent() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
+    <div className="mx-auto max-w-5xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
       <div className="grid gap-8 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-start">
         {/* Left: marketing content */}
         <section className="space-y-6">
@@ -116,7 +116,7 @@ function JoinPageContent() {
               Join The Cyber Library&apos;s Virtual Study Room
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-[var(--cream-muted)] sm:text-base">
-              Virtual Library is a focused online study space for serious learners preparing for exams
+              The Cyber Library is a focused online study space for serious learners preparing for exams
               like UPSC, JEE, NEET or college entrances. No noise, no random chatting — just structured
               body doubling, Pomodoro blocks and a quiet camera-on environment where everyone is here
               to study.
@@ -200,7 +200,7 @@ function JoinPageContent() {
           </h2>
           <p className="mb-4 text-xs text-[var(--cream-muted)]">
             Fill these details and we&apos;ll save your information as a lead and then send you to the
-            official Virtual Library WhatsApp group.
+            official The Cyber Library WhatsApp group.
           </p>
           {loading ? (
             <p className="text-sm text-[var(--cream-muted)]">Loading form…</p>
@@ -269,7 +269,7 @@ function JoinPageContent() {
                 {submitting ? "Submitting…" : "Join now & open WhatsApp"}
               </button>
               <p className="mt-2 text-[10px] text-[var(--cream-muted)]">
-                By joining, you agree to follow the Virtual Library rules and code of conduct.
+                By joining, you agree to follow the The Cyber Library rules and code of conduct.
               </p>
             </form>
           )}
@@ -289,7 +289,7 @@ export default function JoinPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
+        <div className="mx-auto max-w-5xl px-4 pt-32 pb-8 md:pt-40 md:pb-12">
           <p className="text-sm text-[var(--cream-muted)]">Loading…</p>
         </div>
       }

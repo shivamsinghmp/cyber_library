@@ -94,7 +94,7 @@ export default function AdminTransactionsPage() {
         Transactions
       </h1>
       <p className="mb-6 text-sm text-[var(--cream-muted)]">
-        All student orders and subscription payments processed through Virtual Library.
+        All student orders and subscription payments processed through The Cyber Library.
       </p>
 
       {loading ? (
