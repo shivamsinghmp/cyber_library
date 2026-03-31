@@ -56,6 +56,7 @@ const roleNav: Record<
     { href: "/admin/bin", label: "Bin", icon: Trash2 },
     { href: "/admin/rewards", label: "Reward Program", icon: Gift },
     { href: "/admin/forms", label: "Student Form", icon: ClipboardList },
+    { href: "/admin/support", label: "Support Tickets", icon: MessageCircle },
     { href: "/admin/products", label: "Digital Store", icon: ShoppingBag },
     { href: "/admin/blog", label: "Blog (SEO)", icon: FileText },
     { href: "/admin/authors", label: "Authors", icon: PenLine },
