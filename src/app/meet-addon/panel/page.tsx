@@ -302,6 +302,23 @@ export default function MeetAddonPanelPage() {
   };
 
   useEffect(() => {
+    if (!isRunning || !token) return;
+    const sendPresence = (eventType: "ping" | "end") => {
+      fetch("/api/meet-addon/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ event: eventType, roomKey: "local-room" })
+      }).catch(console.error);
+    };
+    sendPresence("ping"); // initial ping
+    const presenceInterval = setInterval(() => sendPresence("ping"), 60000); // ping every 1 min
+    return () => {
+      clearInterval(presenceInterval);
+      sendPresence("end");
+    };
+  }, [isRunning, token]);
+
+  useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning && timeLeft > 0) {
       interval = setInterval(() => {
@@ -323,7 +340,6 @@ export default function MeetAddonPanelPage() {
       setIsRunning(false);
       saveTimerSession(timerDuration, timerDuration, true);
       localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: false, duration: timerDuration, pausedTimeLeft: timerDuration }));
-      fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
     }
     return () => clearInterval(interval);
   }, [isRunning, timeLeft, timerDuration, token]);
@@ -335,18 +351,15 @@ export default function MeetAddonPanelPage() {
       setTimerDuration(timeLeft); // set new max
       setIsRunning(false);
       localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: false, duration: timeLeft, pausedTimeLeft: timeLeft }));
-      fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
     } else {
       setIsRunning(true);
       localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: true, duration: timerDuration, endTime: Date.now() + timeLeft * 1000 }));
-      fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START" }) }).catch(()=>null);
     }
   };
   
   const resetTimer = () => {
     if (isRunning) {
        saveTimerSession(timerDuration, timerDuration - timeLeft, false);
-       fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
     }
     setIsRunning(false);
     setTimeLeft(timerDuration);
@@ -356,7 +369,6 @@ export default function MeetAddonPanelPage() {
   const setDuration = (minutes: number) => {
     if (isRunning) {
        saveTimerSession(timerDuration, timerDuration - timeLeft, false);
-       fetch("/api/study/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "STOP" }) }).catch(()=>null);
     }
     setIsRunning(false);
     setTimerDuration(minutes * 60);

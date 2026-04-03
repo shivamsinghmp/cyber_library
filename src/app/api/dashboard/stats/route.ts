@@ -10,14 +10,14 @@ function localDayBounds(d: Date): { start: Date; end: Date } {
 }
 
 function sumMeetPresenceSecondsForWindow(
-  rows: { startedAt: Date; endedAt: Date | null }[],
+  rows: { startedAt: Date; endedAt: Date | null; lastHeartbeatAt: Date }[],
   windowStart: Date,
   windowEnd: Date,
   now: Date
 ): number {
   let total = 0;
   for (const s of rows) {
-    const end = s.endedAt ?? now;
+    const end = s.endedAt ?? s.lastHeartbeatAt ?? now;
     const a = Math.max(s.startedAt.getTime(), windowStart.getTime());
     const b = Math.min(end.getTime(), windowEnd.getTime());
     if (b > a) total += (b - a) / 1000;
@@ -26,12 +26,12 @@ function sumMeetPresenceSecondsForWindow(
 }
 
 function sumMeetPresenceSecondsAllTime(
-  rows: { startedAt: Date; endedAt: Date | null }[],
+  rows: { startedAt: Date; endedAt: Date | null; lastHeartbeatAt: Date }[],
   now: Date
 ): number {
   let total = 0;
   for (const s of rows) {
-    const end = s.endedAt ?? now;
+    const end = s.endedAt ?? s.lastHeartbeatAt ?? now;
     total += Math.max(0, (end.getTime() - s.startedAt.getTime()) / 1000);
   }
   return total;
@@ -78,7 +78,7 @@ export async function GET() {
       }),
       prisma.meetPresenceSession.findMany({
         where: { userId },
-        select: { startedAt: true, endedAt: true },
+        select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
       }),
       prisma.roomSubscription.findFirst({
         where: { userId },

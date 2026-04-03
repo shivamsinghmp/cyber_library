@@ -228,16 +228,27 @@ export default function AdminSlotsPage() {
       const formatTime = (d: Date) => d.toLocaleTimeString("en-US", { hour: 'numeric', minute: '2-digit', hour12: true });
       const dynamicTimeLabel = `${formatTime(sd)} - ${formatTime(ed)}`;
 
+      let isoStartTime: string | undefined = undefined;
+      let isoEndTime: string | undefined = undefined;
+
+      if (formAutoGenerateMeet) {
+         isoStartTime = sd.toISOString();
+         isoEndTime = ed.toISOString();
+      }
+
       const res = await fetch(`/api/admin/slots/${editSlot.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formName.trim(),
           timeLabel: dynamicTimeLabel,
+          startTime: isoStartTime,
+          endTime: isoEndTime,
           goal: formGoal.trim() || null,
           slotType: formSlotType,
           meetLink: formMeetLink.trim() || null,
           calendarEventId: formCalendarEventId.trim() || null,
+          autoGenerateMeet: formAutoGenerateMeet,
           capacity: formCapacity,
           price: formPrice,
           isActive: formIsActive,
@@ -642,25 +653,40 @@ export default function AdminSlotsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Google Meet Link</label>
-              <input
-                type="url"
-                value={formMeetLink}
-                onChange={(e) => setFormMeetLink(e.target.value)}
-                placeholder="https://meet.google.com/..."
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
-              />
+              <label className="mb-2 flex items-center space-x-2 text-sm text-[var(--cream)] cursor-pointer">
+                 <input
+                  type="checkbox"
+                  checked={formAutoGenerateMeet}
+                  onChange={(e) => setFormAutoGenerateMeet(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-[var(--accent)] focus:ring-[var(--accent)]"
+                />
+                <span>Generate Google Meet and Calendar Event Automatically</span>
+              </label>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Google Calendar Event ID (for Auto-Admit)</label>
-              <input
-                type="text"
-                value={formCalendarEventId}
-                onChange={(e) => setFormCalendarEventId(e.target.value)}
-                placeholder="Optional: Paste event ID here"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
-              />
-            </div>
+            {!formAutoGenerateMeet && (
+              <>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Google Meet Link</label>
+                  <input
+                    type="url"
+                    value={formMeetLink}
+                    onChange={(e) => setFormMeetLink(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Google Calendar Event ID (for Auto-Admit)</label>
+                  <input
+                    type="text"
+                    value={formCalendarEventId}
+                    onChange={(e) => setFormCalendarEventId(e.target.value)}
+                    placeholder="Optional: Paste event ID here"
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Capacity</label>
               <input

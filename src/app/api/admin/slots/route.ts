@@ -97,6 +97,7 @@ export async function POST(request: Request) {
         finalCalendarEventId = generated.calendarEventId;
       } else {
         fs.writeFileSync("calendar-error.txt", `Calendar Event Generation returned null for: ${parsed.data.name} at ${new Date().toISOString()}`, { flag: 'a' });
+        return NextResponse.json({ error: "Failed to generate Google Meet. Ensure Google Cloud credentials are set correctly in .env" }, { status: 500 });
       }
     }
 
