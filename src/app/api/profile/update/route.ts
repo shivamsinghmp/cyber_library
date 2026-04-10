@@ -9,9 +9,14 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id;
+    let userId = (session.user as { id?: string }).id;
+    if (!userId && session.user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+      if (dbUser) userId = dbUser.id;
+    }
+
     if (!userId) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 });
+      return NextResponse.json({ error: "User not found (Token missing ID)" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -83,7 +88,7 @@ export async function PUT(request: Request) {
     return NextResponse.json(profile);
   } catch (e) {
     console.error("PUT /api/profile/update:", e);
-    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to update profile" }, { status: 500 });
   }
 }
 

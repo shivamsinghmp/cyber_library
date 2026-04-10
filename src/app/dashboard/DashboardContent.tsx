@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
+import DashboardCharts from "@/components/DashboardCharts";
 import {
   Flame,
   Clock,
@@ -236,6 +237,47 @@ const item = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0 },
 };
+
+const DAILY_QUOTES = [
+  "Every minute you invest today is a down payment on your ultimate success.",
+  "Intensity gets you started, but consistency is what makes you unstoppable.",
+  "The pain of discipline is nothing compared to the pain of regret. Keep pushing.",
+  "Average efforts yield average results. Push beyond the limits and dominate.",
+  "Your future self is watching you right now through memories. Make them proud.",
+  "Distractions are the enemy of greatness. Lock in and secure your target.",
+  "Genius is just relentless dedication in disguise. Keep refining your craft.",
+  "Success is rented, not owned. And the rent is due every single day.",
+  "Sacrifice the temporary comfort of today for the permanent victory of tomorrow.",
+  "Small, invisible steps today lead to undeniable dominance tomorrow.",
+  "When you feel like stopping, remember exactly why you started.",
+  "Doubt kills more dreams than failure ever will. Believe in your grind.",
+  "Focus on the step in front of you, not the entire mountain.",
+  "The only difference between a dream and reality is a deadline and action.",
+  "Rest if you must, but do not quit. The finish line is closer than it looks.",
+  "Pressure makes diamonds. Embrace the grind and shine under the weight.",
+  "To be in the 1%, you must be willing to do what the 99% won't.",
+  "Time is your most valuable asset. Spend it building your future empire.",
+  "You don't have to be extreme, just consistent. Consistency compounds.",
+  "Let your success make the noise. Work relentlessly in silence.",
+  "If it was easy, everyone would do it. Hard work is your ultimate advantage.",
+  "Champions are built in the empty hours when nobody is watching.",
+  "Every difficult concept mastered is another weapon in your intellectual arsenal.",
+  "Your focus determines your reality. Turn off the noise and execute.",
+  "Don't count the days, make the days count. Maximize today's potential.",
+  "Action is the foundational key to all success. Keep moving forward.",
+  "You are the architect of your own life. Build something unbreakable.",
+  "A year from now, you will wish you had started today. You are right on time.",
+  "Tough times never last, but tough people do. Crush the challenges ahead.",
+  "Greatness is a lot of small things done extraordinarily well on a daily basis.",
+  "Push yourself beyond the limit, because no one else is going to do it for you."
+];
+
+function getDynamicGreeting(name: string) {
+  const hour = new Date().getHours();
+  if (hour < 12) return <><span className="text-white/80">Rise and conquer,</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-amber-300">{name}</span>.</>;
+  if (hour < 17) return <><span className="text-white/80">Keep the momentum,</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-amber-300">{name}</span>.</>;
+  return <><span className="text-white/80">Evening grind,</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent)] to-amber-300">{name}</span>.</>;
+}
 
 export function DashboardContent({ userName }: { userName: string }) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -552,931 +594,136 @@ export function DashboardContent({ userName }: { userName: string }) {
 
   const liveHoursToday = (stats?.hoursToday ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
   const liveTotalStudyHours = (stats?.totalStudyHours ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
+  
+  // Get daily quote based on the day of the month (1-31)
+  const currentDayIndex = new Date().getDate() - 1;
+  const todayQuote = DAILY_QUOTES[currentDayIndex] || DAILY_QUOTES[0];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 lg:flex lg:gap-6">
-      <div className="min-w-0 flex-1 space-y-6">
-        {/* Welcome + Stat Cards */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="space-y-4"
-        >
-          <motion.h1
-            variants={item}
-            className="text-xl font-semibold text-[var(--cream)] md:text-2xl"
-          >
-            Welcome, {userName}!
-          </motion.h1>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <motion.div variants={item} className="xl:col-span-2">
-              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
-                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
-                  <Flame className="h-6 w-6" />
-                </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
-                    Current Streak
-                  </p>
-                  <p className="text-2xl font-extrabold text-[var(--cream)] mt-1 tracking-tight">
-                    {loading ? "—" : (stats?.currentStreak ?? 0)} <span className="text-sm text-[var(--cream-muted)] font-medium">days</span>
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-            
-            <motion.div variants={item} className="xl:col-span-2">
-              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
-                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
-                  <Clock className="h-6 w-6" />
-                </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
-                    Hours Today
-                  </p>
-                  <div className="text-2xl font-extrabold text-[var(--cream)] mt-1.5 tracking-tight flex items-baseline">
-                    {loading ? "—" : formatHoursToHMS(liveHoursToday)}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-            
-            <motion.div variants={item} className="xl:col-span-2">
-              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
-                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
-                  <BookOpen className="h-6 w-6" />
-                </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
-                    Total Hours
-                  </p>
-                  <div className="text-2xl font-extrabold text-[var(--cream)] mt-1.5 tracking-tight flex items-baseline">
-                    {loading ? "—" : formatHoursToHMS(liveTotalStudyHours)}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div variants={item} className="xl:col-span-3">
-              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
-                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
-                  <Target className="h-6 w-6" />
-                </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
-                    Goal Countdown
-                  </p>
-                  <p className="text-2xl font-extrabold text-[var(--cream)] mt-1 tracking-tight">
-                    {loading ? "—" : stats?.goalCountdown != null ? `${stats.goalCountdown} ` : "—"} 
-                    {stats?.goalCountdown != null && <span className="text-sm text-[var(--cream-muted)] font-medium">days</span>}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div variants={item} className="xl:col-span-3">
-              <div className="group relative overflow-hidden flex items-center gap-4 rounded-[2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-6 shadow-[0_10px_40px_rgba(15,11,7,0.5)] transition-all hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:bg-[var(--ink)]/80">
-                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[var(--accent)]/10 blur-[30px] transition-all group-hover:bg-[var(--accent)]/20" />
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner">
-                  <CalendarCheck className="h-6 w-6" />
-                </div>
-                <div className="relative z-10">
-                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--wood)]">
-                    Total Attendance
-                  </p>
-                  <p className="text-2xl font-extrabold text-[var(--cream)] mt-1 tracking-tight">
-                    {loading ? "—" : (stats?.totalAttendance ?? 0)} <span className="text-sm text-[var(--cream-muted)] font-medium">days</span>
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-          <p className="text-[10px] text-[var(--cream-muted)] mt-2 max-w-2xl leading-relaxed">
-            Hours today and total study hours count your study sessions plus Google Meet add-on time (when the add-on side panel is open and linked).
-          </p>
-        </motion.div>
-
-        {/* Active study session widget */}
-        {activeSession && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-4 flex items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent)]/30">
-                <Clock className="h-6 w-6 text-[var(--accent)]" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[var(--cream)]">Study session in progress</p>
-                <p className="font-mono text-2xl font-bold text-[var(--accent)] tabular-nums">
-                  {formatElapsed(sessionElapsedSeconds)}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleStopSession}
-              disabled={stoppingSession}
-              className="flex items-center gap-2 rounded-xl bg-red-500/20 px-4 py-2.5 text-sm font-semibold text-red-300 hover:bg-red-500/30 disabled:opacity-50"
-            >
-              <Square className="h-4 w-4" />
-              {stoppingSession ? "Stopping…" : "Stop session"}
-            </button>
-          </motion.div>
-        )}
-
-        {/* Student Form button */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Link
-            href="/dashboard/student-form"
-            className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-[var(--accent)]/30 hover:bg-black/40"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--accent)]/20 text-[var(--accent)]">
-                <ClipboardList className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-medium text-[var(--cream)]">Student Form</p>
-                <p className="text-xs text-[var(--cream-muted)]">Fill the form shared by admin</p>
-              </div>
-            </div>
-            <ChevronRight className="h-5 w-5 shrink-0 text-[var(--cream-muted)]" />
-          </Link>
-        </motion.div>
-
-        {/* Meet add-on: Get code (no password in Meet) + Today's task & poll responses */}
-        <motion.section
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="rounded-2xl border border-white/10 bg-black/30 p-4"
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-[var(--cream)] flex items-center gap-2">
-              <Video className="h-4 w-4 text-[var(--accent)]" />
-              Meet add-on
-            </h2>
-            <Link
-              href="/meet-addon/panel"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-[var(--accent)] hover:underline"
-            >
-              Open add-on
-            </Link>
-          </div>
-          <p className="text-xs text-[var(--cream-muted)] mb-3">
-            Use the add-on in Google Meet without typing password: get a code here and enter it in the add-on.
-          </p>
-          <div className="mb-4">
-            {meetAddonCode ? (
-              <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 p-3 text-center">
-                <p className="text-xs text-[var(--cream-muted)] mb-1">Enter this code in the Meet add-on (valid for {meetAddonCodeExpiry ?? 5} min)</p>
-                <p className="font-mono text-2xl font-bold tracking-[0.3em] text-[var(--cream)]">{meetAddonCode}</p>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleGetMeetAddonCode}
-                disabled={meetAddonCodeLoading}
-                className="rounded-lg border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-4 py-2 text-sm font-medium text-[var(--cream)] hover:bg-[var(--accent)]/20 flex items-center gap-2"
-              >
-                {meetAddonCodeLoading ? (
-                  <>
-                    <span className="animate-pulse">Generating…</span>
-                  </>
-                ) : (
-                  "Get code for Meet add-on"
-                )}
-              </button>
-            )}
-          </div>
-          {meetAddonLoading ? (
-            <p className="text-xs text-[var(--cream-muted)] border-t border-white/5 pt-3">Loading add-on activity…</p>
-          ) : meetAddonData ? (
-            <div className="space-y-4 border-t border-white/5 pt-3">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-xl border border-white/10 bg-black/25 px-2 py-2.5 text-center">
-                  <Coins className="h-4 w-4 mx-auto text-amber-400/90 mb-1" />
-                  <p className="text-lg font-semibold text-[var(--cream)] tabular-nums">
-                    {meetAddonData.gamification?.totalCoins ?? 0}
-                  </p>
-                  <p className="text-[10px] text-[var(--cream-muted)]">Study coins</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 px-2 py-2.5 text-center">
-                  <Flame className="h-4 w-4 mx-auto text-orange-400/90 mb-1" />
-                  <p className="text-lg font-semibold text-[var(--cream)] tabular-nums">
-                    {meetAddonData.gamification?.streakDays ?? 0}
-                  </p>
-                  <p className="text-[10px] text-[var(--cream-muted)]">Day streak</p>
-                </div>
-                <div className="rounded-xl border border-white/10 bg-black/25 px-2 py-2.5 text-center">
-                  <Trophy className="h-4 w-4 mx-auto text-[var(--accent)] mb-1" />
-                  <p className="text-lg font-semibold text-[var(--cream)] tabular-nums">
-                    {meetAddonData.gamification?.longestStreakDays ?? 0}
-                  </p>
-                  <p className="text-[10px] text-[var(--cream-muted)]">Best streak</p>
-                </div>
-              </div>
-              <p className="text-[10px] text-[var(--cream-muted)] leading-relaxed px-0.5">
-                Day streak updates when you complete your first task today in the add-on, or when you stay logged in with the add-on open for at least <span className="text-[var(--cream)]/90">10 minutes</span> in Google Meet (total time per UTC day).
-              </p>
-
-              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-3">
-                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
-                  <Target className="h-3.5 w-3.5 text-[var(--accent)]" />
-                  Today&apos;s tasks
-                </p>
-                {meetAddonData.todayTasks.length === 0 ? (
-                  <p className="text-xs text-[var(--cream-muted)]">No tasks set for today in the add-on yet.</p>
-                ) : (
-                  <ul className="space-y-3">
-                    {meetAddonData.todayTasks.map((task) => (
-                      <li key={task.id} className="border-b border-white/5 pb-3 last:border-0 last:pb-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p
-                            className={`text-sm font-medium text-[var(--cream)] ${task.completedAt ? "line-through text-[var(--cream-muted)]" : ""}`}
-                          >
-                            {task.title}
-                          </p>
-                          {typeof task.priority === "number" && (
-                            <span className="shrink-0 text-[10px] uppercase tracking-wide rounded border border-white/15 px-2 py-0.5 text-[var(--cream-muted)]">
-                              {meetAddonPriorityLabel(task.priority)}
-                            </span>
-                          )}
-                        </div>
-                        {task.description ? (
-                          <p
-                            className={`text-xs mt-1 whitespace-pre-wrap ${task.completedAt ? "line-through text-[var(--cream-muted)]" : "text-[var(--cream-muted)]"}`}
-                          >
-                            {task.description}
-                          </p>
-                        ) : null}
-                        {task.completedAt && (
-                          <p className="text-xs text-emerald-400/90 mt-1 flex items-center gap-1">
-                            <CheckCircle className="h-3.5 w-3.5" />
-                            Completed
-                          </p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
-                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
-                  <History className="h-3.5 w-3.5 text-[var(--accent)]" />
-                  Past daily tasks
-                </p>
-                {!(meetAddonData.pastTasks?.length ?? 0) ? (
-                  <p className="text-xs text-[var(--cream-muted)]">No previous days recorded yet.</p>
-                ) : (
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                    {groupPastTasksByDate(meetAddonData.pastTasks ?? []).map(([dateKey, dayTasks]) => (
-                      <div key={dateKey}>
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--cream-muted)] mb-1.5">
-                          {formatMeetAddonDate(dateKey)}
-                        </p>
-                        <ul className="space-y-2 border-l border-white/10 pl-3">
-                          {dayTasks.map((task) => (
-                            <li key={task.id} className="text-sm">
-                              <div className="flex items-start justify-between gap-2">
-                                <p
-                                  className={`font-medium text-[var(--cream)] ${task.completedAt ? "line-through text-[var(--cream-muted)]" : ""}`}
-                                >
-                                  {task.title}
-                                </p>
-                                {typeof task.priority === "number" && (
-                                  <span className="shrink-0 text-[10px] uppercase rounded border border-white/15 px-1.5 py-0.5 text-[var(--cream-muted)]">
-                                    {meetAddonPriorityLabel(task.priority)}
-                                  </span>
-                                )}
-                              </div>
-                              {task.description ? (
-                                <p className="text-xs text-[var(--cream-muted)] mt-0.5 whitespace-pre-wrap">{task.description}</p>
-                              ) : null}
-                              {task.completedAt ? (
-                                <p className="text-[10px] text-emerald-400/80 mt-0.5">Done</p>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
-                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
-                  <Megaphone className="h-3.5 w-3.5 text-[var(--accent)]" />
-                  Poll &amp; quiz answers
-                </p>
-                {!meetAddonData.pollResponses || meetAddonData.pollResponses.length === 0 ? (
-                  <p className="text-xs text-[var(--cream-muted)]">No poll responses yet.</p>
-                ) : (
-                  <ul className="space-y-2 text-sm max-h-56 overflow-y-auto">
-                    {meetAddonData.pollResponses.map((r) => (
-                      <li key={r.id} className="border-b border-white/5 pb-2 last:border-0 last:pb-0">
-                        <p className="text-[var(--cream)]">
-                          <span className="text-[var(--cream-muted)]">{r.question}</span>
-                          <span className="ml-1 font-medium">→ {r.answer}</span>
-                        </p>
-                        <p className="text-[10px] text-[var(--cream-muted)] mt-0.5">
-                          {new Date(r.createdAt).toLocaleString()}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
-                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
-                  <Receipt className="h-3.5 w-3.5 text-[var(--accent)]" />
-                  Coin activity
-                </p>
-                {!(meetAddonData.coinLogs?.length ?? 0) ? (
-                  <p className="text-xs text-[var(--cream-muted)]">No coin events yet.</p>
-                ) : (
-                  <ul className="space-y-1.5 text-xs max-h-48 overflow-y-auto">
-                    {(meetAddonData.coinLogs ?? []).map((l) => (
-                      <li key={l.id} className="border-b border-white/5 pb-1.5 last:border-0">
-                        <div className="flex justify-between gap-2">
-                          <span className="text-[var(--cream-muted)] truncate">{l.reason}</span>
-                          <span className={`shrink-0 font-medium tabular-nums ${l.coins >= 0 ? "text-emerald-400/90" : "text-red-400/90"}`}>
-                            {l.coins >= 0 ? "+" : ""}
-                            {l.coins}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-[var(--cream-muted)]/70 mt-0.5">{new Date(l.createdAt).toLocaleString()}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
-                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-[var(--accent)]" />
-                  Pomodoro timer (Meet add-on)
-                </p>
-                <p className="text-[10px] text-[var(--cream-muted)] leading-relaxed">
-                  Saved when you press Stop or when the countdown reaches zero. Shows planned length vs time completed.
-                </p>
-                {!(meetAddonData.pomodoroTimerSessions?.length ?? 0) ? (
-                  <p className="text-xs text-[var(--cream-muted)]">No Pomodoro runs yet — use the timer in the Meet add-on.</p>
-                ) : (
-                  <ul className="space-y-2 text-xs max-h-56 overflow-y-auto">
-                    {(meetAddonData.pomodoroTimerSessions ?? []).map((row) => (
-                      <li key={row.id} className="border-b border-white/5 pb-2 last:border-0">
-                        <div className="flex justify-between gap-2 flex-wrap">
-                          <span className="text-[var(--cream)] font-medium">
-                            {row.roomTitle ?? row.roomKey}
-                            {row.completedFully ? (
-                              <span className="ml-2 text-emerald-400/90 font-normal">· complete</span>
-                            ) : (
-                              <span className="ml-2 text-amber-400/90 font-normal">· stopped early</span>
-                            )}
-                          </span>
-                          <span className="text-[var(--cream-muted)] tabular-nums shrink-0">
-                            {formatPomodoroSeconds(row.completedSeconds)} / {formatPomodoroSeconds(row.plannedSeconds)}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-[var(--cream-muted)]/85 mt-0.5">
-                          {new Date(row.startedAt).toLocaleString()} → {new Date(row.endedAt).toLocaleString()}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
-                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
-                  <Activity className="h-3.5 w-3.5 text-[var(--accent)]" />
-                  Meet presence (add-on open)
-                </p>
-                <p className="text-[10px] text-[var(--cream-muted)] leading-relaxed">
-                  Time is tracked while the Meet add-on panel is open and linked to your account (heartbeat every 60s). It is not the same as raw Google Meet attendance.
-                </p>
-                {!(meetAddonData.presenceSessions?.length ?? 0) ? (
-                  <p className="text-xs text-[var(--cream-muted)]">No presence sessions yet — open the add-on in a meeting.</p>
-                ) : (
-                  <ul className="space-y-2 text-xs max-h-52 overflow-y-auto">
-                    {(meetAddonData.presenceSessions ?? []).map((p) => (
-                      <li key={p.id} className="border-b border-white/5 pb-2 last:border-0">
-                        <div className="flex justify-between gap-2 items-start">
-                          <p className="text-[var(--cream)] font-medium">
-                            {p.roomTitle ?? p.roomKey}
-                            {p.active ? (
-                              <span className="ml-2 text-emerald-400/90 font-normal">· active</span>
-                            ) : null}
-                          </p>
-                          <span className="shrink-0 text-[var(--cream-muted)] tabular-nums">
-                            {p.active ? "…" : formatPresenceDuration(p.durationSeconds)}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-[var(--cream-muted)]/85 mt-0.5">
-                          {new Date(p.startedAt).toLocaleString()}
-                          {p.endedAt ? ` → ${new Date(p.endedAt).toLocaleString()}` : ""}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-white/5 bg-black/20 p-3 space-y-2">
-                <p className="text-xs font-semibold text-[var(--cream)] flex items-center gap-2">
-                  <Timer className="h-3.5 w-3.5 text-[var(--accent)]" />
-                  Focus / Pomodoro sessions
-                </p>
-                {!(meetAddonData.focusSessions?.length ?? 0) ? (
-                  <p className="text-xs text-[var(--cream-muted)]">No logged sessions yet (when the add-on records them).</p>
-                ) : (
-                  <ul className="space-y-2 text-xs max-h-48 overflow-y-auto">
-                    {(meetAddonData.focusSessions ?? []).map((s) => (
-                      <li key={s.id} className="border-b border-white/5 pb-2 last:border-0">
-                        <p className="text-[var(--cream)]">
-                          {s.workMinutes}m work / {s.breakMinutes}m break · {s.cycles} cycle{s.cycles === 1 ? "" : "s"}
-                        </p>
-                        <p className="text-[var(--cream-muted)] mt-0.5">
-                          {s.roomTitle ?? s.roomKey}
-                        </p>
-                        <p className="text-[10px] text-[var(--cream-muted)]/80 mt-0.5">
-                          {new Date(s.startedAt).toLocaleString()}
-                          {s.endedAt ? ` → ${new Date(s.endedAt).toLocaleString()}` : " · in progress"}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-[var(--cream-muted)] border-t border-white/5 pt-3">Could not load add-on data.</p>
-          )}
-        </motion.section>
-
-        {/* My Subscribed Study Rooms */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6"
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-[var(--cream)]">
-              My Rooms
-            </h2>
-            <Link
-              href="/study-room"
-              className="flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:underline"
-            >
-              Browse more
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-          {subsLoading ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
-              Loading your rooms…
-            </p>
-          ) : subscribedRooms.length === 0 ? (
-            <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-center flex flex-col items-center">
-              <p className="text-sm text-[var(--cream-muted)] mb-3">
-                You haven&apos;t subscribed to any study rooms yet.
-              </p>
-              <Link href="/study-room" className="inline-flex rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:opacity-90">
-                Explore Study Rooms
-              </Link>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {subscribedRooms.map((sub) => {
-                const isExpired = sub.endDate ? new Date(sub.endDate) < new Date() : false;
-                const daysLeft = sub.endDate ? Math.ceil((new Date(sub.endDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24)) : 30;
-
-                return (
-                  <div
-                    key={sub.id}
-                    className="flex flex-col justify-between rounded-xl border border-white/10 bg-black/20 p-4 transition hover:border-[var(--accent)]/40 relative overflow-hidden"
-                  >
-                    {isExpired && (
-                      <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Video className={`h-4 w-4 ${isExpired ? "text-red-400" : "text-[var(--accent)]"}`} />
-                      <span className="text-sm font-medium text-[var(--cream)]">
-                        {sub.room.name}
-                      </span>
-                    </div>
-                    {sub.room.roomId && (
-                      <p className="mt-0.5 font-mono text-[10px] text-[var(--cream-muted)]">
-                        {sub.room.roomId}
-                      </p>
-                    )}
-                    <p className="mt-1 text-xs text-[var(--cream-muted)]">{sub.room.timeLabel}</p>
-                    
-                    <div className="mt-3 flex items-center justify-between">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                          isExpired
-                            ? "bg-red-500/15 text-red-400"
-                            : daysLeft <= 3
-                            ? "bg-amber-500/15 text-amber-300"
-                            : "bg-emerald-500/15 text-emerald-300"
-                        }`}
-                      >
-                        {isExpired ? "Expired" : `Valid for ${Math.max(0, daysLeft)} days`}
-                      </span>
-                    </div>
-
-                    <div className="mt-4 flex flex-col gap-2">
-                      {sub.room.meetLink ? (
-                        <button
-                          type="button"
-                          onClick={() => !isExpired && handleStartStudy(sub.room.meetLink!)}
-                          disabled={isExpired || !!activeSession}
-                          className={`w-full rounded-xl py-2 text-center text-sm font-semibold transition flex items-center justify-center gap-2 ${isExpired || activeSession ? 'bg-white/5 text-white/40 cursor-not-allowed border border-white/10' : 'bg-[var(--accent)] text-[var(--ink)] hover:bg-[var(--accent-hover)] shadow-lg hover:shadow-[var(--accent)]/20'}`}
-                        >
-                          <Play className="w-4 h-4" />
-                          {activeSession ? "Session in progress…" : "Start Study"}
-                        </button>
-                      ) : (
-                        <button
-                          disabled
-                          className="w-full rounded-xl py-2 text-center text-sm font-semibold bg-white/5 text-[var(--cream-muted)]/50 cursor-not-allowed border border-white/5"
-                        >
-                          No Meet Link Set
-                        </button>
-                      )}
-                      {!isExpired && (
-                        <button
-                          type="button"
-                          onClick={() => handleCheckIn(sub.studySlotId)}
-                          disabled={checkingInSlotId === sub.studySlotId}
-                          className="w-full rounded-xl py-2 text-center text-sm font-semibold border border-[var(--accent)]/50 text-[var(--accent)] hover:bg-[var(--accent)]/10 flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                          <LogIn className="w-4 h-4" />
-                          {checkingInSlotId === sub.studySlotId ? "Checking in…" : "Check-in"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </motion.section>
-
-        {/* Reward Program */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.24 }}
-          className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6"
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--cream)]">
-              <Gift className="h-5 w-5 text-[var(--accent)]" />
-              Reward Program
-            </h2>
-            <Link
-              href="/dashboard/rewards"
-              className="flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:underline"
-            >
-              My Rewards
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-          {rewardsLoading ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
-              Loading…
-            </p>
-          ) : rewards.length === 0 ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
-              No rewards yet. Win streaks, contests, or referrals to earn amounts!
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-4 py-3">
-                <span className="text-sm font-medium text-[var(--cream)]">Total won</span>
-                <span className="text-lg font-bold text-[var(--accent)]">₹{totalRewardAmount}</span>
-              </div>
-              {pendingRewards.length > 0 && (
-                <p className="text-xs text-amber-300/90">
-                  {pendingRewards.length} pending reward(s) — amount will be credited when marked paid.
-                </p>
-              )}
-              {rewards.slice(0, 3).map((w) => (
-                <Link
-                  key={w.id}
-                  href="/dashboard/rewards"
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 transition hover:border-[var(--accent)]/30"
-                >
-                  <span className="text-sm font-medium text-[var(--cream)]">{w.reward.name}</span>
-                  <span className="text-sm font-semibold text-[var(--cream)]">₹{w.reward.amount}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${w.status === "PAID" ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
-                    {w.status}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </motion.section>
-
-        {/* Recent Transactions */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6"
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-[var(--cream)]">
-              Recent Transactions
-            </h2>
-            <Link
-              href="/dashboard/transactions"
-              className="flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:underline"
-            >
-              View all
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-          {txnLoading ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
-              Loading…
-            </p>
-          ) : transactions.length === 0 ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
-              No transactions yet. Orders will appear here after checkout.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {transactions.slice(0, 5).map((txn) => (
-                <Link
-                  key={txn.id}
-                  href="/dashboard/transactions"
-                  className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 transition hover:border-[var(--accent)]/30"
-                >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Receipt className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-                    <span className="truncate font-mono text-sm font-medium text-[var(--cream)]">
-                      {txn.transactionId}
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-sm font-semibold text-[var(--cream)]">
-                    ₹{txn.amount}
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      txn.status === "SUCCESS"
-                        ? "bg-emerald-500/15 text-emerald-300"
-                        : "bg-amber-500/15 text-amber-300"
-                    }`}
-                  >
-                    {txn.status}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </motion.section>
-
-        {/* Refer & Earn */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.26 }}
-          className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6"
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--cream)]">
-              <UserPlus className="h-5 w-5 text-[var(--accent)]" />
-              Refer & Earn
-            </h2>
-          </div>
-          {referralLoading ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
-              Loading…
-            </p>
-          ) : !referralCode ? (
-            <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center">
-              <p className="text-sm text-[var(--cream-muted)] mb-4">
-                Apna referral link banao — jitne friends is link se sign up karenge, unka data yahan dikhega.
-              </p>
-              <button
-                type="button"
-                onClick={handleGenerateReferral}
-                disabled={referralGenerating}
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] hover:opacity-90 disabled:opacity-50"
-              >
-                <Link2 className="h-4 w-4" />
-                {referralGenerating ? "Generating…" : "Generate referral link"}
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">Your referral link</p>
-                  <p className="truncate font-mono text-sm text-[var(--cream)]">{referralLink}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={copyReferralLink}
-                  className="shrink-0 flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-[var(--cream)] hover:bg-white/20"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy link
-                </button>
-              </div>
-              <div>
-                <p className="mb-2 text-sm font-medium text-[var(--cream)]">
-                  Referred friends ({referredUsers.length})
-                </p>
-                {referredUsers.length === 0 ? (
-                  <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-4 text-center text-xs text-[var(--cream-muted)]">
-                    Abhi koi aapke link se sign up nahi kiya. Link share karo!
-                  </p>
-                ) : (
-                  <ul className="space-y-2">
-                    {referredUsers.map((u) => (
-                      <li
-                        key={u.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm"
-                      >
-                        <span className="font-medium text-[var(--cream)] truncate">{u.name}</span>
-                        <span className="text-xs text-[var(--cream-muted)] shrink-0 ml-2">
-                          {new Date(u.joinedAt).toLocaleDateString()}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          )}
-        </motion.section>
-
-        {/* Bottom: Streak Calendar + Notice Board */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-[var(--cream)]">
-                Monthly Streak Calendar
-              </h2>
-              <Link
-                href="/dashboard/streaks"
-                className="flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:underline"
-              >
-                View all
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[200px] border-collapse text-center text-xs">
-                <thead>
-                  <tr>
-                    {WEEKDAYS.map((w, wi) => (
-                      <th
-                        key={`weekday-${wi}`}
-                        className="border border-white/10 py-1 text-[var(--cream-muted)]"
-                      >
-                        {w}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthWeeks.map((week, wi) => (
-                    <tr key={wi}>
-                      {week.map((day, di) => {
-                        const studied =
-                          day !== null && studiedDates.has(dateKey(day));
-                        return (
-                          <td
-                            key={`cell-${wi}-${di}`}
-                            className={`border border-white/10 py-0.5 ${
-                              day === null
-                                ? "bg-white/5"
-                                : studied
-                                  ? "bg-amber-500/30 text-amber-200"
-                                  : "text-[var(--cream-muted)]"
-                            }`}
-                          >
-                            {day ?? ""}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Link
-              href="/dashboard/streaks"
-              className="mt-3 block text-center text-xs font-medium text-[var(--accent)] hover:underline"
-            >
-              Full calendar →
-            </Link>
-          </motion.section>
-
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6"
-          >
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--cream)]">
-              <Megaphone className="h-5 w-5 text-[var(--accent)]" />
-              Notice Board
-            </h2>
-            <ul className="space-y-3">
-              {NOTICES.map((notice, i) => (
-                <li
-                  key={i}
-                  className="rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-[var(--cream-muted)]"
-                >
-                  {notice}
-                </li>
-              ))}
-            </ul>
-          </motion.section>
-        </div>
-      </div>
-
-      {/* Right Sidebar: Leaderboard + Recommended Products */}
-      <motion.aside
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.4 }}
-        className="mt-6 shrink-0 lg:mt-0 lg:w-72 space-y-6"
+    <div className="mx-auto max-w-7xl space-y-4 pb-4">
+      {/* Hero Welcome Section */}
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="relative overflow-hidden rounded-[1.5rem] border border-[var(--accent)]/30 bg-gradient-to-br from-black/80 via-black/40 to-black/80 p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
       >
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--cream)]">
-              <Trophy className="h-4 w-4 text-amber-400" />
-              Study Leaderboard
-            </h2>
-            <Link href="/dashboard/leaderboard" className="text-xs font-medium text-[var(--accent)] hover:underline">
-              View full
-            </Link>
+        <div className="absolute -left-10 -top-10 h-32 w-32 rounded-full bg-[var(--accent)]/10 blur-[50px] pointer-events-none" />
+        <div className="absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-blue-500/10 blur-[60px] pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1">
+            <motion.h1 variants={item} className="text-xl font-extrabold tracking-tight md:text-2xl">
+              {getDynamicGreeting(userName)}
+            </motion.h1>
+            <motion.p variants={item} className="text-xs text-[var(--cream-muted)] max-w-xl leading-relaxed italic border-l-2 border-[var(--accent)]/50 pl-2 mt-2">
+              "{todayQuote}"
+            </motion.p>
           </div>
-          <p className="mb-3 text-xs text-[var(--cream-muted)]">
-            Top study hours this week
-          </p>
-          {leaderboardLoading ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-4 text-center text-xs text-[var(--cream-muted)]">
-              Loading…
-            </p>
-          ) : leaderboard.length === 0 ? (
-            <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-4 text-center text-xs text-[var(--cream-muted)]">
-              No activity yet. Start studying to appear here!
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {leaderboard.map((entry) => (
-                <li
-                  key={entry.userId}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                      entry.rank === 1 ? "bg-amber-500/30 text-amber-300" :
-                      entry.rank === 2 ? "bg-white/20 text-[var(--cream)]" :
-                      entry.rank === 3 ? "bg-amber-700/30 text-amber-200" :
-                      "bg-white/10 text-[var(--cream-muted)]"
-                    }`}>
-                      {entry.rank}
-                    </span>
-                    <span className="truncate font-medium text-[var(--cream)]">{entry.name}</span>
-                  </span>
-                  <span className="shrink-0 text-xs font-semibold text-[var(--accent)]">{entry.weeklyHours}h</span>
-                </li>
-              ))}
-            </ul>
+          
+          {stats?.goalCountdown != null && (
+            <motion.div variants={item} className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-2.5 backdrop-blur-md">
+               <div className="flex flex-col items-center justify-center h-10 w-10 rounded-[0.8rem] bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]">
+                 <Target className="h-5 w-5" />
+               </div>
+               <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--cream-muted)]">Target Countdown</p>
+                  <p className="text-2xl font-extrabold text-[var(--cream)] tabular-nums leading-none mt-0.5">
+                    {stats.goalCountdown} <span className="text-xs font-medium text-[var(--cream-muted)]">days</span>
+                  </p>
+               </div>
+            </motion.div>
           )}
         </div>
-      </motion.aside>
+      </motion.div>
+
+      {/* Primary Metrics Grid */}
+      <motion.div variants={container} initial="hidden" animate="show" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Metric 1 */}
+        <motion.div variants={item} className="group relative overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/40 p-4 shadow-lg backdrop-blur-xl transition-all hover:bg-black/60">
+           <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-amber-500/10 blur-[30px]" />
+           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-[0.8rem] bg-amber-500/10 text-amber-400 border border-amber-500/20">
+             <Flame className="h-5 w-5" />
+           </div>
+           <p className="text-xs font-bold uppercase tracking-wider text-[var(--cream-muted)]">Current Streak</p>
+           <p className="mt-1.5 flex items-baseline gap-2 text-2xl font-extrabold text-[var(--cream)] tracking-tight">
+             {loading ? "—" : (stats?.currentStreak ?? 0)} <span className="text-xs font-semibold text-amber-500/80">days</span>
+           </p>
+        </motion.div>
+
+        {/* Metric 2 */}
+        <motion.div variants={item} className="group relative overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/40 p-4 shadow-lg backdrop-blur-xl transition-all hover:bg-black/60">
+           <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-[var(--accent)]/10 blur-[30px]" />
+           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-[0.8rem] bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
+             <Clock className="h-5 w-5" />
+           </div>
+           <p className="text-xs font-bold uppercase tracking-wider text-[var(--cream-muted)]">Hours Today</p>
+           <div className="mt-1.5 flex items-baseline gap-2 text-2xl font-extrabold text-[var(--cream)] tracking-tight">
+             {loading ? "—" : formatHoursToHMS(liveHoursToday)}
+           </div>
+        </motion.div>
+
+        {/* Metric 3 */}
+        <motion.div variants={item} className="group relative overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/40 p-4 shadow-lg backdrop-blur-xl transition-all hover:bg-black/60">
+           <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-blue-500/10 blur-[30px]" />
+           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-[0.8rem] bg-blue-500/10 text-blue-400 border border-blue-500/20">
+             <BookOpen className="h-5 w-5" />
+           </div>
+           <p className="text-xs font-bold uppercase tracking-wider text-[var(--cream-muted)]">Total Hours</p>
+           <div className="mt-1.5 flex items-baseline gap-2 text-2xl font-extrabold text-[var(--cream)] tracking-tight">
+             {loading ? "—" : formatHoursToHMS(liveTotalStudyHours)}
+           </div>
+        </motion.div>
+
+        {/* Metric 4 */}
+        <motion.div variants={item} className="group relative overflow-hidden rounded-[1.5rem] border border-white/5 bg-black/40 p-4 shadow-lg backdrop-blur-xl transition-all hover:bg-black/60">
+           <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-emerald-500/10 blur-[30px]" />
+           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-[0.8rem] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+             <CalendarCheck className="h-5 w-5" />
+           </div>
+           <p className="text-xs font-bold uppercase tracking-wider text-[var(--cream-muted)]">Attendance</p>
+           <p className="mt-1.5 flex items-baseline gap-2 text-2xl font-extrabold text-[var(--cream)] tracking-tight">
+             {loading ? "—" : (stats?.totalAttendance ?? 0)} <span className="text-xs font-semibold text-emerald-500/80">days</span>
+           </p>
+        </motion.div>
+      </motion.div>
+
+      {/* Active Session Pulsing Banner */}
+      {activeSession && (
+        <motion.div
+           initial={{ opacity: 0, scale: 0.95, y: 10 }}
+           animate={{ opacity: 1, scale: 1, y: 0 }}
+           className="relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[1.5rem] border border-red-500/50 bg-gradient-to-r from-red-500/10 via-black/80 to-red-500/10 p-4 shadow-[0_0_30px_rgba(239,68,68,0.2)] backdrop-blur-3xl before:absolute before:inset-0 before:bg-red-500/5 before:animate-pulse"
+        >
+           <div className="relative z-10 flex items-center gap-4">
+             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/20 relative">
+               <div className="absolute inset-0 rounded-xl border-2 border-red-500/50 animate-ping opacity-75"></div>
+               <Timer className="h-6 w-6 text-red-500" />
+             </div>
+             <div>
+               <div className="flex items-center gap-2 mb-0.5">
+                 <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                 <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Live Session</p>
+               </div>
+               <p className="font-mono text-3xl font-extrabold text-[var(--cream)] tabular-nums tracking-tighter">
+                 {formatElapsed(sessionElapsedSeconds)}
+               </p>
+             </div>
+           </div>
+           <button
+             type="button"
+             onClick={handleStopSession}
+             disabled={stoppingSession}
+             className="relative z-10 group flex items-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold uppercase tracking-wider text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all hover:bg-red-600 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+           >
+             <Square className="h-4 w-4 fill-white/20" />
+             {stoppingSession ? "Stopping…" : "End Session"}
+           </button>
+        </motion.div>
+      )}
+
+      {/* Performance Charts Section */}
+      <DashboardCharts />
     </div>
   );
 }

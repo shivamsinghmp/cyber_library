@@ -6,10 +6,29 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
+    let userId = (session?.user as { id?: string })?.id;
+    if (!userId && session?.user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+      if (dbUser) userId = dbUser.id;
+    }
+
     if (!session?.user || !userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Always fetch past submissions regardless of whether there's an active form
+    const pastSubmissionsData = await prisma.studentFormSubmission.findMany({
+      where: { userId },
+      include: { form: { select: { title: true } } },
+      orderBy: { submittedAt: 'desc' }
+    });
+
+    const pastSubmissions = pastSubmissionsData.map(sub => ({
+      id: sub.id,
+      title: sub.form?.title || 'Unknown Form',
+      submittedAt: sub.submittedAt.toISOString(),
+      data: sub.data
+    }));
 
     const form = await prisma.studentForm.findFirst({
       where: { isActive: true },
@@ -18,7 +37,7 @@ export async function GET() {
     });
 
     if (!form) {
-      return NextResponse.json({ form: null, message: "No active form" });
+      return NextResponse.json({ form: null, alreadySubmitted: false, pastSubmissions, message: "No active form" });
     }
 
     const existing = await prisma.studentFormSubmission.findFirst({
@@ -41,6 +60,7 @@ export async function GET() {
         })),
       },
       alreadySubmitted: !!alreadySubmitted,
+      pastSubmissions,
     });
   } catch (e) {
     console.error("GET /api/student/form:", e);
@@ -52,7 +72,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
+    let userId = (session?.user as { id?: string })?.id;
+    if (!userId && session?.user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+      if (dbUser) userId = dbUser.id;
+    }
+
     if (!session?.user || !userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

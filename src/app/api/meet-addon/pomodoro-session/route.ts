@@ -73,5 +73,29 @@ export async function POST(request: NextRequest) {
     select: { id: true },
   });
 
-  return NextResponse.json({ ok: true, id: row.id }, { headers: cors });
+  let coinsAwarded = 0;
+  // GAMIFICATION: Award 25 coins for completing a 25+ min focus session
+  if (completedFully && plannedSeconds >= 1500) {
+    coinsAwarded = 25;
+    try {
+      await prisma.$transaction([
+        prisma.studyCoinLog.create({
+          data: {
+            userId,
+            roomId: room.id,
+            coins: coinsAwarded,
+            reason: "Completed 25m Focus Session"
+          }
+        }),
+        prisma.profile.update({
+          where: { userId },
+          data: { totalPoints: { increment: coinsAwarded } }
+        })
+      ]);
+    } catch (error) {
+      console.error("Gamification coin reward failed:", error);
+    }
+  }
+
+  return NextResponse.json({ ok: true, id: row.id, coinsAwarded }, { headers: cors });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { applyStudyStreakForQualifyingDay } from "@/lib/gamification/study-streak";
 
 const bodySchema = z.object({
   type: z.enum(["START", "STOP"]),
@@ -92,10 +93,11 @@ export async function POST(request: Request) {
         update: { totalStudyHours: { increment: addHours } },
       });
 
-      const MIN_STUDY_MINUTES_FOR_STREAK = 30;
+      const MIN_STUDY_MINUTES_FOR_STREAK = 10;
       const dayStart = new Date(endedAt);
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+      
       const sessionsToday = await prisma.studySession.findMany({
         where: {
           userId,
@@ -104,43 +106,26 @@ export async function POST(request: Request) {
         },
         select: { durationMinutes: true },
       });
-      const minutesToday = sessionsToday.reduce(
+      let minutesToday = sessionsToday.reduce(
         (sum, s) => sum + (s.durationMinutes ?? 0),
         0
       );
+
+      const meetPresenceRows = await prisma.meetPresenceSession.findMany({
+        where: {
+          userId,
+          startedAt: { gte: dayStart, lte: dayEnd },
+        },
+        select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
+      });
+      for (const m of meetPresenceRows) {
+        const endT = m.endedAt ?? m.lastHeartbeatAt ?? new Date();
+        const durationMins = Math.max(0, (endT.getTime() - m.startedAt.getTime()) / 60000);
+        minutesToday += durationMins;
+      }
+
       if (minutesToday >= MIN_STUDY_MINUTES_FOR_STREAK) {
-        const todayStr = dayStart.toISOString().slice(0, 10);
-        const yesterdayStr = new Date(dayStart.getTime() - 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
-        const profile = await prisma.profile.findUnique({
-          where: { userId },
-          select: { lastStudyDate: true, currentStreak: true, longestStreak: true },
-        });
-        const lastStudy = profile?.lastStudyDate
-          ? new Date(profile.lastStudyDate).toISOString().slice(0, 10)
-          : null;
-        if (lastStudy !== todayStr) {
-          const newStreak =
-            lastStudy === yesterdayStr
-              ? (profile?.currentStreak ?? 0) + 1
-              : 1;
-          const newLongest = Math.max(profile?.longestStreak ?? 0, newStreak);
-          await prisma.profile.upsert({
-            where: { userId },
-            create: {
-              userId,
-              lastStudyDate: endedAt,
-              currentStreak: newStreak,
-              longestStreak: newLongest,
-            },
-            update: {
-              lastStudyDate: endedAt,
-              currentStreak: newStreak,
-              longestStreak: newLongest,
-            },
-          });
-        }
+        await applyStudyStreakForQualifyingDay(userId);
       }
 
       return NextResponse.json({

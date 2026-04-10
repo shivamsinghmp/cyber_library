@@ -24,7 +24,12 @@ const createBodySchema = z.object({
 export async function GET() {
   try {
     const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
+    let userId = (session?.user as { id?: string })?.id;
+    if (!userId && session?.user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+      if (dbUser) userId = dbUser.id;
+    }
+
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -41,136 +46,38 @@ export async function GET() {
         paymentGatewayId: true,
         orderDetails: true,
         createdAt: true,
+        user: {
+          select: {
+            email: true,
+            name: true,
+            profile: {
+              select: {
+                fullName: true,
+                phone: true,
+                whatsappNumber: true
+              }
+            }
+          }
+        }
       },
     });
 
-    return NextResponse.json(list);
+    // Map the response to flatten the user info into the transaction root
+    const mappedList = list.map(t => ({
+      ...t,
+      customerName: t.user?.profile?.fullName || t.user?.name || "",
+      customerEmail: t.user?.email || "",
+      customerPhone: t.user?.profile?.whatsappNumber || t.user?.profile?.phone || ""
+    }));
+
+    return NextResponse.json(mappedList);
   } catch (e) {
     console.error("GET /api/user/transactions:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
 
-/** POST: Create a transaction (after successful order/payment) */
+/** POST: DEPRECATED - All transactions are now handled securely by the backend /api/razorpay/verify route */
 export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const parsed = createBodySchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.flatten().fieldErrors },
-        { status: 400 }
-      );
-    }
-
-    const transactionId = await generateTransactionId();
-    const txn = await prisma.transaction.create({
-      data: {
-        transactionId,
-        userId,
-        amount: parsed.data.amount,
-        currency: "INR",
-        status: parsed.data.status,
-        paymentGatewayId: parsed.data.paymentGatewayId ?? null,
-        orderDetails: parsed.data.orderDetails
-          ? (parsed.data.orderDetails as object)
-          : undefined,
-      },
-    });
-
-    // Digital product purchases: grant access for each productId in orderDetails
-    if (parsed.data.status === "SUCCESS" && parsed.data.orderDetails?.length) {
-      for (const item of parsed.data.orderDetails) {
-        const productId = item.productId;
-        if (productId) {
-          const product = await prisma.digitalProduct.findUnique({
-            where: { id: productId, isActive: true },
-          });
-          if (product) {
-            await prisma.digitalPurchase.create({
-              data: {
-                userId,
-                productId,
-                transactionId: txn.transactionId,
-              },
-            });
-          }
-        }
-      }
-    }
-
-    // Referral reward: only on first successful purchase
-    if (parsed.data.status === "SUCCESS") {
-      try {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: {
-            referredById: true,
-            referralRewarded: true,
-          },
-        });
-        if (user && user.referredById && !user.referralRewarded) {
-          // Check there is at least one successful transaction (this one counts)
-          const successCount = await prisma.transaction.count({
-            where: { userId, status: "SUCCESS" },
-          });
-          if (successCount >= 1) {
-            // Find an active referral reward
-            const reward = await prisma.reward.findFirst({
-              where: {
-                type: "REFERRAL",
-                isActive: true,
-              },
-              orderBy: { createdAt: "desc" },
-            });
-            if (reward) {
-              await prisma.$transaction([
-                prisma.rewardWinner.create({
-                  data: {
-                    userId,
-                    rewardId: reward.id,
-                    status: "PENDING",
-                  },
-                }),
-                prisma.rewardWinner.create({
-                  data: {
-                    userId: user.referredById,
-                    rewardId: reward.id,
-                    status: "PENDING",
-                  },
-                }),
-                prisma.user.update({
-                  where: { id: userId },
-                  data: { referralRewarded: true },
-                }),
-              ]);
-            } else {
-              console.warn(
-                "[Referral] No active REFERRAL reward configured; skipping referral reward."
-              );
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error processing referral reward:", e);
-      }
-    }
-
-    return NextResponse.json({
-      id: txn.id,
-      transactionId: txn.transactionId,
-      amount: txn.amount,
-      status: txn.status,
-      createdAt: txn.createdAt,
-    });
-  } catch (e) {
-    console.error("POST /api/user/transactions:", e);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
-  }
+  return NextResponse.json({ error: "Direct transaction creation is disabled for security reasons." }, { status: 403 });
 }

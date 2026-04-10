@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
 
 const ALLOWED_ROLES = ["ADMIN", "EMPLOYEE", "STUDENT", "INFLUENCER", "AUTHOR"] as const;
 
@@ -14,7 +15,17 @@ export async function POST(request: Request) {
     const { email, role: rawRole, secret } = body;
 
     const expectedSecret = process.env.DEV_SET_ROLE_SECRET;
-    if (!expectedSecret || secret !== expectedSecret) {
+    
+    if (!expectedSecret || !secret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Vulnerability Fix: Timing Attack Protection
+    // Ensures checking the secret doesn't leak string matches character-by-character
+    const expectedBuffer = Buffer.from(expectedSecret);
+    const secretBuffer = Buffer.from(String(secret));
+    
+    if (expectedBuffer.length !== secretBuffer.length || !crypto.timingSafeEqual(expectedBuffer, secretBuffer)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

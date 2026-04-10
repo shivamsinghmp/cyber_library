@@ -56,13 +56,13 @@ export async function getCalendarEventAttendees(
       email: a.email ?? null,
       responseStatus: a.responseStatus ?? null,
     }));
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Failed to fetch attendees for Calendar Event ${eventId}:`, error);
     let errorString = "";
-    if (error.response?.data) {
-      errorString = JSON.stringify(error.response.data, null, 2);
+    if (typeof error === "object" && error !== null && "response" in error && (error as any).response?.data) {
+      errorString = JSON.stringify((error as any).response.data, null, 2);
     } else {
-      errorString = error.toString();
+      errorString = String(error);
     }
     try {
       fs.writeFileSync(
@@ -120,13 +120,13 @@ export async function addStudentToCalendarEvent(eventId: string, studentEmail: s
 
     console.log(`Successfully added ${studentEmail} to Google Calendar event ${eventId}.`);
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Failed to add ${studentEmail} to Calendar Event ${eventId}:`, error);
     let errorString = "";
-    if (error.response?.data) {
-      errorString = JSON.stringify(error.response.data, null, 2);
+    if (typeof error === "object" && error !== null && "response" in error && (error as any).response?.data) {
+      errorString = JSON.stringify((error as any).response.data, null, 2);
     } else {
-      errorString = error.toString();
+      errorString = String(error);
     }
     
     try {
@@ -181,13 +181,13 @@ export async function createStudyRoomEvent(eventName: string, startTime: Date, e
       calendarEventId: eventId,
       meetLink: hangoutLink
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to create Google Calendar Event:");
     let errorString = "";
-    if (error.response?.data) {
-      errorString = JSON.stringify(error.response.data, null, 2);
+    if (typeof error === "object" && error !== null && "response" in error && (error as any).response?.data) {
+      errorString = JSON.stringify((error as any).response.data, null, 2);
     } else {
-      errorString = error.toString();
+      errorString = String(error);
     }
     console.error(errorString);
     try {

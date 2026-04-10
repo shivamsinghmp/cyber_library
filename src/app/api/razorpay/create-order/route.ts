@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { getRazorpayCredentials } from "@/lib/razorpay-credentials";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { fulfillOrder } from "@/lib/order-fulfillment";
 
 const bodySchema = z.object({
-  amount: z.number().min(0), // amount in rupees
+  type: z.enum(["CART", "PRODUCT", "REWARD"]),
+  ids: z.array(z.string()).min(1),
+  couponCode: z.string().optional(),
 });
 
 /** Create a Razorpay order. Returns orderId and keyId for frontend checkout. */
@@ -20,18 +25,85 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid amount" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid payload format" }, { status: 400 });
     }
-    const amountRupees = parsed.data.amount;
-    const amountPaise = Math.round(amountRupees * 100);
+    
+    const { type, ids, couponCode } = parsed.data;
+    let computedAmountRupees = 0;
+
+    const session = await auth();
+
+    // 1. Calculate base amount from strictly trusted database tables
+    if (type === "CART") {
+      const slots = await prisma.studySlot.findMany({
+        where: { id: { in: ids } },
+        select: { price: true },
+      });
+      computedAmountRupees = slots.reduce((sum, slot) => sum + slot.price, 0);
+    } else if (type === "PRODUCT") {
+      const product = await prisma.digitalProduct.findUnique({
+        where: { id: ids[0] },
+        select: { price: true },
+      });
+      if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      computedAmountRupees = product.price;
+    } else if (type === "REWARD") {
+      const reward = await prisma.reward.findUnique({
+        where: { id: ids[0] },
+        select: { enrollmentAmount: true },
+      });
+      if (!reward) return NextResponse.json({ error: "Reward not found" }, { status: 404 });
+      computedAmountRupees = reward.enrollmentAmount;
+    }
+
+    // 2. Validate and apply coupon authentically on the backend
+    let discount = 0;
+    if (couponCode && computedAmountRupees > 0) {
+      if (session?.user?.id) {
+        const coupon = await prisma.coupon.findUnique({ where: { code: couponCode } });
+        if (coupon && coupon.isActive && (!coupon.validUntil || coupon.validUntil > new Date())) {
+          
+          let hasUsed = false;
+          const userUse = await prisma.couponRedemption.findUnique({
+             where: { couponId_userId: { couponId: coupon.id, userId: session.user.id } }
+          });
+          if (userUse) hasUsed = true;
+          
+          const validMin = coupon.minOrderAmount ? computedAmountRupees >= coupon.minOrderAmount : true;
+
+          let redemptionCount = 0;
+          if (coupon.maxTotalUses) {
+            redemptionCount = await prisma.couponRedemption.count({ where: { couponId: coupon.id } });
+          }
+          const validUsage = coupon.maxTotalUses ? redemptionCount < coupon.maxTotalUses : true;
+
+          if (!hasUsed && validMin && validUsage) {
+            if (coupon.discountType === "FIXED") discount = coupon.discountValue;
+            else if (coupon.discountType === "PERCENT") discount = (computedAmountRupees * coupon.discountValue) / 100;
+          }
+        }
+      }
+    }
+
+    // 3. Convert to Paise exactly
+    const finalAmountRupees = Math.max(0, computedAmountRupees - discount);
+    const amountPaise = Math.round(finalAmountRupees * 100);
+
+    // If order becomes completely free due to coupons, fulfill immediately on backend
     if (amountPaise < 1) {
-      return NextResponse.json(
-        { error: "Amount must be at least ₹0.01" },
-        { status: 400 }
-      );
+      if (session?.user?.id) {
+        await fulfillOrder({
+          userId: session.user.id,
+          type,
+          ids,
+          amountRupees: 0,
+        });
+      }
+      return NextResponse.json({
+        orderId: `free_${Date.now()}`,
+        amount: 0,
+        free: true
+      });
     }
 
     const res = await fetch("https://api.razorpay.com/v1/orders", {

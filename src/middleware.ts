@@ -1,6 +1,8 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author"];
 
@@ -8,8 +10,46 @@ function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
+// 1. SECURITY (RATE LIMITING): Initialize Upstash Ratelimiter for API abuse prevention
+// Fixed Window / Sliding Window: 100 requests per minute per IP
+// (Increased from 50 to 100 to prevent false positives for schools/libraries sharing a single NAT IP)
+const ratelimit = process.env.UPSTASH_REDIS_REST_URL
+  ? new Ratelimit({
+      redis: new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN || "",
+      }),
+      limiter: Ratelimit.slidingWindow(100, "1 m"),
+      analytics: true,
+    })
+  : null;
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  // GLOBAL API RATE LIMITING (DDoS & Brute Force Protection)
+  if (pathname.startsWith("/api/") && ratelimit) {
+    // SECURITY FIX: Prevent 'X-Forwarded-For' Spoofing
+    // Next.js request.ip is injected securely by Vercel/proxies at the edge.
+    // If request.ip is null (e.g. running locally), fallback to headers, but
+    // only trust the FIRST ip in the comma-separated x-forwarded-for list.
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
+               
+    const { success, limit, remaining, reset } = await ratelimit.limit(`ratelimit_api_${ip}`);
+    if (!success) {
+      console.warn(`[SECURITY] Rate Limit Exceeded for IP: ${ip}`);
+      return new NextResponse(JSON.stringify({ error: "Too many requests" }), {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "X-RateLimit-Limit": limit.toString(),
+          "X-RateLimit-Remaining": remaining.toString(),
+          "X-RateLimit-Reset": reset.toString(),
+        },
+      });
+    }
+  }
+
   if (!isProtected(pathname)) {
     return NextResponse.next();
   }

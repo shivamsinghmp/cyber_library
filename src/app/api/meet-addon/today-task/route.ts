@@ -15,7 +15,7 @@ export async function OPTIONS() {
 
 function normalizePriority(v: unknown): number {
   const n = typeof v === "number" ? v : typeof v === "string" ? parseInt(v, 10) : NaN;
-  if (n === 1 || n === 2 || n === 3) return n;
+  if (n === 0 || n === 1 || n === 2 || n === 3) return n;
   return 2;
 }
 
@@ -49,11 +49,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
   }
   const taskDate = todayDate();
-  const tasks = await prisma.dailyTask.findMany({
-    where: { userId: payload.userId, taskDate },
-    orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
-  });
-  return NextResponse.json({ tasks: tasks.map(taskJson) }, { headers: cors });
+  const [tasks, profile] = await Promise.all([
+    prisma.dailyTask.findMany({
+      where: { userId: payload.userId, taskDate },
+      orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.profile.findUnique({
+      where: { userId: payload.userId },
+      select: { totalPoints: true }
+    })
+  ]);
+  return NextResponse.json({ tasks: tasks.map(taskJson), totalPoints: profile?.totalPoints || 0 }, { headers: cors });
 }
 
 export async function POST(request: NextRequest) {

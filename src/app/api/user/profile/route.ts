@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateCache } from "@/lib/redis";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -9,16 +12,21 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id;
-    if (!userId) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    let userId = (session.user as { id?: string }).id;
+    if (!userId && session.user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+      if (dbUser) userId = dbUser.id;
     }
 
-    const [profile, role] = await Promise.all([
+    if (!userId) {
+      return NextResponse.json({ error: "User not found (Token missing ID)" }, { status: 401 });
+    }
+
+    const [profile, userRec] = await Promise.all([
       prisma.profile.findUnique({ where: { userId } }),
-      prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { role: true, name: true, email: true } }),
     ]);
-    const userRole = role?.role ?? "STUDENT";
+    const userRole = userRec?.role ?? "STUDENT";
     const fieldDefinitions = await prisma.profileFieldDefinition.findMany({
       where: { role: userRole },
       orderBy: [{ sortOrder: "asc" }, { key: "asc" }],
@@ -26,6 +34,8 @@ export async function GET() {
     const customFields = (profile?.customFields as Record<string, unknown>) ?? null;
     return NextResponse.json({
       ...(profile ?? {}),
+      fullName: profile?.fullName || userRec?.name || (userRec?.email ? userRec.email.split('@')[0] : null) || null,
+      email: userRec?.email || null,
       customFields,
       fieldDefinitions,
     });
@@ -42,9 +52,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id;
+    let userId = (session.user as { id?: string }).id;
+    if (!userId && session.user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+      if (dbUser) userId = dbUser.id;
+    }
+
     if (!userId) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 });
+      return NextResponse.json({ error: "User not found (Token missing ID)" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -112,6 +127,9 @@ export async function POST(request: Request) {
         ...(customFieldsUpdate !== undefined && { customFields: customFieldsUpdate }),
       },
     });
+
+    const cacheKey = `user:profile:${userId}`;
+    await invalidateCache(cacheKey);
 
     return NextResponse.json(profile);
   } catch (e) {

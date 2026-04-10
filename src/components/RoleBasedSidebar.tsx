@@ -32,6 +32,7 @@ import {
   Plus,
   ImageIcon,
   Video,
+  MessageSquare,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -56,6 +57,7 @@ const roleNav: Record<
     { href: "/admin/bin", label: "Bin", icon: Trash2 },
     { href: "/admin/rewards", label: "Reward Program", icon: Gift },
     { href: "/admin/forms", label: "Student Form", icon: ClipboardList },
+    { href: "/admin/feedback", label: "Student Feedback", icon: MessageSquare },
     { href: "/admin/support", label: "Support Tickets", icon: MessageCircle },
     { href: "/admin/products", label: "Digital Store", icon: ShoppingBag },
     { href: "/admin/blog", label: "Blog (SEO)", icon: FileText },

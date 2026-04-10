@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: "frame-ancestors https://*.meet.google.com https://meet.google.com 'self'",
           },
+          {
+            key: "Permissions-Policy",
+            value: "display-capture=*",
+          },
         ],
       },
     ];

@@ -6,10 +6,11 @@ import { generateStudentId } from "@/lib/studentId";
 import { z } from "zod";
 
 const createStudentSchema = z.object({
-  email: z.string().email("Invalid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  name: z.string().optional(),
-  goal: z.string().optional(),
+  email: z.string().email("Invalid email").max(255),
+  // Password bounded to 72 bytes to prevent Bcrypt processing DOS
+  password: z.string().min(8, "Password must be at least 8 characters").max(72, "Password too long"),
+  name: z.string().max(100).optional(),
+  goal: z.string().max(100).optional(),
 });
 
 export async function GET(request: Request) {
@@ -22,6 +23,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim() || "";
+    // Vulnerability Fix: Enforce pagination offset limit to prevent Denial of Service Memory Spikes
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const take = 50; 
+    const skip = (page - 1) * take;
 
     const students = await prisma.user.findMany({
       where: {
@@ -56,7 +61,8 @@ export async function GET(request: Request) {
         }
       },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take,
+      skip,
     });
 
     const result: typeof students = [];

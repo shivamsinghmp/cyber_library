@@ -44,23 +44,30 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id;
+    let userId = (session.user as { id?: string }).id;
+    if (!userId && session.user?.email) {
+      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
+      if (dbUser) userId = dbUser.id;
+    }
+
     if (!userId) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
     const now = new Date();
 
-    const [profile, sessionsToday, allSessions, meetPresenceRows, firstSub, user] = await Promise.all([
+    const [profile, studyStreak, sessionsToday, allSessions, meetPresenceRows, firstSub, user] = await Promise.all([
       prisma.profile.findUnique({
         where: { userId },
         select: {
-          currentStreak: true,
-          longestStreak: true,
           totalStudyHours: true,
           targetYear: true,
           targetExam: true,
         },
+      }),
+      prisma.studyStreak.findUnique({
+        where: { userId },
+        select: { currentDays: true, longestDays: true },
       }),
       prisma.studySession.findMany({
         where: {
@@ -96,7 +103,13 @@ export async function GET() {
       const key = new Date(s.startedAt).toISOString().slice(0, 10);
       minutesByDate[key] = (minutesByDate[key] ?? 0) + (s.durationMinutes ?? 0);
     }
-    const totalAttendance = Object.values(minutesByDate).filter((m) => m >= 30).length;
+    for (const m of meetPresenceRows) {
+      const key = new Date(m.startedAt).toISOString().slice(0, 10);
+      const endT = m.endedAt ?? m.lastHeartbeatAt ?? now;
+      const durationMins = Math.max(0, (endT.getTime() - m.startedAt.getTime()) / 60000);
+      minutesByDate[key] = (minutesByDate[key] ?? 0) + durationMins;
+    }
+    const totalAttendance = Object.values(minutesByDate).filter((m) => m >= 10).length;
 
     const startDate = firstSub?.createdAt ?? user?.createdAt ?? null;
     const totalDaysSinceStart = startDate
@@ -131,8 +144,8 @@ export async function GET() {
         : null;
 
     return NextResponse.json({
-      currentStreak: profile?.currentStreak ?? 0,
-      longestStreak: profile?.longestStreak ?? 0,
+      currentStreak: studyStreak?.currentDays ?? 0,
+      longestStreak: studyStreak?.longestDays ?? 0,
       totalStudyHours,
       hoursToday,
       sessionsToday: sessionsToday.length,

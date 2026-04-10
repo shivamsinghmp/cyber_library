@@ -16,7 +16,7 @@ declare global {
       order_id: string;
       name: string;
       description?: string;
-      handler: (response: { razorpay_payment_id: string; razorpay_order_id: string }) => void;
+      handler: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string; }) => void;
       modal?: { ondismiss?: () => void };
     }) => { open: () => void };
   }
@@ -41,6 +41,7 @@ function CheckoutForm() {
   const planName = searchParams.get("name") || searchParams.get("productName") || DEFAULT_PLAN.name;
   const priceFromQuery = Number(searchParams.get("price")) || Number(searchParams.get("amount")) || DEFAULT_PLAN.price;
   const productId = searchParams.get("productId") ?? "";
+  const customRedirectUrl = searchParams.get("redirect") ?? "";
 
   const isCartMode = fromCart && cartItems.length > 0;
   const isRewardEnrollment = typeReward && rewardId;
@@ -146,6 +147,10 @@ function CheckoutForm() {
   }
 
   const redirectToSuccess = useCallback(() => {
+    if (customRedirectUrl) {
+      window.location.href = customRedirectUrl;
+      return;
+    }
     const params = new URLSearchParams({
       plan: displayName,
       price: String(total),
@@ -156,53 +161,15 @@ function CheckoutForm() {
     if (isRewardEnrollment) params.set("rewardId", rewardId);
     if (isProductPurchase) params.set("digital", "1");
     router.push(`/success?${params.toString()}`);
-  }, [displayName, total, discount, appliedCoupon?.code, isCartMode, isRewardEnrollment, isProductPurchase, rewardId, router]);
-
-  async function recordTransaction(paymentGatewayId?: string) {
-    const orderDetails = isCartMode
-      ? payableItems.map((i) => ({ slotId: i.slotId, name: i.name, price: i.price }))
-      : isProductPurchase
-        ? [{ productId, name: planName, price: priceFromQuery }]
-        : [{ slotId: "", name: planName, price: priceFromQuery }];
-    const txnRes = await fetch("/api/user/transactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount: total,
-        status: "SUCCESS",
-        paymentGatewayId: paymentGatewayId ?? undefined,
-        orderDetails,
-      }),
-    });
-    if (txnRes.ok) {
-      const txn = await txnRes.json();
-      return txn.transactionId as string | undefined;
-    }
-    return undefined;
-  }
-
+  }, [displayName, total, discount, appliedCoupon?.code, isCartMode, isRewardEnrollment, isProductPurchase, rewardId, router, customRedirectUrl]);
   async function completeWithoutPayment() {
     if (isCartMode && payableItems.length > 0) {
-      try {
-        const res = await fetch("/api/user/subscriptions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            slotIds: payableItems.map((i) => i.slotId),
-          }),
-        });
-        if (!res.ok) {
-          setSubmitting(false);
-          return;
-        }
         clearCart();
-      } catch {
-        setSubmitting(false);
-        return;
-      }
     }
-    await recordTransaction();
-    redirectToSuccess();
+    toast.success("Subscription Activated Successfully!");
+    setTimeout(() => {
+      redirectToSuccess();
+    }, 1500);
   }
 
   function loadRazorpayScript(): Promise<void> {
@@ -221,16 +188,30 @@ function CheckoutForm() {
     e.preventDefault();
     setSubmitting(true);
 
-    if (total <= 0) {
-      await completeWithoutPayment();
-      return;
-    }
+
 
     try {
+      let payloadType = "CART";
+      let payloadIds: string[] = [];
+      if (isCartMode) {
+        payloadType = "CART";
+        payloadIds = payableItems.map((i) => i.slotId);
+      } else if (isProductPurchase) {
+        payloadType = "PRODUCT";
+        payloadIds = [productId];
+      } else if (isRewardEnrollment) {
+        payloadType = "REWARD";
+        payloadIds = [rewardId];
+      }
+
       const orderRes = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total }),
+        body: JSON.stringify({
+          type: payloadType,
+          ids: payloadIds,
+          couponCode: appliedCoupon?.code,
+        }),
       });
       const orderData = await orderRes.json().catch(() => ({}));
       if (!orderRes.ok) {
@@ -238,6 +219,13 @@ function CheckoutForm() {
         setSubmitting(false);
         return;
       }
+
+      // If backend calculated price is 0 (due to 100% coupon), it will skip Razorpay
+      if (orderData.free === true) {
+        await completeWithoutPayment();
+        return;
+      }
+
       const { orderId, keyId, amount } = orderData as { orderId: string; keyId: string; amount: number };
 
       await loadRazorpayScript();
@@ -253,33 +241,24 @@ function CheckoutForm() {
         order_id: orderId,
         name: "The Cyber Library",
         description: displayName,
-        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string }) => {
-          if (isCartMode && payableItems.length > 0) {
-            try {
-              const subRes = await fetch("/api/user/subscriptions", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  slotIds: payableItems.map((i) => i.slotId),
-                }),
-              });
-              if (subRes.ok) clearCart();
-            } catch {
-              // still record and redirect
-            }
+        handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+          try {
+            const verifyRes = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                type: payloadType,
+                ids: payloadIds,
+                amount: total
+              })
+            });
+            if (verifyRes.ok && isCartMode) clearCart();
+          } catch (e) {
+            console.error("Verification error", e);
           }
-          if (isRewardEnrollment) {
-            try {
-              await fetch("/api/user/rewards/enroll", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ rewardId }),
-              });
-            } catch {
-              // success page can show message; transaction still recorded
-            }
-          }
-          await recordTransaction(response.razorpay_payment_id);
           redirectToSuccess();
         },
         modal: {

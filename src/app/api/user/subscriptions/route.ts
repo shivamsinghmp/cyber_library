@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -65,83 +66,7 @@ export async function GET() {
   }
 }
 
-/** POST: Add room subscriptions for current user (after purchase) */
+/** POST: DEPRECATED - All subscriptions are now handled securely by the backend /api/razorpay/verify route */
 export async function POST(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const userId = (session.user as { id?: string }).id;
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userProfile = await prisma.profile.findUnique({
-      where: { userId },
-      select: { phone: true, whatsappNumber: true, fullName: true },
-    });
-    const userPhone = userProfile?.whatsappNumber || userProfile?.phone;
-
-    const body = await request.json();
-    const parsed = bodySchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.flatten().fieldErrors },
-        { status: 400 }
-      );
-    }
-    const { slotIds } = parsed.data;
-
-    const existingSlots = await prisma.studySlot.findMany({
-      where: { id: { in: slotIds } },
-      select: { id: true, name: true, timeLabel: true, meetLink: true, calendarEventId: true },
-    });
-    const validIds = new Set(existingSlots.map((s) => s.id));
-    const slotMap = new Map(existingSlots.map((s) => [s.id, s.calendarEventId]));
-
-    for (const slotId of slotIds) {
-      if (!validIds.has(slotId)) continue;
-      await prisma.roomSubscription.upsert({
-        where: {
-          userId_studySlotId: { userId, studySlotId: slotId },
-        },
-        create: { userId, studySlotId: slotId },
-        update: {},
-      });
-
-      // After successful subscription creation, try to add them to the Google Calendar
-      const calendarEventId = slotMap.get(slotId);
-      if (calendarEventId && session.user?.email) {
-        // Fire & forget, don't wait/block the web request response on this succeeding 
-        addStudentToCalendarEvent(calendarEventId, session.user.email)
-          .catch(err => {
-             console.error("Auto-admit background failure:", err);
-             try { fs.writeFileSync("calendar-invite-error.txt", `Failed Invite: ${err}\n`, { flag: 'a' }); } catch(e){}
-          });
-      }
-
-      // Send WhatsApp Notification if phone number exists (Meta pre-approved template)
-      if (userPhone) {
-        const slotData = existingSlots.find(s => s.id === slotId);
-        if (slotData) {
-           const userName = userProfile?.fullName ? userProfile.fullName.split(' ')[0] : 'Student';
-           // Template name must match one created & approved in Meta Business Manager
-           // e.g. "room_subscription_confirmation" or "booking_confirmation"
-           // Template variables: {{1}} = Name, {{2}} = Room/Shift, {{3}} = TimeLabel
-           sendWhatsAppTemplate(
-             userPhone,
-             "room_subscription_confirmation",
-             "en",
-             [userName, slotData.name, slotData.timeLabel]
-           ).catch(err => console.error("WhatsApp Template Error:", err));
-        }
-      }
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error("POST /api/user/subscriptions:", e);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
-  }
+  return NextResponse.json({ error: "Direct subscription creation is disabled for security reasons." }, { status: 403 });
 }

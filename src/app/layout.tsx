@@ -12,6 +12,7 @@ import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { TrafficTracker } from "@/components/TrafficTracker";
 import { Toaster } from "react-hot-toast";
 import { getAppSetting } from "@/lib/app-settings";
+import { SmoothScroll } from "@/components/SmoothScroll";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [title, faviconUrl] = await Promise.all([
@@ -80,18 +81,20 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} ${outfit.variable} font-sans antialiased min-h-screen flex flex-col`}>
-        <SessionProvider>
-          <CartProvider>
-            <TrafficTracker />
-            <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
-            <AnnouncementBanner />
-            <Navbar />
-          <main className="flex-1 flex flex-col">
-            {children}
-          </main>
-          <Footer />
-          </CartProvider>
-        </SessionProvider>
+        <SmoothScroll>
+          <SessionProvider>
+            <CartProvider>
+              <TrafficTracker />
+              <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
+              <AnnouncementBanner />
+              <Navbar />
+            <main className="flex-1 flex flex-col">
+              {children}
+            </main>
+            <Footer />
+            </CartProvider>
+          </SessionProvider>
+        </SmoothScroll>
       </body>
     </html>
   );

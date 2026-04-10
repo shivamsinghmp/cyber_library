@@ -7,7 +7,10 @@ import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 days (reduced from 30)
+  },
   trustHost: true,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   pages: {
@@ -19,7 +22,53 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.goal = (user as { goal?: string }).goal;
         token.role = (user as { role?: string }).role ?? "STUDENT";
+        
+        // --- 4 DEVICE LIMIT LOGIC ---
+        // 1. Generate a new JWT ID for this specific login session
+        const jti = crypto.randomUUID();
+        token.jti = jti;
+
+        // 2. Count active sessions for this user
+        const activeSessions = await prisma.session.findMany({
+          where: { userId: user.id },
+          orderBy: { expires: "asc" }, // Oldest expires first
+        });
+
+        // 3. If there are already 4 or more sessions, delete the oldest ones so we only have 3 left
+        if (activeSessions.length >= 4) {
+          const toDelete = activeSessions.slice(0, activeSessions.length - 3);
+          const idsToDelete = toDelete.map(s => s.id);
+          await prisma.session.deleteMany({
+            where: { id: { in: idsToDelete } }
+          });
+        }
+
+        // 4. Create the new session record in DB to track this specific device
+        await prisma.session.create({
+          data: {
+             sessionToken: jti,
+             userId: user.id as string,
+             expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          }
+        });
       }
+
+      // --- VALIDATE SESSION (If not first login) ---
+      if (!user && token.jti) {
+         try {
+            const dbSession = await prisma.session.findUnique({
+               where: { sessionToken: token.jti as string }
+            });
+            // If the session was deleted, we log a warning but DO NOT revoke the token 
+            // to avoid a disparity between middleware.ts and useSession()
+            if (!dbSession) {
+               console.warn("Session missing in DB for JWT, ignoring to maintain UI state.");
+            }
+         } catch (e) {
+            // DB fail fallback - continue allowing request
+         }
+      }
+
       if (token.id) {
         if (!token.role) {
           const u = await prisma.user.findUnique({
@@ -32,6 +81,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     session({ session, token }) {
+      if (!token || (!token.id && !token.email)) {
+         return {} as any;
+      }
+
       if (session.user) {
         (session.user as { id?: string }).id = token.id as string;
         (session.user as { goal?: string }).goal = token.goal as string | undefined;

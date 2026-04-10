@@ -36,12 +36,13 @@ const staggerContainer = {
 };
 
 export function HomeClient() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [liveCount, setLiveCount] = useState(42);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [headline, setHeadline] = useState(DEFAULT_HEADLINE);
   const isStudent =
     session?.user && ((session.user as { role?: string }).role ?? "STUDENT") === "STUDENT";
+  const isLoading = status === "loading";
 
   useEffect(() => {
     fetch("/api/site-branding")
@@ -65,10 +66,11 @@ export function HomeClient() {
   }, []);
 
   return (
-    <div className="relative overflow-hidden bg-[var(--background)] px-4 pb-12 pt-4 md:pb-24 md:pt-16">
-      {/* Animated Premium Mesh Background */}
-      <div className="pointer-events-none absolute inset-0 opacity-40 mix-blend-screen bg-[radial-gradient(circle_at_0%_0%,_var(--accent)_0%,_transparent_50%),radial-gradient(circle_at_100%_100%,_var(--wood)_0%,_transparent_50%)] bg-[length:200%_200%] animate-[mesh_15s_ease-in-out_infinite_alternate]" />
-      <div className="pointer-events-none absolute left-1/2 top-40 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-[var(--accent)]/10 blur-[160px] animate-[float_8s_ease-in-out_infinite]" />
+    <div className="relative overflow-hidden bg-[var(--background)] px-4 pb-12 pt-4 md:pb-24 md:pt-16 selection:bg-[var(--accent)] selection:text-black">
+      {/* Animated Premium Grid & Mesh Background */}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#8b735510_1px,transparent_1px),linear-gradient(to_bottom,#8b735510_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-40 mix-blend-screen bg-[radial-gradient(circle_at_0%_0%,_var(--accent)_0%,_transparent_40%),radial-gradient(circle_at_100%_100%,_var(--wood)_0%,_transparent_40%)] bg-[length:200%_200%] animate-[mesh_15s_ease-in-out_infinite_alternate]" />
+      <div className="pointer-events-none absolute left-1/2 top-40 h-[800px] w-[800px] -translate-x-1/2 rounded-full bg-[var(--accent)]/5 blur-[200px] animate-[float_8s_ease-in-out_infinite]" />
       
       <motion.div 
         initial="hidden" 
@@ -99,21 +101,37 @@ export function HomeClient() {
           </p>
 
           <div className="flex flex-wrap gap-5 mt-4">
-            <Link
-              href="/login"
-              className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] px-9 py-4 text-sm font-extrabold text-[var(--ink)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(154,130,100,0.5)]"
-            >
-              <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-                <div className="relative h-full w-10 bg-white/40 blur-sm" />
-              </div>
-              Join Session Now
-            </Link>
-            <Link
-              href="/signup"
-              className="inline-flex items-center justify-center rounded-full border border-[var(--wood)]/30 bg-white/[0.03] backdrop-blur-2xl px-9 py-4 text-sm font-bold text-[var(--cream)] transition-all hover:bg-white/[0.08] hover:border-[var(--accent)]/50 hover:text-white hover:scale-105 hover:shadow-[0_0_20px_rgba(154,130,100,0.2)]"
-            >
-              Request Access
-            </Link>
+            {isLoading ? (
+               <div className="h-[52px] w-[180px] animate-pulse rounded-full bg-[var(--wood)]/10 border border-[var(--wood)]/20" />
+            ) : !session?.user ? (
+              <>
+                <Link
+                  href="/login"
+                  className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] px-9 py-4 text-sm font-extrabold text-[var(--ink)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(154,130,100,0.5)]"
+                >
+                  <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
+                    <div className="relative h-full w-10 bg-white/40 blur-sm" />
+                  </div>
+                  Join Session Now
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center rounded-full border border-[var(--wood)]/30 bg-white/[0.03] backdrop-blur-2xl px-9 py-4 text-sm font-bold text-[var(--cream)] transition-all hover:bg-white/[0.08] hover:border-[var(--accent)]/50 hover:text-white hover:scale-105 hover:shadow-[0_0_20px_rgba(154,130,100,0.2)]"
+                >
+                  Request Access
+                </Link>
+              </>
+            ) : (
+              <Link
+                href="/dashboard"
+                className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] px-9 py-4 text-sm font-extrabold text-[var(--ink)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(154,130,100,0.5)]"
+              >
+                <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
+                  <div className="relative h-full w-10 bg-white/40 blur-sm" />
+                </div>
+                Go to Dashboard
+              </Link>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-6 pt-2 text-sm font-semibold text-[var(--cream-muted)]">
@@ -237,6 +255,157 @@ export function HomeClient() {
               <p className="text-base leading-relaxed text-[var(--cream-muted)] font-medium">{item.desc}</p>
             </motion.div>
           ))}
+        </div>
+      </motion.section>
+
+      {/* NEW SECTION: How It Works */}
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={staggerContainer}
+        className="mx-auto mt-40 max-w-6xl relative z-10"
+      >
+        <div className="absolute right-0 top-20 h-96 w-96 rounded-full bg-[var(--wood)]/10 blur-[120px] pointer-events-none" />
+        <div className="text-center mb-16">
+          <motion.h2 variants={fadeIn} className="text-xs font-extrabold uppercase tracking-[0.3em] text-[var(--accent)] mb-4">
+            Workflow
+          </motion.h2>
+          <motion.h3 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
+            How The Hub Operates
+          </motion.h3>
+        </div>
+
+        <div className="grid gap-10 md:grid-cols-4">
+          {[
+            {
+              step: "01",
+              title: "Reserve a Seat",
+              desc: "Browse securely scheduled deep-work sprints and select a slot that fits your study objective."
+            },
+            {
+              step: "02",
+              title: "Enter the Library",
+              desc: "Join our dedicated Google Meet infrastructure. Mute your microphone and keep the camera active."
+            },
+            {
+              step: "03",
+              title: "Lock In",
+              desc: "The admin initiates the Pomodoro timer. Complete silence falls. Raw, unfiltered focus begins."
+            },
+            {
+              step: "04",
+              title: "Rest & Repeat",
+              desc: "Take mandatory 10-minute breaks to stretch and reset your mental bandwidth before the next sprint."
+            }
+          ].map((item, i) => (
+             <motion.div variants={fadeIn} key={i} className="relative group">
+                <div className="mb-6 flex">
+                  <span className="text-6xl font-extrabold text-[var(--wood)]/20 transition-all duration-500 group-hover:text-[var(--accent)]/40 tracking-tighter">
+                    {item.step}
+                  </span>
+                </div>
+                <h4 className="mb-3 text-xl font-bold text-[var(--cream)]">{item.title}</h4>
+                <p className="text-sm leading-relaxed text-[var(--cream-muted)] font-medium">
+                  {item.desc}
+                </p>
+                {i !== 3 && (
+                  <div className="absolute right-0 top-8 hidden w-1/2 -translate-y-1/2 border-t-[1.5px] border-dashed border-[var(--wood)]/20 md:block" />
+                )}
+             </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
+      {/* NEW SECTION: The Unfair Advantage (Ecosystem Showcase) */}
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={staggerContainer}
+        className="mx-auto mt-40 max-w-6xl relative z-10 px-4"
+      >
+        <div className="absolute left-0 top-1/2 -z-10 h-[600px] w-[600px] -translate-y-1/2 -translate-x-1/2 rounded-full bg-[var(--wood)]/5 blur-[160px]" />
+        
+        <div className="text-center mb-16 max-w-3xl mx-auto">
+          <motion.h2 variants={fadeIn} className="text-xs font-extrabold uppercase tracking-[0.3em] text-[var(--accent)] mb-4">
+            The Complete Ecosystem
+          </motion.h2>
+          <motion.h3 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight leading-tight">
+            Not just study rooms. <br className="hidden md:block"/> An entire productivity engine.
+          </motion.h3>
+          <motion.p variants={fadeIn} className="mt-6 text-lg text-[var(--cream-muted)] font-medium">
+            We combined high-stakes gamification with premium mental health support to create an environment where failure is virtually impossible.
+          </motion.p>
+        </div>
+
+        {/* Bento Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-6">
+          {/* Feature 1: Realtime Focus (Spans 2 cols) */}
+          <motion.div variants={fadeIn} className="md:col-span-2 group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/20 bg-gradient-to-br from-[var(--ink)]/80 to-[var(--background)] p-8 md:p-12 shadow-[0_20px_40px_rgba(15,11,7,0.4)] backdrop-blur-3xl">
+            <div className="absolute right-0 top-0 h-full w-2/3 opacity-30 mix-blend-screen bg-[radial-gradient(ellipse_at_top_right,_var(--accent)_0%,_transparent_70%)] pointer-events-none transition-opacity duration-700 group-hover:opacity-50" />
+            <div className="relative z-10">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/30 backdrop-blur-md">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg>
+              </div>
+              <h4 className="text-2xl font-bold text-[var(--cream)] tracking-tight mb-3">Live Focus Architecture</h4>
+              <p className="text-base text-[var(--cream-muted)] leading-relaxed max-w-md font-medium mb-8">
+                Drop into highly structured, completely silent Google Meet rooms. Paced by Pomodoro timers and fueled by the collective willpower of top-tier aspirants.
+              </p>
+              <Link href="/study-room" className="inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)] hover:text-white transition-colors">
+                Explore Rooms <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+              </Link>
+            </div>
+          </motion.div>
+
+          {/* Feature 2: Gamification */}
+          <motion.div variants={fadeIn} className="group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-white/[0.02] p-8 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30">
+            <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-[40px] pointer-events-none group-hover:bg-emerald-500/20 transition-all" />
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>
+            </div>
+            <h4 className="text-xl font-bold text-[var(--cream)] tracking-tight mb-3">Gamified Streaks</h4>
+            <p className="text-sm text-[var(--cream-muted)] leading-relaxed font-medium mb-6">
+              Track consistency, dominate the global leaderboard, and earn exclusive ranks and hardware rewards for pure discipline.
+            </p>
+          </motion.div>
+
+          {/* Feature 3: Mental Health */}
+          <motion.div variants={fadeIn} className="group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-white/[0.02] p-8 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30">
+            <div className="absolute top-0 left-0 h-40 w-full bg-gradient-to-b from-blue-500/10 to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100 pointer-events-none" />
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/30">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M12 8v4l3 3"/></svg>
+            </div>
+            <h4 className="text-xl font-bold text-[var(--cream)] tracking-tight mb-3">Therapy & Wellness</h4>
+            <p className="text-sm text-[var(--cream-muted)] leading-relaxed font-medium mb-6">
+              Burnout destroys careers. Book 1-on-1 private mental wellness sessions with certified professionals to stay anchored.
+            </p>
+            <Link href="/mental-session" className="inline-flex items-center text-sm font-bold text-blue-400 hover:text-white transition-colors">
+              Book a Session
+            </Link>
+          </motion.div>
+
+          {/* Feature 4: Store & Vault (Spans 2 cols) */}
+          <motion.div variants={fadeIn} className="md:col-span-2 group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-white/[0.02] p-8 md:p-12 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30 flex flex-col md:flex-row md:items-center gap-8 md:gap-12">
+            <div className="flex-1">
+              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--wood)]/10 text-[var(--wood)] ring-1 ring-[var(--wood)]/30">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              </div>
+              <h4 className="text-2xl font-bold text-[var(--cream)] tracking-tight mb-3">Premium Digital Vault</h4>
+              <p className="text-base text-[var(--cream-muted)] leading-relaxed font-medium mb-6">
+                Direct access to high-end productivity trackers, planners, and verified study material crafted by toppers, stored forever in your personal dashboard.
+              </p>
+              <Link href="/store" className="inline-flex items-center gap-2 text-sm font-bold text-[var(--wood)] hover:text-white transition-colors">
+                Browse Collection <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+              </Link>
+            </div>
+            
+            <div className="hidden shrink-0 md:flex w-40 h-40 rounded-[2rem] bg-[var(--background)]/80 ring-1 ring-white/10 items-center justify-center relative shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+               <div className="absolute inset-2 border border-dashed border-[var(--wood)]/20 rounded-[1.5rem]" />
+               <svg className="w-16 h-16 text-[var(--wood)]/50 transition-all duration-700 group-hover:scale-110 group-hover:text-[var(--accent)]" viewBox="0 0 24 24" fill="currentColor"><path d="m20.24 12.24-8 8a2.12 2.12 0 0 1-3 0L3.76 14.76a2.12 2.12 0 0 1 0-3l8-8a2.12 2.12 0 0 1 3 0l5.48 5.48a2.12 2.12 0 0 1 0 3Z"/><path d="M14 8h.01"/></svg>
+            </div>
+          </motion.div>
+        
         </div>
       </motion.section>
 
@@ -385,6 +554,55 @@ export function HomeClient() {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
             </button>
           </div>
+        </div>
+      </motion.section>
+
+      {/* NEW SECTION: Frequently Asked Questions */}
+      <motion.section
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={staggerContainer}
+        className="mx-auto mt-40 mb-20 max-w-4xl relative z-10"
+      >
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-full max-w-3xl rounded-full bg-[var(--wood)]/5 blur-[120px] pointer-events-none" />
+        <div className="text-center mb-16 relative z-10">
+          <motion.h2 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
+            Common Inquiries
+          </motion.h2>
+          <motion.p variants={fadeIn} className="mt-4 text-lg text-[var(--cream-muted)] font-medium">
+            Everything you need to know about joining The Hub.
+          </motion.p>
+        </div>
+
+        <div className="space-y-4 relative z-10">
+          {[
+            {
+              q: "Is it mandatory to keep my camera on?",
+              a: "Yes. The entire foundation of body doubling relies on visual accountability. Keeping your camera on ensures you and your peers remain focused and discourages using your phone."
+            },
+            {
+              q: "What if there is background noise at my place?",
+              a: "All microphones must remain muted at all times. As long as you are muted, background noise at your physical location will not disturb the online library."
+            },
+            {
+              q: "Do I need to install any special software?",
+              a: "No. The Cyber Library operates primarily through our web platform and Google Meet. If you can open a web browser, you can join a session."
+            },
+            {
+              q: "Can I take breaks whenever I want?",
+              a: "We highly recommend following the strict Pomodoro schedule enforced by the room admin (usually 50 minutes of work, 10 minutes of rest) to avoid burnout and maintain group sync."
+            }
+          ].map((faq, i) => (
+             <motion.div variants={fadeIn} key={i} className="group rounded-[1.5rem] border border-[var(--wood)]/10 bg-black/20 p-6 md:p-8 transition-colors hover:border-[var(--accent)]/30 hover:bg-black/40 backdrop-blur-md">
+               <h3 className="text-lg font-bold text-[var(--cream)] transition-colors group-hover:text-[var(--accent)]">
+                 {faq.q}
+               </h3>
+               <p className="mt-3 text-sm leading-relaxed text-[var(--cream-muted)] font-medium">
+                 {faq.a}
+               </p>
+             </motion.div>
+          ))}
         </div>
       </motion.section>
     </div>

@@ -13,21 +13,10 @@ function fallbackBus(): BroadcastChannel | null {
   return new BroadcastChannel(CHANNEL);
 }
 
-export async function publishMeetEvent(event: MeetAddonEvent): Promise<void> {
-  try {
-    if (typeof window !== "undefined" && (window as any).meet?.addon?.publishEvent) {
-      await (window as any).meet.addon.publishEvent({ event });
-      return;
-    }
-  } catch {
-    // Fall back to BroadcastChannel in local/dev contexts.
-  }
-  const bus = fallbackBus();
-  if (bus) bus.postMessage(event);
-}
-
 export function subscribeMeetEvents(handler: Handler): Unsubscribe {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof window !== "undefined" && (window as any).meet?.addon?.onEvent) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stop = (window as any).meet.addon.onEvent((raw: any) => {
       if (raw && typeof raw === "object") handler(raw as MeetAddonEvent);
     });
@@ -41,14 +30,4 @@ export function subscribeMeetEvents(handler: Handler): Unsubscribe {
     bus.removeEventListener("message", listener);
     bus.close();
   };
-}
-
-export async function getMeetRoomId(): Promise<string> {
-  if (typeof window === "undefined") return "local-room";
-  try {
-    const ctx = await (window as any).meet?.addon?.getSidePanelContext?.();
-    return ctx?.meetingCode || ctx?.meetingId || "local-room";
-  } catch {
-    return "local-room";
-  }
 }

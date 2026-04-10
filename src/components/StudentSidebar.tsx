@@ -17,7 +17,12 @@ import {
   Receipt,
   Gift,
   ClipboardList,
-  Download,
+  Package,
+  HelpCircle,
+  Video,
+  UserPlus,
+  CheckCircle,
+  MessageSquare,
 } from "lucide-react";
 import { calculateCompletion, type ProfileForCompletion } from "@/lib/profileCompletion";
 
@@ -28,14 +33,19 @@ type Profile = ProfileForCompletion & {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/student-form", label: "Student Form", icon: ClipboardList },
-  { href: "/dashboard/downloads", label: "My Downloads", icon: Download },
-  { href: "/dashboard/subscription", label: "Subscription", icon: BookOpen },
-  { href: "/dashboard/transactions", label: "Transactions", icon: Receipt },
-  { href: "/dashboard/rewards", label: "My Rewards", icon: Gift },
-  { href: "/dashboard/streaks", label: "Calendar", icon: Flame },
+  { href: "/dashboard/tasks", label: "Tasks", icon: CheckCircle },
+  { href: "/dashboard/quiz", label: "Quiz", icon: HelpCircle },
+  { href: "/dashboard/meet-addon", label: "Meet Add-on", icon: Video },
+  { href: "/dashboard/student-form", label: "Form", icon: ClipboardList },
+  { href: "/dashboard/downloads", label: "My Product", icon: Package },
+  { href: "/dashboard/subscription", label: "Study Room", icon: BookOpen },
+  { href: "/dashboard/transactions", label: "Transaction", icon: Receipt },
+  { href: "/dashboard/rewards", label: "My Reward", icon: Gift },
+  { href: "/dashboard/refer", label: "Refer", icon: UserPlus },
+  { href: "/dashboard/streaks", label: "Streak", icon: Flame },
+  { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/dashboard/profile", label: "Profile", icon: UserCircle },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/settings", label: "Setting", icon: Settings },
 ];
 
 export function StudentSidebar() {
@@ -59,7 +69,7 @@ export function StudentSidebar() {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const res = await fetch("/api/user/profile");
+        const res = await fetch("/api/user/profile", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           setProfile(data);
@@ -71,6 +81,10 @@ export function StudentSidebar() {
       }
     }
     fetchProfile();
+
+    const handleProfileUpdate = () => fetchProfile();
+    window.addEventListener("profileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("profileUpdated", handleProfileUpdate);
   }, []);
 
   const completion = calculateCompletion(profile ?? null);

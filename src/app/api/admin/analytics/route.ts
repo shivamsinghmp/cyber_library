@@ -17,25 +17,25 @@ export async function GET() {
     start.setDate(start.getDate() - 14);
     start.setHours(0, 0, 0, 0);
 
-    const transactions = await prisma.transaction.findMany({
+    const transactionAggregations = await prisma.transaction.groupBy({
+      by: ["createdAt"],
       where: {
         status: "SUCCESS",
         createdAt: { gte: start },
       },
-      select: { amount: true, createdAt: true },
+      _sum: { amount: true },
     });
 
-    const totalRevenue = transactions.reduce((s, t) => s + t.amount, 0);
+    const totalRevenue = transactionAggregations.reduce((s, t) => s + (t._sum.amount ?? 0), 0);
     const byDay = new Map<string, number>();
     for (let d = 0; d < 14; d++) {
       const day = new Date(start);
       day.setDate(day.getDate() + d);
-      const key = day.toISOString().slice(0, 10);
-      byDay.set(key, 0);
+      byDay.set(day.toISOString().slice(0, 10), 0);
     }
-    for (const t of transactions) {
+    for (const t of transactionAggregations) {
       const key = t.createdAt.toISOString().slice(0, 10);
-      if (byDay.has(key)) byDay.set(key, (byDay.get(key) ?? 0) + t.amount);
+      if (byDay.has(key)) byDay.set(key, (byDay.get(key) ?? 0) + (t._sum.amount ?? 0));
     }
     const revenueByDay = Array.from(byDay.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
@@ -60,9 +60,10 @@ export async function GET() {
       count: s._count.id,
     }));
 
-    const studySessions = await prisma.studySession.findMany({
+    const studyAggregations = await prisma.studySession.groupBy({
+      by: ["startedAt"],
       where: { startedAt: { gte: start }, durationMinutes: { not: null } },
-      select: { startedAt: true, durationMinutes: true },
+      _sum: { durationMinutes: true },
     });
     const studyByDay = new Map<string, number>();
     for (let d = 0; d < 14; d++) {
@@ -70,9 +71,9 @@ export async function GET() {
       day.setDate(day.getDate() + d);
       studyByDay.set(day.toISOString().slice(0, 10), 0);
     }
-    for (const s of studySessions) {
+    for (const s of studyAggregations) {
       const key = s.startedAt.toISOString().slice(0, 10);
-      if (studyByDay.has(key)) studyByDay.set(key, (studyByDay.get(key) ?? 0) + (s.durationMinutes ?? 0));
+      if (studyByDay.has(key)) studyByDay.set(key, (studyByDay.get(key) ?? 0) + (s._sum.durationMinutes ?? 0));
     }
     const studyHoursByDay = Array.from(studyByDay.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))

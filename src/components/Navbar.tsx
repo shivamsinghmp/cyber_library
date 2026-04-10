@@ -63,7 +63,7 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/staff') || pathname.startsWith('/affiliate') || pathname.startsWith('/author');
+  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/staff') || pathname.startsWith('/affiliate') || pathname.startsWith('/author') || pathname.startsWith('/meet-addon');
 
   if (isDashboardRoute) {
     return null;

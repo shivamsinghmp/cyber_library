@@ -35,26 +35,47 @@ export async function GET(request: Request) {
       select: { startedAt: true, durationMinutes: true },
     });
 
+    const meetSessions = await prisma.meetPresenceSession.findMany({
+      where: {
+        userId,
+        startedAt: { gte: start, lte: end },
+      },
+      select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
+    });
+
     const minutesByDate: Record<string, number> = {};
     for (const s of sessions) {
       const key = toDateOnly(new Date(s.startedAt));
       minutesByDate[key] = (minutesByDate[key] ?? 0) + (s.durationMinutes ?? 0);
     }
-    const MIN_STUDY_MINUTES_FOR_STREAK = 30;
+    for (const m of meetSessions) {
+      const key = toDateOnly(new Date(m.startedAt));
+      const endT = m.endedAt ?? m.lastHeartbeatAt ?? now;
+      const durationMins = Math.max(0, (endT.getTime() - m.startedAt.getTime()) / 60000);
+      minutesByDate[key] = (minutesByDate[key] ?? 0) + durationMins;
+    }
+
+    const MIN_STUDY_MINUTES_FOR_STREAK = 10;
     const studiedDates = Object.entries(minutesByDate)
       .filter(([, mins]) => mins >= MIN_STUDY_MINUTES_FOR_STREAK)
       .map(([d]) => d)
       .sort();
 
-    const profile = await prisma.profile.findUnique({
+    const dailyMinutes = Object.keys(minutesByDate).map(date => ({
+      date,
+      minutes: Math.round(minutesByDate[date])
+    }));
+
+    const studyStreak = await prisma.studyStreak.findUnique({
       where: { userId },
-      select: { currentStreak: true, longestStreak: true },
+      select: { currentDays: true, longestDays: true },
     });
 
     return NextResponse.json({
       studiedDates,
-      currentStreak: profile?.currentStreak ?? 0,
-      longestStreak: profile?.longestStreak ?? 0,
+      dailyMinutes,
+      currentStreak: studyStreak?.currentDays ?? 0,
+      longestStreak: Math.max(studyStreak?.longestDays ?? 0, studyStreak?.currentDays ?? 0),
       month: `${year}-${String(month + 1).padStart(2, "0")}`,
     });
   } catch (e) {

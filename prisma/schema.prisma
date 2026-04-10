@@ -49,6 +49,8 @@ model User {
   pomodoroTimerSessions  PomodoroTimerSession[]
   studyCoinLogs          StudyCoinLog[]
   studyStreak           StudyStreak?
+  moodLogs              MoodLog[]
+  feedbacks             Feedback[]
 
   referredBy User?  @relation("UserReferrals", fields: [referredById], references: [id])
   referrals  User[] @relation("UserReferrals")
@@ -81,8 +83,11 @@ model Profile {
   lastStudyDate    DateTime?
   longestStreak    Int       @default(0)
   totalPoints      Int       @default(0)
+  dailyMantra      String?   @db.Text
   customFields     Json? // admin-defined custom fields (key -> value)
   createdAt        DateTime  @default(now())
+  liveStatus       String    @default("Offline")
+  liveStatusUpdatedAt DateTime?
   updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -606,4 +611,30 @@ model AppSetting {
   valueEncrypted String?  @db.Text // value (plain or encrypted; if iv set then encrypted)
   iv             String?  @db.Text
   updatedAt      DateTime @updatedAt
+}
+
+// Dashboard Productivity Tracker
+model MoodLog {
+  id        String   @id @default(cuid())
+  userId    String
+  level     Int      // 1=Low, 2=Medium, 3=High
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  category  String   // BUG, FEATURE_REQUEST, UI_UX, PERFORMANCE, OTHER
+  message   String   @db.Text
+  rating    Int?     
+  status    String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

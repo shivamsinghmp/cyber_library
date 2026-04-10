@@ -5,11 +5,11 @@ import { z } from "zod";
 import { generateStudentId } from "@/lib/studentId";
 
 const signupSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  goal: z.string().min(1, "Study goal is required"),
-  whatsappNumber: z.string().min(10, "Valid WhatsApp number is required"),
+  name: z.string().min(1, "Name is required").max(100),
+  email: z.string().email("Invalid email").max(255),
+  password: z.string().min(8, "Password must be at least 8 characters").max(72, "Password too long"),
+  goal: z.string().min(1, "Study goal is required").max(100),
+  whatsappNumber: z.string().min(10, "Valid WhatsApp number is required").max(20),
   // OTP temporarily disabled for signup
   otp: z.string().optional(),
 });
