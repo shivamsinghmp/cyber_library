@@ -13,7 +13,7 @@ import { TrafficTracker } from "@/components/TrafficTracker";
 import { Toaster } from "react-hot-toast";
 import { getAppSetting } from "@/lib/app-settings";
 import { SmoothScroll } from "@/components/SmoothScroll";
-
+import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 export async function generateMetadata(): Promise<Metadata> {
   const [title, faviconUrl] = await Promise.all([
     getAppSetting("SITE_TITLE"),
@@ -95,6 +95,8 @@ export default function RootLayout({
             </CartProvider>
           </SessionProvider>
         </SmoothScroll>
+        {process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
+        {process.env.NEXT_PUBLIC_GTM_ID && <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM_ID} />}
       </body>
     </html>
   );

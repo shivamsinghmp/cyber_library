@@ -62,7 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             // If the session was deleted, we log a warning but DO NOT revoke the token 
             // to avoid a disparity between middleware.ts and useSession()
             if (!dbSession) {
-               console.warn("Session missing in DB for JWT, ignoring to maintain UI state.");
+               // console.warn("Session missing in DB for JWT, ignoring to maintain UI state.");
             }
          } catch (e) {
             // DB fail fallback - continue allowing request
