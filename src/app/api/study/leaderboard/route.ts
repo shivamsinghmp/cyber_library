@@ -6,9 +6,6 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: Request) {
   try {
     const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "weekly";
@@ -84,8 +81,8 @@ export async function GET(request: Request) {
       };
     });
 
-    const currentUserId = (session.user as { id?: string }).id;
-    const myEntry = leaderboard.find((e) => e.userId === currentUserId);
+    const currentUserId = (session?.user as { id?: string })?.id;
+    const myEntry = currentUserId ? leaderboard.find((e) => e.userId === currentUserId) : null;
 
     return NextResponse.json({
       leaderboard,

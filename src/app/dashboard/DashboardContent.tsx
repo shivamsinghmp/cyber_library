@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import DashboardCharts from "@/components/DashboardCharts";
+import { PlantLeaderboard } from "@/components/PlantLeaderboard";
 import {
   Flame,
   Clock,
@@ -724,6 +725,11 @@ export function DashboardContent({ userName }: { userName: string }) {
 
       {/* Performance Charts Section */}
       <DashboardCharts />
+
+      {/* Global Plant Leaderboard */}
+      <motion.div variants={item} className="mt-8">
+        <PlantLeaderboard limit={5} />
+      </motion.div>
     </div>
   );
 }

@@ -33,6 +33,8 @@ import {
   ImageIcon,
   Video,
   MessageSquare,
+  Trophy,
+  HelpCircle,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -66,6 +68,7 @@ const roleNav: Record<
     { href: "/admin/export", label: "Data Export", icon: Download },
     { href: "/admin/referrals", label: "Referrals", icon: UserPlus },
     { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageCircle },
+    { href: "/admin/faqs", label: "Dynamic FAQs", icon: HelpCircle },
   ],
   EMPLOYEE: [
     { href: "/", label: "Home", icon: Home },
@@ -77,6 +80,7 @@ const roleNav: Record<
     { href: "/", label: "Home", icon: Home },
     { href: "/dashboard", label: "My Dashboard", icon: GraduationCap },
     { href: "/study-room", label: "Study Room", icon: Calendar },
+    { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
   ],
   INFLUENCER: [
     { href: "/", label: "Home", icon: Home },
@@ -136,7 +140,7 @@ export function RoleBasedSidebar() {
         </div>
         <span className="font-semibold text-[var(--cream)]">{siteTitle}</span>
       </div>
-      <nav className="flex-1 space-y-0.5 p-3">
+      <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
         {links.map((item) => {
           const Icon = item.icon;
           const active =

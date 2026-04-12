@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
+import { PlantLeaderboard } from "@/components/PlantLeaderboard";
+import { DynamicFaqs } from "@/components/DynamicFaqs";
 
 const TESTIMONIALS = [
   {
@@ -557,54 +559,30 @@ export function HomeClient() {
         </div>
       </motion.section>
 
-      {/* NEW SECTION: Frequently Asked Questions */}
+      {/* NEW SECTION: Public Leaderboard Preview */}
       <motion.section
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-100px" }}
         variants={staggerContainer}
-        className="mx-auto mt-40 mb-20 max-w-4xl relative z-10"
+        className="mx-auto mt-40 max-w-5xl relative z-10 px-4"
       >
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-full max-w-3xl rounded-full bg-[var(--wood)]/5 blur-[120px] pointer-events-none" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-full max-w-3xl rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none" />
         <div className="text-center mb-16 relative z-10">
           <motion.h2 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
-            Common Inquiries
+            Hall of Fame
           </motion.h2>
           <motion.p variants={fadeIn} className="mt-4 text-lg text-[var(--cream-muted)] font-medium">
-            Everything you need to know about joining The Hub.
+            The most disciplined students in our ecosystem right now.
           </motion.p>
         </div>
-
-        <div className="space-y-4 relative z-10">
-          {[
-            {
-              q: "Is it mandatory to keep my camera on?",
-              a: "Yes. The entire foundation of body doubling relies on visual accountability. Keeping your camera on ensures you and your peers remain focused and discourages using your phone."
-            },
-            {
-              q: "What if there is background noise at my place?",
-              a: "All microphones must remain muted at all times. As long as you are muted, background noise at your physical location will not disturb the online library."
-            },
-            {
-              q: "Do I need to install any special software?",
-              a: "No. The Cyber Library operates primarily through our web platform and Google Meet. If you can open a web browser, you can join a session."
-            },
-            {
-              q: "Can I take breaks whenever I want?",
-              a: "We highly recommend following the strict Pomodoro schedule enforced by the room admin (usually 50 minutes of work, 10 minutes of rest) to avoid burnout and maintain group sync."
-            }
-          ].map((faq, i) => (
-             <motion.div variants={fadeIn} key={i} className="group rounded-[1.5rem] border border-[var(--wood)]/10 bg-black/20 p-6 md:p-8 transition-colors hover:border-[var(--accent)]/30 hover:bg-black/40 backdrop-blur-md">
-               <h3 className="text-lg font-bold text-[var(--cream)] transition-colors group-hover:text-[var(--accent)]">
-                 {faq.q}
-               </h3>
-               <p className="mt-3 text-sm leading-relaxed text-[var(--cream-muted)] font-medium">
-                 {faq.a}
-               </p>
-             </motion.div>
-          ))}
-        </div>
+        <motion.div variants={fadeIn} className="relative z-10 mx-auto max-w-2xl">
+          <PlantLeaderboard limit={5} />
+        </motion.div>
       </motion.section>
+
+      {/* Dynamic FAQs Section */}
+      <DynamicFaqs />
     </div>
   );
 }

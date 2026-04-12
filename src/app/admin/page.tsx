@@ -1,8 +1,9 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { IndianRupee, Users, Briefcase, Settings } from "lucide-react";
+import { IndianRupee, Users, Briefcase, Settings, HelpCircle } from "lucide-react";
 import { AdminAnalyticsChart } from "./AdminAnalyticsChart";
+import { PlantLeaderboard } from "@/components/PlantLeaderboard";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
@@ -99,6 +100,24 @@ export default async function AdminDashboardPage() {
 
       <AdminAnalyticsChart />
 
+      {/* Quick Actions */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link 
+          href="/admin/faqs" 
+          className="group rounded-2xl border border-white/10 bg-black/30 p-6 shadow-xl transition-all hover:border-[var(--accent)]/50 hover:bg-black/50"
+        >
+          <div className="flex items-center gap-4">
+             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform">
+               <HelpCircle className="h-6 w-6" />
+             </div>
+             <div>
+               <h3 className="text-lg font-bold text-[var(--cream)] group-hover:text-[var(--accent)] transition-colors">Manage FAQs</h3>
+               <p className="text-sm text-[var(--cream-muted)]">Update the homepage frequently asked questions.</p>
+             </div>
+          </div>
+        </Link>
+      </div>
+
       <div className="rounded-2xl border border-white/10 bg-black/30 p-6 shadow-xl">
         <h2 className="text-lg font-semibold text-[var(--cream)]">
           Employee List
@@ -130,6 +149,11 @@ export default async function AdminDashboardPage() {
             ))
           )}
         </ul>
+      </div>
+
+      {/* Global Plant Leaderboard */}
+      <div className="mt-8">
+        <PlantLeaderboard limit={10} />
       </div>
     </div>
   );

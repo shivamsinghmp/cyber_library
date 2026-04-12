@@ -638,3 +638,15 @@ model Feedback {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+
+// Admin-managed Dynamic FAQs
+model Faq {
+  id        String   @id @default(cuid())
+  question  String   @db.Text
+  answer    String   @db.Text
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

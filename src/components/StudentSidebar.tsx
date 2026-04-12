@@ -23,6 +23,7 @@ import {
   UserPlus,
   CheckCircle,
   MessageSquare,
+  Trophy,
 } from "lucide-react";
 import { calculateCompletion, type ProfileForCompletion } from "@/lib/profileCompletion";
 
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/tasks", label: "Tasks", icon: CheckCircle },
   { href: "/dashboard/quiz", label: "Quiz", icon: HelpCircle },
+  { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/dashboard/meet-addon", label: "Meet Add-on", icon: Video },
   { href: "/dashboard/student-form", label: "Form", icon: ClipboardList },
   { href: "/dashboard/downloads", label: "My Product", icon: Package },
