@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getMeetAddonCorsHeaders } from "../cors";
+import { getCoinDelta } from "@/lib/gamification/awards";
 
 function authUserId(request: NextRequest): string | null {
   const authHeader = request.headers.get("authorization");
@@ -74,26 +75,29 @@ export async function POST(request: NextRequest) {
   });
 
   let coinsAwarded = 0;
-  // GAMIFICATION: Award 25 coins for completing a 25+ min focus session
+  // GAMIFICATION: Award dynamic coins for completing a 25+ min focus session
   if (completedFully && plannedSeconds >= 1500) {
-    coinsAwarded = 25;
-    try {
-      await prisma.$transaction([
-        prisma.studyCoinLog.create({
-          data: {
-            userId,
-            roomId: room.id,
-            coins: coinsAwarded,
-            reason: "Completed 25m Focus Session"
-          }
-        }),
-        prisma.profile.update({
-          where: { userId },
-          data: { totalPoints: { increment: coinsAwarded } }
-        })
-      ]);
-    } catch (error) {
-      console.error("Gamification coin reward failed:", error);
+    coinsAwarded = await getCoinDelta("25M_FOCUS_SESSION");
+    
+    if (coinsAwarded > 0) {
+      try {
+        await prisma.$transaction([
+          prisma.studyCoinLog.create({
+            data: {
+              userId,
+              roomId: room.id,
+              coins: coinsAwarded,
+              reason: "Completed 25m Focus Session"
+            }
+          }),
+          prisma.profile.update({
+            where: { userId },
+            data: { totalPoints: { increment: coinsAwarded } }
+          })
+        ]);
+      } catch (error) {
+        console.error("Gamification coin reward failed:", error);
+      }
     }
   }
 

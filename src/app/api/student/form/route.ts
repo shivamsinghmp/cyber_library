@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 
 /** GET: Get the active student form with fields (for logged-in student) */
 export async function GET() {
@@ -80,6 +81,11 @@ export async function POST(request: Request) {
 
     if (!session?.user || !userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rl = rateLimit(`student_form_${userId}`, 3, 60); // Max 3 rapid consecutive requests per minute
+    if (!rl.success) {
+      return NextResponse.json({ error: "Rate limit exceeded. Please wait a moment." }, { status: 429 });
     }
 
     const body = await request.json();

@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, MessageSquare } from "lucide-react";
+import dynamic from "next/dynamic";
+import "react-quill-new/dist/quill.snow.css";
+
+const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
 import { Modal } from "@/components/Modal";
 import toast from "react-hot-toast";
 
@@ -15,6 +19,8 @@ type BlogPostRow = {
   metaTitle: string | null;
   metaDescription: string | null;
   publishedAt: string | null;
+  views: number;
+  _count: { comments: number };
   createdAt: string;
   updatedAt: string;
 };
@@ -207,15 +213,13 @@ export default function AdminBlogPage() {
           className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
         />
       </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Body *</label>
-        <textarea
-          value={formBody}
-          onChange={(e) => setFormBody(e.target.value)}
-          placeholder="Full post content..."
-          rows={6}
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
-          required
+      <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden [&_.quill]:bg-white/5 [&_.ql-toolbar]:border-none [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-white/10 [&_.ql-container]:border-none [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:text-[var(--cream)] [&_.ql-editor]:text-sm [&_.ql-stroke]:stroke-white [&_.ql-fill]:fill-white [&_.ql-picker]:text-white">
+        <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)] px-3 pt-3">Body *</label>
+        <ReactQuill 
+          theme="snow" 
+          value={formBody} 
+          onChange={setFormBody}
+          placeholder="Professional rich text content..."
         />
       </div>
       <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-3">
@@ -301,6 +305,7 @@ export default function AdminBlogPage() {
               <tr className="border-b border-white/10 text-left">
                 <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Title</th>
                 <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Slug</th>
+                <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Engagement</th>
                 <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Status</th>
                 <th className="py-2 font-medium text-[var(--cream-muted)]">Actions</th>
               </tr>
@@ -313,6 +318,16 @@ export default function AdminBlogPage() {
                   </td>
                   <td className="py-2.5 pr-3 font-mono text-xs text-[var(--cream-muted)]">
                     {p.slug}
+                  </td>
+                  <td className="py-2.5 pr-3">
+                    <div className="flex items-center gap-3 text-xs text-[var(--cream-muted)]">
+                      <span className="flex items-center gap-1" title="Views">
+                        <Eye className="h-3 w-3" /> {p.views}
+                      </span>
+                      <span className="flex items-center gap-1" title="Comments">
+                        <MessageSquare className="h-3 w-3" /> {p._count.comments}
+                      </span>
+                    </div>
                   </td>
                   <td className="py-2.5 pr-3">
                     <span
@@ -350,7 +365,7 @@ export default function AdminBlogPage() {
         </div>
       )}
 
-      <Modal isOpen={createOpen} title="Create post" onClose={closeModals}>
+      <Modal isOpen={createOpen} title="Create post" onClose={closeModals} className="max-w-4xl">
         <form onSubmit={handleCreate} className="space-y-4">
           {formFields}
           <div className="flex justify-end gap-2 pt-2">
@@ -364,7 +379,7 @@ export default function AdminBlogPage() {
         </form>
       </Modal>
 
-      <Modal isOpen={!!editPost} title="Edit post" onClose={closeModals}>
+      <Modal isOpen={!!editPost} title="Edit post" onClose={closeModals} className="max-w-4xl">
         {editPost && (
           <form onSubmit={handleUpdate} className="space-y-4">
             {formFields}

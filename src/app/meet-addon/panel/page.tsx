@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, CheckCircle, Clock, Flame, X, RotateCcw, CalendarClock, Loader2, ClipboardList, LogOut, Pencil, MonitorPlay, Droplets, Maximize2, Minimize2, Coffee, BrainCircuit, Trash2, Send, Target, Check } from "lucide-react";
+import { Plus, CheckCircle, Clock, Flame, X, RotateCcw, CalendarClock, Loader2, ClipboardList, LogOut, Pencil, MonitorPlay, Droplets, Maximize2, Minimize2, Coffee, BrainCircuit, Trash2, Send, Target, Check, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- GLOBALS ---
@@ -248,6 +248,8 @@ export default function MeetAddonPanelPage() {
         const data = await res.json();
         setTasks(data.tasks || []);
         if (data.totalPoints !== undefined) setTotalPoints(data.totalPoints);
+      } else if (res.status === 401) {
+        handleLogout();
       }
     } catch (e) { console.error(e); }
     finally { setTasksLoading(false); }
@@ -256,6 +258,66 @@ export default function MeetAddonPanelPage() {
   useEffect(() => {
     if (token) fetchTasks();
   }, [token]);
+
+  // --- REAL-TIME POLLS RADAR ---
+  const [activePolls, setActivePolls] = useState<any[]>([]);
+  const [pollSubmitting, setPollSubmitting] = useState(false);
+  const [pollSeconds, setPollSeconds] = useState(0);
+
+  const fetchPolls = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/meet-addon/polls", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const unanswered = data.filter((p: any) => !p.alreadyAnswered);
+        setActivePolls(unanswered);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    fetchPolls();
+    const intervalId = setInterval(fetchPolls, 10000); // 10 second sweep
+    return () => clearInterval(intervalId);
+  }, [token]);
+
+  const currentPoll = activePolls[0] || null;
+
+  useEffect(() => {
+    if (!currentPoll?.expiresAt) return;
+    const target = new Date(currentPoll.expiresAt).getTime();
+    
+    const tick = () => {
+      const left = Math.max(0, Math.floor((target - Date.now()) / 1000));
+      setPollSeconds(left);
+      if (left === 0) fetchPolls(); // Poll expired! Resync.
+    };
+    
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [currentPoll]);
+
+  const handlePollSubmit = async (pollId: string, answer: string) => {
+    if (!token) return;
+    setPollSubmitting(true);
+    try {
+      const res = await fetch("/api/meet-addon/poll-response", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ pollId, answer })
+      });
+      if (res.ok) {
+        setActivePolls(prev => prev.filter(p => p.id !== pollId));
+      }
+    } finally {
+      setPollSubmitting(false);
+    }
+  };
 
   // --- DAILY PROMISE LOGIC ---
   const dailyPromise = tasks.find(t => t.priority === 0);
@@ -320,6 +382,10 @@ export default function MeetAddonPanelPage() {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ taskId: targetId, title: taskTitle, description: taskDesc, priority: p })
         });
+        if (res.status === 401) {
+           handleLogout();
+           return;
+        }
         if (!res.ok) {
           console.error(`Task Edit Failed: ${res.status} ${res.statusText}`);
           fetchTasks(); // rollback if error
@@ -347,6 +413,8 @@ export default function MeetAddonPanelPage() {
       if (res.ok) {
         const saved = await res.json();
         setTasks(prev => prev.map(t => t.id === tempId ? saved : t).sort((a,b) => a.priority - b.priority));
+      } else if (res.status === 401) {
+        handleLogout();
       } else {
         console.error(`Task Creation Failed: ${res.status} ${res.statusText}`, await res.text());
         fetchTasks(); // rollback
@@ -620,6 +688,49 @@ export default function MeetAddonPanelPage() {
 
   return (
     <div className={`min-h-[100dvh] transition-colors duration-700 flex flex-col items-center justify-start ${zenMode ? 'bg-black pt-16' : 'bg-[#050505] pt-28 pb-4'} px-4 relative overflow-y-auto scrollbar-hide`}>
+      {/* REAL-TIME POLL POP-UP OVERLAY */}
+      <AnimatePresence>
+        {currentPoll && pollSeconds > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -50 }}
+            className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-3xl p-6"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_var(--accent)_0%,_transparent_60%)] opacity-30 mix-blend-screen pointer-events-none animate-pulse" />
+            
+            <div className="relative w-full max-w-lg bg-black/50 border border-[var(--accent)]/50 rounded-[2rem] p-8 shadow-[0_0_80px_rgba(var(--accent-rgb),0.5)] overflow-hidden">
+               <div className="absolute top-0 inset-x-0 h-1 bg-[var(--accent)]" style={{ width: `${(pollSeconds / 60) * 100}%`, transition: 'width 1s linear' }} />
+               
+               <div className="flex flex-col items-center mb-8">
+                 <div className="w-16 h-16 bg-[var(--accent)]/20 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(var(--accent-rgb),0.6)] mb-4">
+                   <Zap className="w-8 h-8 text-[var(--accent)]" />
+                 </div>
+                 <h2 className="text-sm font-black uppercase tracking-[0.3em] text-[var(--accent)] animate-bounce text-center mb-2">Pop Quiz Event!</h2>
+                 <p className="text-3xl font-extrabold text-white text-center leading-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">{currentPoll.question}</p>
+                 <div className="mt-4 px-4 py-1.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-mono font-bold tracking-widest text-sm flex items-center gap-2">
+                   <Clock className="w-4 h-4" /> {formatTime(pollSeconds)}
+                 </div>
+               </div>
+
+               <div className="grid gap-3">
+                 {currentPoll.options.map((opt: string, i: number) => (
+                   <button
+                     key={i}
+                     onClick={() => handlePollSubmit(currentPoll.id, opt)}
+                     disabled={pollSubmitting}
+                     className="w-full relative overflow-hidden group bg-white/5 hover:bg-[var(--accent)] border border-white/10 hover:border-[var(--accent)] text-left px-6 py-4 rounded-xl transition-all disabled:opacity-50"
+                   >
+                     <span className="relative z-10 text-[var(--cream)] group-hover:text-black font-bold text-lg">{opt}</span>
+                     <div className="absolute inset-0 bg-white/10 translate-y-[100%] group-hover:translate-y-0 transition-transform duration-300" />
+                   </button>
+                 ))}
+               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Premium Animated Mesh Background */}
       {!zenMode && <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-screen animate-[mesh] bg-[radial-gradient(circle_at_50%_0%,_var(--accent)_0%,_transparent_50%),radial-gradient(circle_at_80%_80%,_rgba(59,130,246,0.3)_0%,_transparent_40%),radial-gradient(circle_at_10%_80%,_var(--accent)_0%,_transparent_30%)]" />}
 

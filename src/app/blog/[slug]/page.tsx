@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { Calendar, ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { sanitizeBlogHtml, sanitizeCustomCss, scopeCustomCss } from "@/lib/sanitize-html";
+import { sanitizeCustomCss, scopeCustomCss } from "@/lib/sanitize-html";
+import DOMPurify from "isomorphic-dompurify";
+import { BlogEngagement } from "@/components/BlogEngagement";
 
 function formatDate(s: Date | string) {
   const d = typeof s === "string" ? new Date(s) : s;
@@ -72,13 +74,13 @@ export default async function BlogPostPage({ params }: Props) {
           />
         )}
         <div className="blog-body blog-post-body mt-6 space-y-4 text-sm leading-relaxed text-[var(--cream-muted)] [&_a]:text-[var(--accent)] [&_a]:underline [&_a:hover]:opacity-90 [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_pre]:overflow-x-auto [&_iframe]:rounded-xl [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:text-[var(--cream)] [&_h1]:mt-6 [&_h1]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-[var(--cream)] [&_h2]:mt-5 [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-medium [&_h3]:text-[var(--cream)] [&_h3]:mt-4 [&_h3]:mb-1 [&_h4]:text-base [&_h4]:font-medium [&_h4]:text-[var(--cream)] [&_h4]:mt-3 [&_h4]:mb-1">
-          {post.body.includes("<") ? (
-            <div dangerouslySetInnerHTML={{ __html: sanitizeBlogHtml(post.body) }} />
-          ) : (
-            post.body.split("\n\n").map((para, i) => (para.trim() ? <p key={i}>{para}</p> : null))
-          )}
+          {/* We use isomorphic-dompurify for absolute XSS safety on the public output */}
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.body) }} />
         </div>
       </article>
+
+      {/* Engagement & Comment System */}
+      <BlogEngagement slug={post.slug} initialViews={post.views} />
 
       <p className="mt-10 text-center">
         <Link href="/blog" className="text-[var(--accent)] hover:underline">

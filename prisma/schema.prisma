@@ -27,33 +27,36 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  accounts          Account[]
-  sessions          Session[]
-  studySessions     StudySession[]
-  profile           Profile?
-  loginLogs         LoginLog[]
-  couponRedemptions CouponRedemption[]
-  roomSubscriptions RoomSubscription[]
-  roomCheckIns      RoomCheckIn[]
-  transactions      Transaction[]
-  rewardWinnings    RewardWinner[]
-  whatsAppMessages  WhatsAppMessage[]
-  formSubmissions   StudentFormSubmission[]
-  digitalPurchases  DigitalPurchase[]
-  author            Author? // one-to-one: user linked as blog author
-  dailyTasks        DailyTask[]
-  meetPollResponses MeetPollResponse[]
-  meetAddonLinkCodes MeetAddonLinkCode[]
-  focusSessions          FocusSession[]
-  meetPresenceSessions   MeetPresenceSession[]
-  pomodoroTimerSessions  PomodoroTimerSession[]
-  studyCoinLogs          StudyCoinLog[]
+  accounts              Account[]
+  sessions              Session[]
+  studySessions         StudySession[]
+  profile               Profile?
+  loginLogs             LoginLog[]
+  couponRedemptions     CouponRedemption[]
+  roomSubscriptions     RoomSubscription[]
+  roomCheckIns          RoomCheckIn[]
+  transactions          Transaction[]
+  rewardWinnings        RewardWinner[]
+  whatsAppMessages      WhatsAppMessage[]
+  formSubmissions       StudentFormSubmission[]
+  digitalPurchases      DigitalPurchase[]
+  author                Author? // one-to-one: user linked as blog author
+  dailyTasks            DailyTask[]
+  meetPollResponses     MeetPollResponse[]
+  meetAddonLinkCodes    MeetAddonLinkCode[]
+  focusSessions         FocusSession[]
+  meetPresenceSessions  MeetPresenceSession[]
+  pomodoroTimerSessions PomodoroTimerSession[]
+  studyCoinLogs         StudyCoinLog[]
   studyStreak           StudyStreak?
   moodLogs              MoodLog[]
   feedbacks             Feedback[]
 
-  referredBy User?  @relation("UserReferrals", fields: [referredById], references: [id])
-  referrals  User[] @relation("UserReferrals")
+  referredBy         User?               @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals          User[]              @relation("UserReferrals")
+  employeePermission EmployeePermission?
+  blogComments       BlogComment[]
+  adminAuditLogs     AdminAuditLog[]
 }
 
 model LoginLog {
@@ -66,29 +69,29 @@ model LoginLog {
 }
 
 model Profile {
-  id               String    @id @default(cuid())
-  userId           String    @unique
-  fullName         String?
-  phone            String?
-  whatsappNumber   String?
-  studyGoal        String?
-  targetExam       String?
-  targetYear       String?
-  primaryPainPoint String?
-  institution      String?
-  bio              String?
-  totalStudyHours  Int       @default(0)
-  profilePicUrl    String?
-  currentStreak    Int       @default(0)
-  lastStudyDate    DateTime?
-  longestStreak    Int       @default(0)
-  totalPoints      Int       @default(0)
-  dailyMantra      String?   @db.Text
-  customFields     Json? // admin-defined custom fields (key -> value)
-  createdAt        DateTime  @default(now())
-  liveStatus       String    @default("Offline")
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  fullName            String?
+  phone               String?
+  whatsappNumber      String?
+  studyGoal           String?
+  targetExam          String?
+  targetYear          String?
+  primaryPainPoint    String?
+  institution         String?
+  bio                 String?
+  totalStudyHours     Int       @default(0)
+  profilePicUrl       String?
+  currentStreak       Int       @default(0)
+  lastStudyDate       DateTime?
+  longestStreak       Int       @default(0)
+  totalPoints         Int       @default(0)
+  dailyMantra         String?   @db.Text
+  customFields        Json? // admin-defined custom fields (key -> value)
+  createdAt           DateTime  @default(now())
+  liveStatus          String    @default("Offline")
   liveStatusUpdatedAt DateTime?
-  updatedAt        DateTime  @updatedAt
+  updatedAt           DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -243,10 +246,28 @@ model BlogPost {
   customCss       String?   @db.Text // optional custom CSS for this post (sanitized)
   publishedAt     DateTime? // null = draft
   authorId        String? // optional link to Author
+  views           Int       @default(0) // Engagement tracking
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  author Author? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  author   Author?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  comments BlogComment[]
+}
+
+// Comments added to public blog posts by logged in users
+model BlogComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
 }
 
 // Blog authors (admin-managed; can be linked to User for author dashboard)
@@ -360,27 +381,28 @@ model DailyTask {
 
 // Meet add-on: poll/quiz (admin-created; shown in Meet side panel)
 model MeetPoll {
-  id        String   @id @default(cuid())
-  question  String   @db.Text
-  options   Json     // ["Option A", "Option B", ...]
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id        String    @id @default(cuid())
+  question  String    @db.Text
+  options   Json // ["Option A", "Option B", ...]
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
 
   responses MeetPollResponse[]
 }
 
 // Meet add-on: shared room context for real-time features
 model MeetRoom {
-  id          String   @id @default(cuid())
-  roomKey     String   @unique // Meet meetingCode or fallback room identifier
-  title       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  roomKey   String   @unique // Meet meetingCode or fallback room identifier
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  sessions                FocusSession[]
-  coinLogs                StudyCoinLog[]
-  presenceSessions        MeetPresenceSession[]
-  pomodoroTimerSessions   PomodoroTimerSession[]
+  sessions              FocusSession[]
+  coinLogs              StudyCoinLog[]
+  presenceSessions      MeetPresenceSession[]
+  pomodoroTimerSessions PomodoroTimerSession[]
 }
 
 // Meet add-on: time student had add-on open in a meeting (heartbeat + end)
@@ -406,10 +428,10 @@ model MeetPollResponse {
   id        String   @id @default(cuid())
   userId    String
   pollId    String
-  answer    String   // selected option text or answer
+  answer    String // selected option text or answer
   createdAt DateTime @default(now())
 
-  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   poll MeetPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
 
   @@unique([userId, pollId])
@@ -421,7 +443,7 @@ model MeetPollResponse {
 model MeetAddonLinkCode {
   id        String   @id @default(cuid())
   userId    String
-  code      String   // 6-digit code
+  code      String // 6-digit code
   expiresAt DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -433,14 +455,14 @@ model MeetAddonLinkCode {
 
 // Meet add-on: pomodoro/focus sessions
 model FocusSession {
-  id          String   @id @default(cuid())
-  roomId      String
-  userId      String
-  workMinutes Int      @default(25)
-  breakMinutes Int     @default(5)
-  cycles      Int      @default(0)
-  startedAt   DateTime @default(now())
-  endedAt     DateTime?
+  id           String    @id @default(cuid())
+  roomId       String
+  userId       String
+  workMinutes  Int       @default(25)
+  breakMinutes Int       @default(5)
+  cycles       Int       @default(0)
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
 
   room MeetRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -484,12 +506,12 @@ model StudyCoinLog {
 
 // Meet add-on: persistent streak counter
 model StudyStreak {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  currentDays Int      @default(0)
-  longestDays Int      @default(0)
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  currentDays Int       @default(0)
+  longestDays Int       @default(0)
   lastStudyOn DateTime?
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -617,11 +639,11 @@ model AppSetting {
 model MoodLog {
   id        String   @id @default(cuid())
   userId    String
-  level     Int      // 1=Low, 2=Medium, 3=High
+  level     Int // 1=Low, 2=Medium, 3=High
   notes     String?  @db.Text
   createdAt DateTime @default(now())
 
-  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -629,16 +651,15 @@ model MoodLog {
 model Feedback {
   id        String   @id @default(cuid())
   userId    String
-  category  String   // BUG, FEATURE_REQUEST, UI_UX, PERFORMANCE, OTHER
+  category  String // BUG, FEATURE_REQUEST, UI_UX, PERFORMANCE, OTHER
   message   String   @db.Text
-  rating    Int?     
+  rating    Int?
   status    String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
 
 // Admin-managed Dynamic FAQs
 model Faq {
@@ -649,4 +670,87 @@ model Faq {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Gamification Coin Engine Rules
+model ActionReward {
+  id        String   @id @default(cuid())
+  actionKey String   @unique // e.g. POMODORO_CYCLE_COMPLETED
+  label     String // Dashboard friendly name
+  coins     Int // Number of coins to award
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Configurable Email Accounts (SMTP via App Passwords) for different routing (OTP vs Support)
+model EmailAccount {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordEncrypted String   @db.Text
+  iv                String   @db.Text
+  purpose           String   @default("GENERAL") // OTP | SUPPORT | GENERAL | MARKETING
+  isActive          Boolean  @default(true)
+  senderName        String   @default("The Cyber Library") // e.g., "The Cyber Library Support"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Email HTML Templates
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  purpose   String   @unique // e.g., OTP_VERIFY, OTP_RESET
+  subject   String
+  bodyHtml  String   @db.Text
+  variables Json? // e.g., ["code", "name"] to help admin know what to use
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Log of all sent Emails
+model EmailLog {
+  id           String   @id @default(cuid())
+  toEmail      String
+  subject      String
+  purpose      String   @default("GENERAL")
+  status       String // "SUCCESS" | "FAILED"
+  errorMessage String?  @db.Text
+  senderEmail  String? // The configured Google identity that sent this
+  createdAt    DateTime @default(now())
+}
+
+// Custom Drafts Library for HTML Emails
+model EmailDraft {
+  id        String   @id @default(cuid())
+  name      String
+  subject   String
+  bodyHtml  String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Custom Employee Access Engine
+model EmployeePermission {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modules   String[] // Array of allowed module keys
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// System Audit Logging to track backend actions
+model AdminAuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String // e.g., "CREATE", "UPDATE", "DELETE"
+  module    String // e.g., "BLOG", "STAFF_PERMISSIONS"
+  details   String   @db.Text
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }

@@ -2,6 +2,19 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import DOMPurify from "isomorphic-dompurify";
+import { logAdminAction } from "@/lib/audit-logger";
+import { rateLimit } from "@/lib/rate-limit";
+
+async function checkAdminContentAccess(session: any) {
+  if (!session?.user) return false;
+  if (session.user.role === "ADMIN") return true;
+  if (session.user.role === "EMPLOYEE") {
+    const p = await prisma.employeePermission.findUnique({ where: { userId: session.user.id }});
+    return p?.modules.includes("CONTENT");
+  }
+  return false;
+}
 
 const updateSchema = z.object({
   slug: z.string().min(1).max(200).transform((s) => s.trim().toLowerCase().replace(/\s+/g, "-")).optional(),
@@ -19,8 +32,8 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
+    const hasAccess = await checkAdminContentAccess(session);
+    if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await params;
@@ -39,10 +52,16 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
+    const hasAccess = await checkAdminContentAccess(session);
+    if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const rl = rateLimit(`admin_blog_${session?.user?.id}`, 10, 60); // Max 10 edits per minute per admin account
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many actions (Rate Limit). Please wait." }, { status: 429 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const parsed = updateSchema.safeParse({
@@ -71,7 +90,7 @@ export async function PUT(
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.title !== undefined) updateData.title = data.title;
     if (data.excerpt !== undefined) updateData.excerpt = data.excerpt?.trim() || null;
-    if (data.body !== undefined) updateData.body = data.body;
+    if (data.body !== undefined) updateData.body = DOMPurify.sanitize(data.body); // SANITIZED!
     if (data.metaTitle !== undefined) updateData.metaTitle = data.metaTitle?.trim() || null;
     if (data.metaDescription !== undefined) updateData.metaDescription = data.metaDescription?.trim() || null;
     if (data.publishedAt !== undefined) updateData.publishedAt = data.publishedAt ? new Date(data.publishedAt) : null;
@@ -80,6 +99,15 @@ export async function PUT(
       where: { id },
       data: updateData as Parameters<typeof prisma.blogPost.update>[0]["data"],
     });
+
+    await logAdminAction(
+      session?.user?.id || "UNKNOWN",
+      "UPDATE",
+      "BLOG",
+      `Updated blog post '${post.title}'`,
+      request.headers.get("x-forwarded-for") || undefined
+    );
+
     return NextResponse.json(post);
   } catch (e) {
     if ((e as { code?: string })?.code === "P2025") {
@@ -96,12 +124,32 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
+    const hasAccess = await checkAdminContentAccess(session);
+    if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const rl = rateLimit(`admin_blog_${session?.user?.id}`, 10, 60);
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many actions (Rate Limit). Please wait." }, { status: 429 });
+    }
+
     const { id } = await params;
+    const existing = await prisma.blogPost.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+    
     await prisma.blogPost.delete({ where: { id } });
+
+    await logAdminAction(
+      session?.user?.id || "UNKNOWN",
+      "DELETE",
+      "BLOG",
+      `Deleted blog post '${existing.title}'`,
+      _request.headers.get("x-forwarded-for") || undefined
+    );
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     if ((e as { code?: string })?.code === "P2025") {

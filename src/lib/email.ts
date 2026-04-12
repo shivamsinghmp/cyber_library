@@ -4,153 +4,202 @@ import { decrypt } from "./encrypt";
 
 type OtpContext = "verify" | "reset";
 
-type SmtpConfig = {
-  host: string;
-  port: number;
-  user: string;
-  pass: string;
-  from: string;
-};
+// Transporter Cache: account ID -> Transporter
+const transporters = new Map<string, nodemailer.Transporter>();
 
-let cachedConfig: SmtpConfig | null = null;
-let configLoaded = false;
-let transporter: nodemailer.Transporter | null = null;
-
-async function loadSmtpConfig(): Promise<SmtpConfig | null> {
-  if (configLoaded) return cachedConfig;
-  configLoaded = true;
-
-  // 1) Try DB (admin settings)
+/**
+ * Load Mailer based on purpose.
+ * If multiple exist, take the first active one.
+ * Supported purposes: "OTP", "SUPPORT", "GENERAL"
+ */
+async function getMailerForPurpose(purposeOrAccountId: string, isAccountId: boolean = false) {
   try {
-    const row = await prisma.smtpSetting.findFirst({
-      orderBy: { updatedAt: "desc" },
+    const account = await prisma.emailAccount.findFirst({
+      where: isAccountId ? { id: purposeOrAccountId, isActive: true } : { purpose: purposeOrAccountId, isActive: true },
+      orderBy: { createdAt: "desc" },
     });
-    if (
-      row &&
-      row.host &&
-      row.user &&
-      row.passEncrypted &&
-      row.iv
-    ) {
-      try {
-        const pass = decrypt(row.passEncrypted, row.iv);
-        const port =
-          row.port ??
-          (process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587);
-        const from =
-          row.from ||
-          process.env.SMTP_FROM ||
-          "The Cyber Library <no-reply@virtuallibrary.com>";
-        cachedConfig = {
-          host: row.host,
-          port,
-          user: row.user,
-          pass,
-          from,
-        };
-        return cachedConfig;
-      } catch (e) {
-        console.error("Failed to decrypt SMTP password:", e);
+
+    if (account) {
+      if (!transporters.has(account.id)) {
+        const pass = decrypt(account.passwordEncrypted, account.iv);
+        const transporter = nodemailer.createTransport({
+          host: "smtp.gmail.com",
+          port: 465,
+          secure: true,
+          auth: {
+            user: account.email,
+            pass: pass,
+          },
+          xMailer: false, // Prevents Gmail from hiding avatar for automated emails
+        });
+        transporters.set(account.id, transporter);
       }
+      return { 
+        transporter: transporters.get(account.id)!, 
+        from: `"${account.senderName}" <${account.email}>` 
+      };
     }
   } catch (e) {
-    console.error("Error loading SMTP settings from DB:", e);
+    console.error(`Failed to load DB EmailAccount for purpose ${purposeOrAccountId}:`, e);
   }
 
-  // 2) Fallback to environment variables
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
-  const from =
-    process.env.SMTP_FROM || "The Cyber Library <no-reply@virtuallibrary.com>";
+  // Fallback to legacy SMTP Setting or Env Vars
+  let host = process.env.SMTP_HOST;
+  let user = process.env.SMTP_USER;
+  let pass = process.env.SMTP_PASS;
+  let port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
+  let from = process.env.SMTP_FROM || "The Cyber Library <no-reply@virtuallibrary.com>";
+
+  try {
+    const oldRow = await prisma.smtpSetting.findFirst({ orderBy: { updatedAt: "desc" } });
+    if (oldRow?.host && oldRow?.user && oldRow?.passEncrypted && oldRow?.iv) {
+      host = oldRow.host;
+      user = oldRow.user;
+      pass = decrypt(oldRow.passEncrypted, oldRow.iv);
+      port = oldRow.port ?? port;
+      from = oldRow.from || from;
+    }
+  } catch {}
 
   if (host && user && pass) {
-    cachedConfig = { host, port, user, pass, from };
-  } else {
-    cachedConfig = null;
+    const fallbackId = "fallback";
+    if (!transporters.has(fallbackId)) {
+      transporters.set(fallbackId, nodemailer.createTransport({
+        host, port, secure: port === 465, auth: { user, pass }
+      }));
+    }
+    return { transporter: transporters.get(fallbackId)!, from };
   }
-  return cachedConfig;
+
+  return null;
 }
 
 export async function sendOtpEmail(to: string, code: string, context: OtpContext) {
-  const subject =
-    context === "verify"
-      ? "Verify your The Cyber Library account"
-      : "The Cyber Library password reset OTP";
-
-  const headline =
-    context === "verify"
-      ? "Verify your email to activate your account"
-      : "Use this OTP to reset your password";
-
-  const intro =
-    context === "verify"
-      ? "Thank you for signing up for The Cyber Library. Use the code below to verify your email address."
-      : "We received a request to reset the password for your The Cyber Library account.";
-
-  const outro =
-    context === "verify"
-      ? "If you did not try to create an account, you can safely ignore this email."
-      : "If you did not request this reset, you can safely ignore this email.";
-
-  const html = `
-  <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; background:#0b0b0d;">
-    <div style="max-width:480px;margin:0 auto;background:#030308;border-radius:16px;border:1px solid rgba(255,255,255,0.06);padding:24px;">
-      <h1 style="margin:0 0 8px;font-size:20px;color:#f5f2ea;">${headline}</h1>
-      <p style="margin:0 0 12px;font-size:14px;color:#c3bfb3;">${intro}</p>
-      <div style="margin:20px 0;padding:16px 20px;border-radius:12px;background:rgba(216,180,120,0.08);border:1px solid rgba(216,180,120,0.4);text-align:center;">
-        <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#d8b478;margin-bottom:4px;">Your OTP</div>
-        <div style="font-size:28px;font-weight:700;letter-spacing:0.28em;color:#f5f2ea;">${code}</div>
-      </div>
-      <p style="margin:0 0 8px;font-size:12px;color:#c3bfb3;">This code will expire in 10 minutes.</p>
-      <p style="margin:0 0 16px;font-size:12px;color:#a6a094;">${outro}</p>
-      <p style="margin:0;font-size:11px;color:#736f63;">– The Cyber Library Team</p>
-    </div>
-  </div>
-  `;
-
-  const text = `${headline}
-
-${intro}
-
-Your OTP: ${code}
-
-This code will expire in 10 minutes.
-
-${outro}
-
-– The Cyber Library Team`;
-
-  const cfg = await loadSmtpConfig();
-  if (!cfg) {
-    console.warn(
-      "[The Cyber Library] SMTP is not configured. OTP email not sent. Code:",
-      code,
-      "to:",
-      to
-    );
+  const mailer = await getMailerForPurpose("OTP");
+  if (!mailer) {
+    console.warn("[The Cyber Library] Email account not configured. Email not sent.");
     return;
   }
 
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: cfg.host,
-      port: cfg.port,
-      secure: cfg.port === 465,
-      auth: {
-        user: cfg.user,
-        pass: cfg.pass,
-      },
-    });
+  const templatePurpose = context === "verify" ? "OTP_VERIFY" : "OTP_RESET";
+  let subject = context === "verify" ? "Verify your The Cyber Library account" : "The Cyber Library password reset OTP";
+  let html = "";
+  let text = "";
+
+  try {
+    const template = await prisma.emailTemplate.findUnique({ where: { purpose: templatePurpose } });
+    if (template) {
+      subject = template.subject;
+      html = template.bodyHtml.replace(/\{\{code\}\}/g, code);
+      text = `Your OTP: ${code}`;
+    }
+  } catch (e) {
+    console.error("Failed to load email template", e);
   }
 
-  await transporter.sendMail({
-    from: cfg.from,
-    to,
-    subject,
-    text,
-    html,
-  });
+  // Hardcoded Fallback if no template in DB
+  if (!html) {
+    const headline = context === "verify" ? "Verify your email" : "Reset your password";
+    html = `
+      <div style="font-family: sans-serif; padding: 24px; background:#0b0b0d;">
+        <div style="max-width:480px;margin:0 auto;background:#030308;border-radius:16px;border:1px solid rgba(255,255,255,0.06);padding:24px;">
+          <h1 style="color:#f5f2ea;">${headline}</h1>
+          <div style="margin:20px 0;padding:16px;background:rgba(216,180,120,0.08);text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#f5f2ea;letter-spacing:4px;">${code}</div>
+          </div>
+          <p style="color:#c3bfb3;">This code will expire in 10 minutes.</p>
+        </div>
+      </div>
+    `;
+    text = `Your OTP is ${code}. It expires in 10 minutes.`;
+  }
+
+  try {
+    await mailer.transporter.sendMail({
+      from: mailer.from,
+      to,
+      subject,
+      text,
+      html,
+    });
+    await prisma.emailLog.create({
+      data: {
+        toEmail: to,
+        subject,
+        purpose: "OTP",
+        status: "SUCCESS",
+        senderEmail: mailer.from
+      }
+    });
+  } catch (err: any) {
+    console.error("OTP email error", err);
+    await prisma.emailLog.create({
+      data: {
+        toEmail: to,
+        subject,
+        purpose: "OTP",
+        status: "FAILED",
+        errorMessage: err?.message || String(err),
+        senderEmail: mailer.from
+      }
+    });
+  }
 }
+
+/** General purpose email sender (can be used for Support tickets or Contact Form replies) */
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  purpose = "GENERAL",
+  accountId
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  purpose?: string;
+  accountId?: string;
+}) {
+  const mailer = await getMailerForPurpose(accountId || purpose, !!accountId);
+  if (!mailer) {
+    console.warn(`[Email] No configuration found for ${accountId ? 'account '+accountId : 'purpose '+purpose}`);
+    return false;
+  }
+
+  try {
+    await mailer.transporter.sendMail({
+      from: mailer.from,
+      to,
+      subject,
+      text: text || "Please open this email in an HTML compatible client.",
+      html,
+    });
+    await prisma.emailLog.create({
+      data: {
+        toEmail: to,
+        subject,
+        purpose,
+        status: "SUCCESS",
+        senderEmail: mailer.from
+      }
+    });
+    return true;
+  } catch (e: any) {
+    console.error("Send grid failed", e);
+    await prisma.emailLog.create({
+      data: {
+        toEmail: to,
+        subject,
+        purpose,
+        status: "FAILED",
+        errorMessage: e?.message || String(e),
+        senderEmail: mailer.from
+      }
+    });
+    return false;
+  }
+}
+
 

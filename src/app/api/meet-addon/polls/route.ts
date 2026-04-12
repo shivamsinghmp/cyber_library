@@ -15,10 +15,17 @@ export async function GET(request: NextRequest) {
       : ""
   );
 
+  const now = new Date();
   const polls = await prisma.meetPoll.findMany({
-    where: { isActive: true },
+    where: { 
+      isActive: true,
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } }
+      ]
+    },
     orderBy: { createdAt: "desc" },
-    select: { id: true, question: true, options: true },
+    select: { id: true, question: true, options: true, expiresAt: true },
   });
 
   const answered = payload
@@ -37,6 +44,7 @@ export async function GET(request: NextRequest) {
     question: p.question,
     options: Array.isArray(p.options) ? p.options : (p.options as Record<string, unknown>)?.options ?? [],
     alreadyAnswered: answered.has(p.id),
+    expiresAt: p.expiresAt?.toISOString() || null,
   }));
   return NextResponse.json(options, { headers: cors });
 }

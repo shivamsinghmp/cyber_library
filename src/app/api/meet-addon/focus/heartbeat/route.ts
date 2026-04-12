@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         userId,
         roomId: room.id,
         reason: "POMODORO_CYCLE_COMPLETED",
-        coins: getCoinDelta("POMODORO_CYCLE_COMPLETED"),
+        coins: await getCoinDelta("POMODORO_CYCLE_COMPLETED"),
       },
     });
   }

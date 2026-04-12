@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 
 /** POST: Public. Save a new landing-form (lead) submission, then frontend can redirect to WhatsApp. */
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rl = rateLimit(`lead_form_${ip}`, 5, 60); // Max 5 requests per minute per IP
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many requests, please try again later" }, { status: 429 });
+    }
+
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object" || body === null) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });

@@ -37,7 +37,11 @@ const staggerContainer = {
   visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
 };
 
-export function HomeClient() {
+export function HomeClient({ 
+  recentBlogs = [] 
+}: { 
+  recentBlogs?: Array<{ id: string, slug: string, title: string, excerpt: string | null, publishedAt: Date | null }> 
+}) {
   const { data: session, status } = useSession();
   const [liveCount, setLiveCount] = useState(42);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
@@ -580,6 +584,61 @@ export function HomeClient() {
           <PlantLeaderboard limit={5} />
         </motion.div>
       </motion.section>
+
+      {/* NEW SECTION: Recent Blog Posts */}
+      {recentBlogs.length > 0 && (
+        <motion.section
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={staggerContainer}
+          className="mx-auto mt-40 max-w-6xl relative z-10 px-4"
+        >
+          <div className="absolute right-1/4 top-1/2 -translate-y-1/2 h-full w-[500px] rounded-full bg-[var(--accent)]/5 blur-[120px] pointer-events-none" />
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 relative z-10">
+            <div>
+              <motion.h2 variants={fadeIn} className="text-xs font-extrabold uppercase tracking-[0.3em] text-[var(--accent)] mb-4">
+                Latest Insights
+              </motion.h2>
+              <motion.h3 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
+                From The Hub
+              </motion.h3>
+            </div>
+            <motion.div variants={fadeIn} className="mt-6 md:mt-0">
+              <Link 
+                href="/blog" 
+                className="inline-flex items-center gap-2 text-sm font-bold text-[var(--cream)] hover:text-[var(--accent)] transition-colors"
+                aria-label="View all articles"
+              >
+                View all articles <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+              </Link>
+            </motion.div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3 relative z-10">
+            {recentBlogs.map((blog, i) => (
+              <motion.div variants={fadeIn} key={blog.id} className="group relative flex flex-col justify-between overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-[var(--ink)]/50 p-8 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30">
+                <div>
+                  <div className="mb-4">
+                     <span className="inline-flex rounded-full bg-[var(--wood)]/10 px-3 py-1 text-xs font-semibold text-[var(--wood)] ring-1 ring-inset ring-[var(--wood)]/20">
+                       {blog.publishedAt ? new Date(blog.publishedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
+                     </span>
+                  </div>
+                  <h4 className="text-xl font-bold text-[var(--cream)] tracking-tight mb-3 line-clamp-2">
+                    {blog.title}
+                  </h4>
+                  <p className="text-sm text-[var(--cream-muted)] leading-relaxed font-medium line-clamp-3 mb-8">
+                    {blog.excerpt || "Read more about this topic..."}
+                  </p>
+                </div>
+                <Link href={`/blog/${blog.slug}`} className="inline-flex mt-auto items-center text-sm font-bold text-[var(--accent)] hover:text-white transition-colors group-hover:underline">
+                  Read Article
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+      )}
 
       {/* Dynamic FAQs Section */}
       <DynamicFaqs />

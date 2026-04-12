@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     const role = (session?.user as { role?: string })?.role;
     if (role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
+    const params = await context.params;
     const data = await request.json();
     const faq = await prisma.faq.update({
       where: { id: params.id },
@@ -25,12 +26,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     const role = (session?.user as { role?: string })?.role;
     if (role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
+    const params = await context.params;
     await prisma.faq.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (error) {

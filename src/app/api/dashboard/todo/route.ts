@@ -274,7 +274,7 @@ export async function PATCH(req: NextRequest) {
           data: {
             userId,
             reason: "TODO_COMPLETED",
-            coins: getCoinDelta("TODO_COMPLETED"),
+            coins: await getCoinDelta("TODO_COMPLETED"),
           },
         });
       }

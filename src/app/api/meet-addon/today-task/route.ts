@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: payload.userId,
         reason: "TODO_COMPLETED",
-        coins: getCoinDelta("TODO_COMPLETED"),
+        coins: await getCoinDelta("TODO_COMPLETED"),
       },
     });
 

@@ -5,6 +5,7 @@ import {
   Calendar, 
   UserCircle 
 } from "lucide-react";
+import { SupportReplyModal } from "@/components/SupportReplyModal";
 
 export const dynamic = 'force-dynamic';
 
@@ -87,6 +88,9 @@ export default async function AdminSupportTickets() {
                         {data?.email || "No Email"}
                       </a>
                     </div>
+                    {data?.email && (
+                      <SupportReplyModal defaultEmail={data.email} />
+                    )}
                   </div>
                 </div>
               );

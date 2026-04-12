@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   LayoutDashboard,
   Briefcase,
@@ -35,40 +35,101 @@ import {
   MessageSquare,
   Trophy,
   HelpCircle,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  BarChart,
+  MonitorPlay
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-const roleNav: Record<
-  string,
-  { href: string; label: string; icon: React.ComponentType<{ className?: string }> }[]
-> = {
+type NavItem = {
+  href: string;
+  label: string;
+};
+
+type NavNode = {
+  href?: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  subItems?: NavItem[];
+  moduleId?: string;
+};
+
+const roleNav: Record<string, NavNode[]> = {
   ADMIN: [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/admin", label: "Admin Dashboard", icon: LayoutDashboard },
-    { href: "/admin/traffic", label: "Traffic", icon: Activity },
-    { href: "/admin/settings", label: "Settings", icon: Settings },
-    { href: "/admin/virtual-library", label: "The Cyber Library", icon: ImageIcon },
-    { href: "/admin/students", label: "Student Management", icon: Users },
-    { href: "/admin/staff", label: "Staff Management", icon: Briefcase },
-    { href: "/admin/profile-fields", label: "Profile Fields", icon: UserCircle },
-    { href: "/admin/leads", label: "Leads", icon: ClipboardList },
-    { href: "/admin/slots", label: "Study Room Management", icon: Calendar },
-    { href: "/admin/meet-polls", label: "Meet Polls", icon: Video },
-    { href: "/admin/coupons", label: "Coupons", icon: Tag },
-    { href: "/admin/transactions", label: "Transactions", icon: Receipt },
-    { href: "/admin/bin", label: "Bin", icon: Trash2 },
-    { href: "/admin/rewards", label: "Reward Program", icon: Gift },
-    { href: "/admin/forms", label: "Student Form", icon: ClipboardList },
-    { href: "/admin/feedback", label: "Student Feedback", icon: MessageSquare },
-    { href: "/admin/support", label: "Support Tickets", icon: MessageCircle },
-    { href: "/admin/products", label: "Digital Store", icon: ShoppingBag },
-    { href: "/admin/blog", label: "Blog (SEO)", icon: FileText },
-    { href: "/admin/authors", label: "Authors", icon: PenLine },
-    { href: "/admin/razorpay", label: "Razorpay API", icon: CreditCard },
-    { href: "/admin/export", label: "Data Export", icon: Download },
-    { href: "/admin/referrals", label: "Referrals", icon: UserPlus },
-    { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageCircle },
-    { href: "/admin/faqs", label: "Dynamic FAQs", icon: HelpCircle },
+    {
+      moduleId: "SYSTEM_OVERVIEW",
+      label: "General Overview",
+      icon: BarChart,
+      subItems: [
+        { href: "/", label: "Home" },
+        { href: "/admin", label: "Admin Dashboard" },
+        { href: "/admin/traffic", label: "Traffic" },
+        { href: "/admin/audit-logs", label: "Audit Logs" },
+        { href: "/admin/settings", label: "Settings" },
+      ],
+    },
+    {
+      moduleId: "VIRTUAL_LIBRARY",
+      label: "Virtual Library & Meet",
+      icon: MonitorPlay,
+      subItems: [
+        { href: "/admin/virtual-library", label: "The Cyber Library" },
+        { href: "/admin/slots", label: "Study Room Management" },
+        { href: "/admin/meet-polls", label: "Meet Polls" },
+      ],
+    },
+    {
+      moduleId: "STUDENT_MGMT",
+      label: "People Management",
+      icon: Users,
+      subItems: [
+        { href: "/admin/students", label: "Student Management" },
+        { href: "/admin/staff", label: "Staff Management" },
+        { href: "/admin/profile-fields", label: "Profile Fields" },
+        { href: "/admin/authors", label: "Authors" },
+        { href: "/admin/referrals", label: "Referrals" },
+      ],
+    },
+    {
+      moduleId: "FINANCE",
+      label: "eCommerce & Finance",
+      icon: Receipt,
+      subItems: [
+        { href: "/admin/transactions", label: "Transactions" },
+        { href: "/admin/products", label: "Digital Store" },
+        { href: "/admin/coupons", label: "Coupons" },
+        { href: "/admin/rewards", label: "Reward Program" },
+        { href: "/admin/razorpay", label: "Razorpay API" },
+        { href: "/admin/coin-engine", label: "Coin Engine" },
+      ],
+    },
+    {
+      moduleId: "ENGAGEMENT",
+      label: "Engagement & Support",
+      icon: MessageCircle,
+      subItems: [
+        { href: "/admin/whatsapp", label: "WhatsApp" },
+        { href: "/admin/leads", label: "Leads" },
+        { href: "/admin/forms", label: "Student Form" },
+        { href: "/admin/feedback", label: "Student Feedback" },
+        { href: "/admin/support", label: "Support Tickets" },
+        { href: "/admin/faqs", label: "Dynamic FAQs" },
+        { href: "/admin/email", label: "Email Setup" },
+      ],
+    },
+    {
+      moduleId: "CONTENT",
+      label: "Content & System",
+      icon: Database,
+      subItems: [
+        { href: "/admin/blog", label: "Blog (SEO)" },
+        { href: "/admin/footer", label: "Footer Builder" },
+        { href: "/admin/export", label: "Data Export" },
+        { href: "/admin/bin", label: "Bin" },
+      ],
+    },
   ],
   EMPLOYEE: [
     { href: "/", label: "Home", icon: Home },
@@ -93,13 +154,37 @@ const roleNav: Record<
   ],
 };
 
-export function RoleBasedSidebar() {
+import { hasModuleAccess, AdminModuleIds } from "@/lib/permissions-client";
+
+export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: string[] }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const role = (session?.user as { role?: string })?.role ?? "STUDENT";
-  const links = roleNav[role] ?? roleNav.STUDENT;
+  
+  let links = roleNav[role] ?? roleNav.STUDENT;
+  
+  if (role === "EMPLOYEE") {
+    // If they are an employee, they get the ADMIN layout but heavily filtered
+    links = roleNav["ADMIN"].filter(node => {
+      if (!node.moduleId) return true;
+      return hasModuleAccess(role, allowedModules, node.moduleId as AdminModuleIds);
+    });
+    
+    // Add generic fast links for employees
+    links.unshift({ href: "/staff", label: "Staff Portal", icon: LayoutDashboard });
+  }
+
+  if (role === "ADMIN") {
+    links = roleNav["ADMIN"];
+  }
+
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [siteTitle, setSiteTitle] = useState("The Cyber Library");
+  
+  // Track expanded categories in a set-like object or array
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
+
+  // Auto-expand category if child is active
   useEffect(() => {
     fetch("/api/site-branding")
       .then((r) => (r.ok ? r.json() : {}))
@@ -109,6 +194,23 @@ export function RoleBasedSidebar() {
       })
       .catch(() => {});
   }, []);
+  
+  // Auto-expand category if child matches active route
+  useEffect(() => {
+    links.forEach((node) => {
+      if (node.subItems) {
+        const isActive = node.subItems.some(sub => pathname === sub.href || pathname.startsWith(sub.href + "/"));
+        if (isActive) {
+          setExpandedCats(prev => ({ ...prev, [node.label]: true }));
+        }
+      }
+    });
+  }, [pathname, links]);
+
+  const toggleCategory = (label: string) => {
+    setExpandedCats(prev => ({ ...prev, [label]: !prev[label] }));
+  };
+
   const logoSrc = logoUrl?.trim() || "/logo.svg";
   const isExternalLogo = logoSrc.startsWith("http");
 
@@ -140,17 +242,65 @@ export function RoleBasedSidebar() {
         </div>
         <span className="font-semibold text-[var(--cream)]">{siteTitle}</span>
       </div>
-      <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
-        {links.map((item) => {
-          const Icon = item.icon;
+      <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
+        {links.map((node) => {
+          const Icon = node.icon;
+          
+          if (node.subItems) {
+            const isExpanded = expandedCats[node.label];
+            const hasActiveChild = node.subItems.some((sub) => pathname === sub.href || pathname.startsWith(sub.href + "/"));
+            
+            return (
+              <div key={node.label} className="mb-2">
+                <button
+                  onClick={() => toggleCategory(node.label)}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                    hasActiveChild 
+                      ? "text-[var(--cream)]"
+                      : "text-[var(--cream-muted)] hover:bg-white/5 hover:text-[var(--cream)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={`h-4 w-4 shrink-0 ${hasActiveChild ? "text-[var(--accent)]" : ""}`} />
+                    {node.label}
+                  </div>
+                  {isExpanded ? <ChevronDown className="h-4 w-4 opacity-50" /> : <ChevronRight className="h-4 w-4 opacity-50" />}
+                </button>
+                
+                {isExpanded && (
+                  <div className="mt-1 ml-4 border-l border-white/10 pl-2 space-y-0.5">
+                    {node.subItems.map((sub) => {
+                      const active = pathname === sub.href || pathname.startsWith(sub.href + "/");
+                      return (
+                        <Link
+                          key={sub.href}
+                          href={sub.href}
+                          className={`block rounded-lg px-3 py-2 text-sm transition ${
+                            active
+                              ? "bg-[var(--accent)]/10 text-[var(--accent)] font-semibold"
+                              : "text-[var(--cream-muted)] hover:text-[var(--cream)] hover:bg-white/5"
+                          }`}
+                        >
+                          {sub.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Flat link (for non-admins typically)
           const active =
-            item.href === "/"
+            node.href === "/"
               ? pathname === "/"
-              : pathname === item.href || pathname.startsWith(item.href + "/");
+              : pathname === node.href || (node.href && pathname.startsWith(node.href + "/"));
+              
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={node.href || node.label}
+              href={node.href!}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                 active
                   ? "bg-[var(--accent)]/20 text-[var(--cream)]"
@@ -158,7 +308,7 @@ export function RoleBasedSidebar() {
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {item.label}
+              {node.label}
             </Link>
           );
         })}

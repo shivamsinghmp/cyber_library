@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Video, Plus, Loader2 } from "lucide-react";
+import { Video, Plus, Loader2, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 type PollRow = {
@@ -19,6 +19,8 @@ export default function AdminMeetPollsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [optionsText, setOptionsText] = useState("");
+  const [durationSeconds, setDurationSeconds] = useState("60");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const fetchPolls = useCallback(async () => {
@@ -39,7 +41,7 @@ export default function AdminMeetPollsPage() {
     fetchPolls();
   }, [fetchPolls]);
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = question.trim();
     const opts = optionsText
@@ -53,25 +55,49 @@ export default function AdminMeetPollsPage() {
     setSaving(true);
     try {
       const res = await fetch("/api/admin/meet-polls", {
-        method: "POST",
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ question: q, options: opts }),
+        body: JSON.stringify({ 
+           id: editingId || undefined, 
+           question: q, 
+           options: opts, 
+           durationSeconds: parseInt(durationSeconds) || 60 
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success("Poll created. It will appear in the Meet add-on.");
+        toast.success(editingId ? "Poll updated." : "Poll created. It will appear in the Meet add-on.");
         setCreateOpen(false);
+        setEditingId(null);
         setQuestion("");
         setOptionsText("");
         fetchPolls();
       } else {
-        toast.error(data.error || "Failed to create poll");
+        toast.error(data.error || "Failed to save poll");
       }
     } catch {
       toast.error("Request failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Are you sure you want to delete this poll?")) return;
+    try {
+      const res = await fetch(`/api/admin/meet-polls?id=${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        toast.success("Poll deleted.");
+        fetchPolls();
+      } else {
+        toast.error("Failed to delete poll");
+      }
+    } catch {
+      toast.error("Request failed");
     }
   }
 
@@ -103,8 +129,8 @@ export default function AdminMeetPollsPage() {
 
       {createOpen && (
         <div className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6">
-          <h2 className="text-base font-semibold text-[var(--cream)] mb-4">Create poll / quiz</h2>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <h2 className="text-base font-semibold text-[var(--cream)] mb-4">{editingId ? "Edit poll" : "Create poll / quiz"}</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-[var(--cream-muted)] mb-1">Question</label>
               <input
@@ -129,6 +155,18 @@ export default function AdminMeetPollsPage() {
                 required
               />
             </div>
+            <div>
+              <label className="block text-xs font-medium text-[var(--cream-muted)] mb-1">Pop-up Duration (Seconds)</label>
+              <input
+                type="number"
+                value={durationSeconds}
+                onChange={(e) => setDurationSeconds(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-[var(--cream)]"
+                min="10"
+                max="300"
+                required
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -136,11 +174,14 @@ export default function AdminMeetPollsPage() {
                 className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white flex items-center gap-2"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Create poll
+                {editingId ? "Update poll" : "Create poll"}
               </button>
               <button
                 type="button"
-                onClick={() => setCreateOpen(false)}
+                onClick={() => {
+                   setCreateOpen(false);
+                   setEditingId(null);
+                }}
                 className="rounded-lg border border-white/10 px-4 py-2 text-sm text-[var(--cream-muted)]"
               >
                 Cancel
@@ -163,11 +204,34 @@ export default function AdminMeetPollsPage() {
         ) : (
           <ul className="divide-y divide-white/5">
             {polls.map((p) => (
-              <li key={p.id} className="p-4">
-                <p className="font-medium text-[var(--cream)]">{p.question}</p>
-                <p className="text-xs text-[var(--cream-muted)] mt-1">
-                  {Array.isArray(p.options) ? p.options.join(", ") : ""} · {p.responseCount} response(s)
-                </p>
+              <li key={p.id} className="p-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium text-[var(--cream)]">{p.question}</p>
+                  <p className="text-xs text-[var(--cream-muted)] mt-1">
+                    {Array.isArray(p.options) ? p.options.join(", ") : ""} · {p.responseCount} response(s)
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                   <button 
+                     onClick={() => {
+                        setEditingId(p.id);
+                        setQuestion(p.question);
+                        setOptionsText(p.options.join("\n"));
+                        setCreateOpen(true);
+                     }}
+                     className="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors border border-blue-500/20"
+                     title="Edit Poll"
+                   >
+                     <Pencil className="w-4 h-4" />
+                   </button>
+                   <button 
+                     onClick={() => handleDelete(p.id)}
+                     className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors border border-red-500/20"
+                     title="Delete Poll"
+                   >
+                     <Trash2 className="w-4 h-4" />
+                   </button>
+                </div>
               </li>
             ))}
           </ul>

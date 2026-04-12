@@ -12,6 +12,21 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function HomePage() {
-  return <HomeClient />;
+import { prisma } from "@/lib/prisma";
+
+export default async function HomePage() {
+  const recentBlogs = await prisma.blogPost.findMany({
+    where: { publishedAt: { not: null } },
+    orderBy: { publishedAt: "desc" },
+    take: 3,
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      excerpt: true,
+      publishedAt: true,
+    },
+  });
+
+  return <HomeClient recentBlogs={recentBlogs} />;
 }

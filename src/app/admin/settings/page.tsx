@@ -48,6 +48,11 @@ const SECTIONS: { title: string; keys: string[]; icon: React.ReactNode }[] = [
     keys: ["SITE_LOGO_URL", "SITE_FAVICON_URL", "SITE_TITLE", "SITE_TAGLINE", "SITE_HEADLINE"],
     icon: <ImageIcon className="h-5 w-5" />,
   },
+  {
+    title: "Integrations & Tracking",
+    keys: ["GOOGLE_ANALYTICS_ID", "GOOGLE_TAG_MANAGER_ID", "GOOGLE_ADSENSE_ID", "FB_PIXEL_ID", "CUSTOM_HEAD_HTML"],
+    icon: <Settings className="h-5 w-5" />,
+  },
 ];
 
 export default function AdminSettingsPage() {

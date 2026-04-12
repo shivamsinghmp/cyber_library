@@ -24,6 +24,12 @@ export const APP_SETTING_KEYS = {
   MEET_ADDON_REALTIME_ENABLED: { label: "Enable Meet add-on realtime messaging features", secret: false },
   MEET_ADDON_FOCUS_GUARD_ENABLED: { label: "Enable Meet add-on focus guard alerts", secret: false },
   MEET_ADDON_GAMIFICATION_ENABLED: { label: "Enable Meet add-on coins and leaderboard", secret: false },
+  GOOGLE_ANALYTICS_ID: { label: "Google Analytics ID (e.g. G-XXXXXXX)", secret: false },
+  GOOGLE_TAG_MANAGER_ID: { label: "Google Tag Manager ID (e.g. GTM-XXXXXX)", secret: false },
+  GOOGLE_ADSENSE_ID: { label: "Google AdSense ID (e.g. pub-XXXXXXX)", secret: false },
+  FB_PIXEL_ID: { label: "Facebook Pixel ID", secret: false },
+  CUSTOM_HEAD_HTML: { label: "Custom Head HTML (Scripts, tags, etc.)", secret: false },
+  FOOTER_CONFIG_JSON: { label: "Structured JSON for Footer (Columns, links, Social, etc.)", secret: false },
 } as const;
 
 const SECRET_KEYS = new Set(

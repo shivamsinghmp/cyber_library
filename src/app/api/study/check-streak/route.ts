@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getCoinDelta } from "@/lib/gamification/awards";
 
 const MIN_STUDY_MINUTES_FOR_STREAK = 30;
 
@@ -63,7 +64,7 @@ export async function POST() {
       : null;
 
     let newStreak = profile?.currentStreak ?? 0;
-    const pointsToAdd = 1;
+    const pointsToAdd = await getCoinDelta("STREAK_MAINTAINED");
 
     if (lastStudy === today) {
       return NextResponse.json({
@@ -100,6 +101,16 @@ export async function POST() {
         totalPoints: newTotalPoints,
       },
     });
+
+    if (pointsToAdd > 0) {
+      await prisma.studyCoinLog.create({
+        data: {
+          userId,
+          reason: "STREAK_MAINTAINED",
+          coins: pointsToAdd,
+        }
+      });
+    }
 
     return NextResponse.json({
       currentStreak: updated.currentStreak,

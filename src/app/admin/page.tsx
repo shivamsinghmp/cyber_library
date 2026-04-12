@@ -4,10 +4,14 @@ import Link from "next/link";
 import { IndianRupee, Users, Briefcase, Settings, HelpCircle } from "lucide-react";
 import { AdminAnalyticsChart } from "./AdminAnalyticsChart";
 import { PlantLeaderboard } from "@/components/PlantLeaderboard";
+import { requireAdminModule } from "@/lib/permissions";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
   if (!session?.user) return null;
+  
+  await requireAdminModule("SYSTEM_OVERVIEW");
+
   const [studentCount, employeeCount, employees, studySessionCount, revenueResult] =
     await Promise.all([
       prisma.user.count({ where: { role: "STUDENT" } }),

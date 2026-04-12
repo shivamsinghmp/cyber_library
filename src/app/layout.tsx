@@ -53,11 +53,22 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const [gaId, gtmId, adsenseId, fbPixelId, customHeadHtml] = await Promise.all([
+    getAppSetting("GOOGLE_ANALYTICS_ID"),
+    getAppSetting("GOOGLE_TAG_MANAGER_ID"),
+    getAppSetting("GOOGLE_ADSENSE_ID"),
+    getAppSetting("FB_PIXEL_ID"),
+    getAppSetting("CUSTOM_HEAD_HTML"),
+  ]);
+
+  const resolvedGaId = gaId?.trim() || process.env.NEXT_PUBLIC_GA_ID;
+  const resolvedGtmId = gtmId?.trim() || process.env.NEXT_PUBLIC_GTM_ID;
+
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
   const jsonLd = {
     "@context": "https://schema.org",
@@ -79,8 +90,42 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {adsenseId && adsenseId.trim() !== "" && (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId.trim()}`}
+            crossOrigin="anonymous"
+          ></script>
+        )}
+        {customHeadHtml && customHeadHtml.trim() !== "" && (
+          <div dangerouslySetInnerHTML={{ __html: customHeadHtml }} />
+        )}
+        {fbPixelId && fbPixelId.trim() !== "" && (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                !function(f,b,e,v,n,t,s)
+                {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+                n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+                if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+                n.queue=[];t=b.createElement(e);t.async=!0;
+                t.src=v;s=b.getElementsByTagName(e)[0];
+                s.parentNode.insertBefore(t,s)}(window, document,'script',
+                'https://connect.facebook.net/en_US/fbevents.js');
+                fbq('init', '${fbPixelId.trim()}');
+                fbq('track', 'PageView');
+              `,
+            }}
+          />
+        )}
       </head>
       <body className={`${inter.variable} ${outfit.variable} font-sans antialiased min-h-screen flex flex-col`}>
+        {fbPixelId && fbPixelId.trim() !== "" && (
+          <noscript>
+            <img height="1" width="1" style={{ display: "none" }}
+                 src={`https://www.facebook.com/tr?id=${fbPixelId.trim()}&ev=PageView&noscript=1`} />
+          </noscript>
+        )}
         <SmoothScroll>
           <SessionProvider>
             <CartProvider>
@@ -95,8 +140,8 @@ export default function RootLayout({
             </CartProvider>
           </SessionProvider>
         </SmoothScroll>
-        {process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
-        {process.env.NEXT_PUBLIC_GTM_ID && <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM_ID} />}
+        {resolvedGaId && <GoogleAnalytics gaId={resolvedGaId} />}
+        {resolvedGtmId && <GoogleTagManager gtmId={resolvedGtmId} />}
       </body>
     </html>
   );

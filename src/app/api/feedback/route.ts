@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   try {
@@ -26,6 +27,11 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rl = rateLimit(`feedback_${session.user.id}`, 3, 60); // 3 feedbacks per minute max
+    if (!rl.success) {
+      return NextResponse.json({ error: "Please wait before submitting another ticket" }, { status: 429 });
     }
 
     const { category, message, rating } = await req.json();

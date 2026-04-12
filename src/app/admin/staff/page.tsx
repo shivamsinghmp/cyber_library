@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, Lock, UserPlus, Users, Activity, Pencil, Trash2 } from "lucide-react";
+import { Mail, Lock, UserPlus, Users, Activity, Pencil, Trash2, Shield } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import toast from "react-hot-toast";
+import { ADMIN_MODULES } from "@/lib/permissions-client";
 
 type StaffUser = {
   id: string;
@@ -68,6 +69,11 @@ export default function AdminStaffPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [deleteStaff, setDeleteStaff] = useState<StaffUser | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  const [permStaff, setPermStaff] = useState<StaffUser | null>(null);
+  const [permModules, setPermModules] = useState<string[]>([]);
+  const [permLoading, setPermLoading] = useState(false);
+  const [permSaving, setPermSaving] = useState(false);
 
   const fetchStaff = useCallback(async () => {
     try {
@@ -210,6 +216,46 @@ export default function AdminStaffPage() {
       }
     } finally {
       setDeleteSaving(false);
+    }
+  }
+
+  async function openPermissions(s: StaffUser) {
+    setPermStaff(s);
+    setPermLoading(true);
+    setPermModules([]);
+    try {
+      const res = await fetch(`/api/admin/staff/permissions?userId=${s.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPermModules(data.modules || []);
+      }
+    } catch {
+      toast.error("Failed to fetch permissions");
+    } finally {
+      setPermLoading(false);
+    }
+  }
+
+  async function handleSavePermissions(e: React.FormEvent) {
+    e.preventDefault();
+    if (!permStaff) return;
+    setPermSaving(true);
+    try {
+      const res = await fetch(`/api/admin/staff/permissions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: permStaff.id, modules: permModules }),
+      });
+      if (res.ok) {
+        toast.success("Employee permissions updated");
+        setPermStaff(null);
+      } else {
+        toast.error("Failed to update permissions");
+      }
+    } catch {
+      toast.error("Failed to update permissions");
+    } finally {
+      setPermSaving(false);
     }
   }
 
@@ -449,6 +495,16 @@ export default function AdminStaffPage() {
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
+                          {s.role === "EMPLOYEE" && (
+                            <button
+                              type="button"
+                              onClick={() => openPermissions(s)}
+                              className="rounded-lg p-1.5 text-blue-400/70 transition hover:bg-blue-500/10 hover:text-blue-400"
+                              title="Manage Permissions"
+                            >
+                              <Shield className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setDeleteStaff(s)}
@@ -566,6 +622,69 @@ export default function AdminStaffPage() {
               </button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Permissions Modal */}
+      <Modal
+        isOpen={!!permStaff}
+        title="Manage Employee Access"
+        onClose={() => !permSaving && setPermStaff(null)}
+      >
+        {permStaff && (
+          <form onSubmit={handleSavePermissions} className="space-y-4">
+            <p className="text-sm text-[var(--cream-muted)]">
+              Select the modules that <strong className="text-[var(--cream)]">{permStaff.name || permStaff.email}</strong> is allowed to access:
+            </p>
+
+            {permLoading ? (
+              <div className="py-8 text-center text-sm opacity-50">Loading permissions...</div>
+            ) : (
+              <div className="space-y-2 max-h-[40vh] overflow-auto pr-2">
+                {ADMIN_MODULES.map((mod) => {
+                  const isChecked = permModules.includes(mod.id);
+                  return (
+                    <label 
+                      key={mod.id} 
+                      className={`flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition ${isChecked ? 'bg-blue-500/10 border-blue-500/30' : 'bg-black/20 border-white/5 hover:bg-white/5'}`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        className="mt-1 flex-shrink-0"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) setPermModules([...permModules, mod.id]);
+                          else setPermModules(permModules.filter(m => m !== mod.id));
+                        }}
+                      />
+                      <div className="flex-1">
+                        <p className={`text-sm font-semibold ${isChecked ? 'text-blue-400' : 'text-[var(--cream)]'}`}>{mod.label}</p>
+                        <p className="text-[10px] text-[var(--cream-muted)] opacity-60">Module ID: {mod.id}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-4 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setPermStaff(null)}
+                disabled={permSaving}
+                className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-[var(--cream)] hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={permSaving || permLoading}
+                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-500 py-2.5 text-sm font-semibold text-white disabled:opacity-60 transition"
+              >
+                {permSaving ? "Saving..." : "Save Privileges"}
+              </button>
+            </div>
+          </form>
         )}
       </Modal>
     </div>
