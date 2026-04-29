@@ -43,9 +43,9 @@ export function HomeClient({
   recentBlogs?: Array<{ id: string, slug: string, title: string, excerpt: string | null, publishedAt: Date | null }> 
 }) {
   const { data: session, status } = useSession();
-  const [liveCount, setLiveCount] = useState(42);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [headline, setHeadline] = useState(DEFAULT_HEADLINE);
+  const [stats, setStats] = useState<{ totalStudents: number; totalHours: number; activeNow: number } | null>(null);
   const isStudent =
     session?.user && ((session.user as { role?: string }).role ?? "STUDENT") === "STUDENT";
   const isLoading = status === "loading";
@@ -60,15 +60,12 @@ export function HomeClient({
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveCount((current) => {
-        const delta = Math.random() > 0.5 ? 1 : -1;
-        const next = current + delta;
-        if (next < 10 || next > 60) return 42;
-        return next;
-      });
-    }, 5000);
-    return () => clearInterval(interval);
+    fetch("/api/public-stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { totalStudents: number; totalHours: number; activeNow: number } | null) => {
+        if (d) setStats(d);
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -175,7 +172,12 @@ export function HomeClient({
                   </span>
                 </div>
                 <p className="text-3xl font-extrabold text-[var(--cream)] tracking-tight leading-tight">
-                  <span className="text-[var(--accent)]">{liveCount}</span> Students are currently deep in the zone.
+                  <span className="text-[var(--accent)]">
+                    {stats ? (stats.activeNow > 0 ? stats.activeNow : "—") : "…"}
+                  </span>{" "}
+                  {stats?.activeNow === 0
+                    ? "Students ready to study. Start a session!"
+                    : "Students are currently deep in the zone."}
                 </p>
                 <p className="mt-4 text-sm text-[var(--cream-muted)] leading-relaxed">
                   Multiple quiet blocks are running right now. Pick an open seat and drop your procrastination instantly.
@@ -212,6 +214,43 @@ export function HomeClient({
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Real Platform Stats Bar */}
+      {stats && (stats.totalStudents > 0 || stats.totalHours > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="mx-auto mt-16 max-w-4xl relative z-10"
+        >
+          <div className="grid grid-cols-3 divide-x divide-[var(--wood)]/15 rounded-2xl border border-[var(--wood)]/15 bg-[var(--ink)]/60 backdrop-blur-md overflow-hidden">
+            {[
+              {
+                value: stats.totalStudents >= 1000
+                  ? `${(stats.totalStudents / 1000).toFixed(1)}k+`
+                  : `${stats.totalStudents}+`,
+                label: "Students Enrolled",
+              },
+              {
+                value: stats.totalHours >= 1000
+                  ? `${Math.floor(stats.totalHours / 1000)}k+`
+                  : `${stats.totalHours}+`,
+                label: "Hours Studied",
+              },
+              {
+                value: stats.activeNow > 0 ? `${stats.activeNow} Live` : "24/7",
+                label: stats.activeNow > 0 ? "Studying Right Now" : "Always Open",
+              },
+            ].map((s, i) => (
+              <div key={i} className="flex flex-col items-center justify-center py-6 px-4 text-center">
+                <p className="text-2xl font-extrabold text-[var(--accent)] md:text-3xl">{s.value}</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-[var(--cream-muted)]">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* NEW SECTION: Science of Body Doubling */}
       <motion.section 
