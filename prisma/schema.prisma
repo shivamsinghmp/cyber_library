@@ -414,6 +414,7 @@ model MeetPresenceSession {
   startedAt       DateTime  @default(now())
   endedAt         DateTime?
   lastHeartbeatAt DateTime  @default(now())
+  durationSeconds Int?      // calculated on end: endedAt - startedAt
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -422,6 +423,7 @@ model MeetPresenceSession {
 
   @@index([userId, startedAt])
   @@index([roomId])
+  @@index([userId, endedAt])   // slot-wise time queries
 }
 
 // Meet add-on: student's poll/quiz response (shown on dashboard)

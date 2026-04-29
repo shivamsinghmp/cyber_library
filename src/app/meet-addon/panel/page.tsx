@@ -108,6 +108,8 @@ export default function MeetAddonPanelPage() {
   const [mainStageLoading, setMainStageLoading] = useState(false);
   const [resolvedSlot, setResolvedSlot] = useState<{ slotId: string; slotName: string; timeLabel: string } | null>(null);
   const [slotResolving, setSlotResolving] = useState(false);
+  const [slotTodaySeconds, setSlotTodaySeconds] = useState(0);
+  const [slotLiveSeconds, setSlotLiveSeconds] = useState(0);
   const [customTimerInput, setCustomTimerInput] = useState("");
   const [showCustomTimer, setShowCustomTimer] = useState(false);
 
@@ -153,6 +155,15 @@ export default function MeetAddonPanelPage() {
                 if (data.slotId) {
                   setResolvedSlot({ slotId: data.slotId, slotName: data.slotName, timeLabel: data.timeLabel });
                   console.log("Slot auto-detected:", data.slotName);
+                  // Fire "join" presence immediately when slot is known
+                  const tok = getToken();
+                  if (tok) {
+                    fetch("/api/meet-addon/presence", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+                      body: JSON.stringify({ event: "join", roomKey: data.slotId }),
+                    }).catch(() => {});
+                  }
                 }
               }
               setSlotResolving(false);
@@ -463,7 +474,7 @@ export default function MeetAddonPanelPage() {
       }).catch(console.error);
     };
     sendPresence("ping"); // initial ping
-    const presenceInterval = setInterval(() => sendPresence("ping"), 60000); // ping every 1 min
+    const presenceInterval = setInterval(() => sendPresence("ping"), 30000); // ping every 30s
     return () => {
       clearInterval(presenceInterval);
       sendPresence("end");
@@ -552,6 +563,16 @@ export default function MeetAddonPanelPage() {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  const formatDuration = (seconds: number) => {
+    if (seconds <= 0) return "0m";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
   };
 
   // --- RENDER: LOGIN GATE ---
@@ -753,12 +774,20 @@ export default function MeetAddonPanelPage() {
                   <span>Detecting study slot...</span>
                 </div>
               ) : resolvedSlot ? (
-                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/25">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs font-bold text-emerald-400">{resolvedSlot.slotName}</span>
-                  {resolvedSlot.timeLabel && (
-                    <span className="text-[10px] text-emerald-400/60">· {resolvedSlot.timeLabel}</span>
-                  )}
+                <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-emerald-500/8 border border-emerald-500/20">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-bold text-emerald-400 truncate">{resolvedSlot.slotName}</span>
+                    {resolvedSlot.timeLabel && (
+                      <span className="text-[9px] text-emerald-400/50">{resolvedSlot.timeLabel}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end ml-2 flex-shrink-0">
+                    <span className="text-sm font-extrabold text-emerald-300 tabular-nums leading-none">
+                      {formatDuration(slotTodaySeconds + slotLiveSeconds)}
+                    </span>
+                    <span className="text-[8px] text-emerald-400/50">in slot today</span>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--ink)]/40 border border-[var(--wood)]/15">
