@@ -1,20 +1,18 @@
 {
   "addOns": {
     "common": {
-      "name": "Virtual Library",
-      "logoUrl": "https://cyberlib.in/logo.svg"
+      "name": "The Cyber Library",
+      "logoUrl": "https://cyberlib.in/logo.png"
     },
     "meet": {
       "web": {
+        "addOnOrigins": ["https://cyberlib.in"],
         "sidePanelUrl": "https://cyberlib.in/meet-addon/panel",
-        "mainStageUrl": "https://cyberlib.in/meet-addon/main",
-        "supportsScreenSharing": false,
-        "addOnOrigins": [
-          "https://cyberlib.in"
-        ],
-        "logoUrl": "https://cyberlib.in/logo.svg",
-        "darkModeLogoUrl": "https://cyberlib.in/logo.svg"
+        "mainStageUrl": "https://cyberlib.in/meet-addon/main"
       }
+    },
+    "httpOptions": {
+      "granularOauthPermissionSupport": "OPT_IN"
     }
   }
 }
