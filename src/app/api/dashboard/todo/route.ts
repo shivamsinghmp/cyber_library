@@ -248,13 +248,11 @@ export async function PATCH(req: NextRequest) {
         });
       }
 
-      let completedCountBeforeToday = 0;
-      if (isTaskToday) {
-        completedCountBeforeToday = await prisma.dailyTask.count({
+      const isFirstCompletionToday =
+        isTaskToday &&
+        (await prisma.dailyTask.count({
           where: { userId, taskDate: today, completedAt: { not: null } },
-        });
-      }
-      const isFirstCompletionToday = isTaskToday && completedCountBeforeToday === 0;
+        })) === 0;
 
       const updated = await prisma.dailyTask.update({
         where: { id: existing.id },
@@ -277,6 +275,16 @@ export async function PATCH(req: NextRequest) {
             coins: await getCoinDelta("TODO_COMPLETED"),
           },
         });
+        // Bonus coin for completing the FIRST task of the day
+        if (isFirstCompletionToday) {
+          await prisma.studyCoinLog.create({
+            data: {
+              userId,
+              reason: "STREAK_MAINTAINED",
+              coins: await getCoinDelta("STREAK_MAINTAINED"),
+            },
+          });
+        }
       }
 
       return NextResponse.json({

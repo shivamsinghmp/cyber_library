@@ -86,7 +86,9 @@ export async function POST(request: Request) {
         where: { id: active.id },
         data: { endedAt, durationMinutes },
       });
-      const addHours = Math.round(durationMinutes / 60);
+      // Use decimal hours (2 decimal places) to avoid rounding loss
+      // e.g. 45 min = 0.75h, not 1h; 14 min = 0.23h, not 0
+      const addHours = Math.round((durationMinutes / 60) * 100) / 100;
       await prisma.profile.upsert({
         where: { userId },
         create: { userId, totalStudyHours: addHours },

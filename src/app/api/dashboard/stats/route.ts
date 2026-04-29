@@ -126,7 +126,7 @@ export async function GET() {
     );
     const meetSecondsTotal = sumMeetPresenceSecondsAllTime(meetPresenceRows, now);
 
-    const studyHoursToday = sessionsToday.reduce((sum: number, s: any) => sum + (s.durationMinutes ?? 0), 0) / 60;
+    const studyHoursToday = sessionsToday.reduce((sum: number, s: { durationMinutes: number | null }) => sum + (s.durationMinutes ?? 0), 0) / 60;
     const meetHoursToday = meetSecondsToday / 3600;
     const hoursToday = studyHoursToday + meetHoursToday;
 

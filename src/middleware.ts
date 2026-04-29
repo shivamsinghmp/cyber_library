@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author"];
+const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author", "/api/admin", "/api/dashboard", "/api/staff", "/api/student", "/api/study", "/api/profile", "/api/user", "/api/feedback", "/api/rewards"];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -105,6 +105,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api/admin")) {
+    if (role !== "ADMIN" && role !== "EMPLOYEE") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/api/author")) {
     if (role !== "AUTHOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -129,5 +136,14 @@ export const config = {
     "/author/:path*",
     "/api/author",
     "/api/author/:path*",
+    "/api/admin/:path*",
+    "/api/dashboard/:path*",
+    "/api/staff/:path*",
+    "/api/student/:path*",
+    "/api/study/:path*",
+    "/api/profile/:path*",
+    "/api/user/:path*",
+    "/api/feedback/:path*",
+    "/api/rewards/:path*",
   ],
 };
