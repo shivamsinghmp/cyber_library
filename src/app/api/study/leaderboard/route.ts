@@ -1,94 +1,113 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { fetchWithCache } from "@/lib/redis";
+
+const CACHE_TTL = {
+  today: 60,      // 1 min — changes frequently
+  weekly: 300,    // 5 min
+  alltime: 600,   // 10 min
+};
 
 /** GET: Global study leaderboard. Query ?period=today|weekly|alltime. Returns top 10 by study hours. */
 export async function GET(request: Request) {
   try {
     const session = await auth();
-
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get("period") || "weekly";
+    const period = (searchParams.get("period") || "weekly") as "today" | "weekly" | "alltime";
     const now = new Date();
 
-    let byUser: Map<string, number>;
+    // Cache the top-10 list (not user-specific rank)
+    const cacheKey = `leaderboard:${period}:${now.toISOString().slice(0, 10)}`;
+    const ttl = CACHE_TTL[period] ?? 300;
 
-    if (period === "alltime") {
-      const profiles = await prisma.profile.findMany({
-        where: { totalStudyHours: { gt: 0 } },
-        select: { userId: true, totalStudyHours: true },
-        orderBy: { totalStudyHours: "desc" },
-        take: 10,
-      });
-      byUser = new Map(profiles.map((p) => [p.userId, p.totalStudyHours * 60]));
-    } else {
-      let start: Date;
-      if (period === "today") {
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      } else {
-        start = new Date(now);
-        start.setDate(start.getDate() - 7);
-        start.setHours(0, 0, 0, 0);
-      }
-      const sessions = await prisma.studySession.findMany({
-        where: { startedAt: { gte: start }, durationMinutes: { not: null } },
-        select: { userId: true, durationMinutes: true },
-      });
-      byUser = new Map<string, number>();
-      for (const s of sessions) {
-        const mins = s.durationMinutes ?? 0;
-        byUser.set(s.userId, (byUser.get(s.userId) ?? 0) + mins);
-      }
-    }
+    const leaderboard = await fetchWithCache(
+      cacheKey,
+      async () => {
+        let byUser: Map<string, number>;
 
-    const sorted = Array.from(byUser.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([userId]) => userId);
+        if (period === "alltime") {
+          const profiles = await prisma.profile.findMany({
+            where: { totalStudyHours: { gt: 0 } },
+            select: { userId: true, totalStudyHours: true },
+            orderBy: { totalStudyHours: "desc" },
+            take: 10,
+          });
+          byUser = new Map(profiles.map((p) => [p.userId, p.totalStudyHours * 60]));
+        } else {
+          let start: Date;
+          if (period === "today") {
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          } else {
+            start = new Date(now);
+            start.setDate(start.getDate() - 7);
+            start.setHours(0, 0, 0, 0);
+          }
+          // Use aggregate groupBy instead of findMany + JS reduce (much faster at scale)
+          const grouped = await prisma.studySession.groupBy({
+            by: ["userId"],
+            where: { startedAt: { gte: start }, durationMinutes: { not: null } },
+            _sum: { durationMinutes: true },
+            orderBy: { _sum: { durationMinutes: "desc" } },
+            take: 10,
+          });
+          byUser = new Map(grouped.map((g) => [g.userId, g._sum.durationMinutes ?? 0]));
+        }
 
-    if (sorted.length === 0) {
-      return NextResponse.json({ leaderboard: [], period });
-    }
+        const sorted = Array.from(byUser.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([userId]) => userId);
 
-    const users = await prisma.user.findMany({
-      where: { id: { in: sorted }, deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        profile: { select: { fullName: true } },
-        studyStreak: { select: { currentDays: true } },
+        if (sorted.length === 0) return [];
+
+        const [users, coinRows] = await Promise.all([
+          prisma.user.findMany({
+            where: { id: { in: sorted }, deletedAt: null },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profile: { select: { fullName: true } },
+              studyStreak: { select: { currentDays: true } },
+            },
+          }),
+          prisma.studyCoinLog.groupBy({
+            by: ["userId"],
+            where: { userId: { in: sorted } },
+            _sum: { coins: true },
+          }),
+        ]);
+
+        const userMap = new Map(users.map((u) => [u.id, u]));
+        const coinsByUser = new Map(coinRows.map((r) => [r.userId, r._sum.coins ?? 0]));
+
+        return sorted.map((userId, i) => {
+          const u = userMap.get(userId);
+          const mins = byUser.get(userId) ?? 0;
+          const displayName =
+            u?.profile?.fullName?.trim() ||
+            u?.name?.trim() ||
+            (u?.email ? u.email.split("@")[0] : null) ||
+            "Student";
+          return {
+            rank: i + 1,
+            userId,
+            name: displayName,
+            totalMinutes: mins,
+            totalHours: Math.round((mins / 60) * 10) / 10,
+            coins: coinsByUser.get(userId) ?? 0,
+            streakDays: u?.studyStreak?.currentDays ?? 0,
+          };
+        });
       },
-    });
-    const userMap = new Map(users.map((u) => [u.id, u]));
-    const coinsByUser = new Map<string, number>();
-    const coinRows = await prisma.studyCoinLog.groupBy({
-      by: ["userId"],
-      where: { userId: { in: sorted } },
-      _sum: { coins: true },
-    });
-    for (const row of coinRows) coinsByUser.set(row.userId, row._sum.coins ?? 0);
-    const leaderboard = sorted.map((userId, i) => {
-      const u = userMap.get(userId);
-      const mins = byUser.get(userId) ?? 0;
-      const displayName =
-        u?.profile?.fullName?.trim() ||
-        u?.name?.trim() ||
-        (u?.email ? u.email.split("@")[0] : null) ||
-        "Student";
-      return {
-        rank: i + 1,
-        userId,
-        name: displayName,
-        totalMinutes: mins,
-        totalHours: Math.round((mins / 60) * 10) / 10,
-        coins: coinsByUser.get(userId) ?? 0,
-        streakDays: u?.studyStreak?.currentDays ?? 0,
-      };
-    });
+      ttl
+    );
 
     const currentUserId = (session?.user as { id?: string })?.id;
-    const myEntry = currentUserId ? leaderboard.find((e) => e.userId === currentUserId) : null;
+    const myEntry = currentUserId
+      ? (leaderboard as Array<{ userId: string; rank: number; totalHours: number }>).find((e) => e.userId === currentUserId)
+      : null;
 
     return NextResponse.json({
       leaderboard,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { APP_SETTING_KEYS, getAppSetting, setAppSetting } from "@/lib/app-settings";
+import { invalidateCache } from "@/lib/redis";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
@@ -64,6 +65,11 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // Invalidate relevant public caches when settings change
+    const siteBrandingKeys = ["SITE_LOGO_URL","SITE_FAVICON_URL","SITE_TITLE","SITE_TAGLINE","SITE_HEADLINE"];
+    if (siteBrandingKeys.includes(key)) await invalidateCache("public:site-branding");
+    if (key === "ANNOUNCEMENT") await invalidateCache("public:announcement");
 
     return NextResponse.json({ ok: true });
   } catch (e) {

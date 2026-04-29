@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateCache } from "@/lib/redis";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET() {
@@ -10,6 +11,7 @@ export async function GET() {
     const { user } = auth;
 
     const faqs = await prisma.faq.findMany({ orderBy: { order: "asc" } });
+    await invalidateCache("public:faqs");
     return NextResponse.json(faqs);
   } catch (error) {
     console.error("GET /api/admin/faqs:", error);
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
         isActive: data.isActive ?? true,
       },
     });
+    await invalidateCache("public:faqs");
     return NextResponse.json(faq);
   } catch (error) {
     console.error("POST /api/admin/faqs:", error);

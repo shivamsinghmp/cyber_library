@@ -556,6 +556,10 @@ model StudySession {
   createdAt       DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])       // leaderboard + stats queries
+  @@index([userId, endedAt])         // active session lookup
+  @@index([startedAt])               // global leaderboard range scan
 }
 
 // Room check-in: student marks attendance for a subscribed slot (dashboard or WhatsApp)

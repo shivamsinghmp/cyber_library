@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { invalidateCache } from "@/lib/redis";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -20,6 +21,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         isActive: data.isActive,
       },
     });
+    await invalidateCache("public:faqs");
     return NextResponse.json(faq);
   } catch (error) {
     console.error("PUT /api/admin/faqs/[id]:", error);
@@ -35,6 +37,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
 
     const params = await context.params;
     await prisma.faq.delete({ where: { id: params.id } });
+    await invalidateCache("public:faqs");
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/admin/faqs/[id]:", error);

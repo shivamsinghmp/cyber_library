@@ -10,7 +10,7 @@ function getClientIp(request: Request): string {
   return "unknown";
 }
 
-/** GET: Record a page visit (IP, User-Agent, path from query). Call from client on page load. */
+/** GET: Record a page visit. Fire-and-forget — never blocks page load. */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -19,13 +19,13 @@ export async function GET(request: Request) {
     const userAgent = request.headers.get("user-agent") ?? null;
     const deviceType = getDeviceType(userAgent);
 
-    await prisma.trafficVisit.create({
-      data: { ip, userAgent, deviceType, path: path.slice(0, 500) },
-    });
+    // Fire-and-forget: don't await — return 204 immediately, DB write happens async
+    prisma.trafficVisit
+      .create({ data: { ip, userAgent, deviceType, path: path.slice(0, 500) } })
+      .catch((e) => console.error("track-visit write failed:", e));
 
     return new NextResponse(null, { status: 204 });
-  } catch (e) {
-    console.error("GET /api/track-visit:", e);
+  } catch {
     return new NextResponse(null, { status: 200 });
   }
 }
