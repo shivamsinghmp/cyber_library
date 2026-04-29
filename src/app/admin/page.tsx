@@ -105,6 +105,14 @@ export default async function AdminDashboardPage() {
       color: "rose",
       href: "/admin/staff",
     },
+    {
+      label: "Open Tickets",
+      value: pendingFeedback.toString(),
+      sub: pendingFeedback > 0 ? "Needs attention" : "All clear",
+      icon: AlertCircle,
+      color: pendingFeedback > 0 ? "amber" : "emerald",
+      href: "/admin/feedback",
+    },
   ];
 
   const colorMap: Record<string, { bg: string; text: string; ring: string }> = {
@@ -114,6 +122,8 @@ export default async function AdminDashboardPage() {
     blue:    { bg: "bg-blue-500/15",    text: "text-blue-400",    ring: "ring-blue-500/20" },
     purple:  { bg: "bg-purple-500/15",  text: "text-purple-400",  ring: "ring-purple-500/20" },
     rose:    { bg: "bg-rose-500/15",    text: "text-rose-400",    ring: "ring-rose-500/20" },
+    amber:   { bg: "bg-amber-500/15",   text: "text-amber-400",   ring: "ring-amber-500/20" },
+    cyan:    { bg: "bg-cyan-500/15",    text: "text-cyan-400",    ring: "ring-cyan-500/20" },
   };
 
   const quickLinks = [
@@ -148,6 +158,9 @@ export default async function AdminDashboardPage() {
           <p className="mt-1 text-sm text-[var(--cream-muted)]">
             {now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
+          <p className="text-[10px] text-[var(--wood)] mt-1">
+            Last updated: {now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {activeSessionsNow > 0 && (
@@ -169,7 +182,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
         {statCards.map((card) => {
           const c = colorMap[card.color];
           const Icon = card.icon;
