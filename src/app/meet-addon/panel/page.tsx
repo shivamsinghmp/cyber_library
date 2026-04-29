@@ -105,6 +105,7 @@ export default function MeetAddonPanelPage() {
   // --- NEW FEATURES: ZEN MODE & HYDRATION ---
   const [zenMode, setZenMode] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
+  const [mainStageLoading, setMainStageLoading] = useState(false);
 
   // --- NEW FEATURES: BRAIN DUMP ---
   const [brainDumps, setBrainDumps] = useState<{id: string, title?: string, text: string}[]>([]);
@@ -169,6 +170,28 @@ export default function MeetAddonPanelPage() {
   }, []);
 
   // --- ACTIONS: AUTH ---
+  async function openMainStage() {
+    setMainStageLoading(true);
+    try {
+      // Check if running inside Google Meet SDK
+      if (typeof window !== "undefined" && window.location.search.includes("meet_sdk")) {
+        const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
+        const session = meet.addon.getSession();
+        // Open the main stage (large shared screen visible to all participants)
+        await session.openMainStage("https://cyberlib.in/meet-addon/main");
+      } else {
+        // Dev fallback: open in new tab
+        window.open("/meet-addon/main", "_blank");
+      }
+    } catch (err) {
+      console.error("openMainStage failed:", err);
+      // Fallback: open in new tab
+      window.open("/meet-addon/main", "_blank");
+    } finally {
+      setMainStageLoading(false);
+    }
+  }
+
   function handleLogout() {
     clearToken();
     setTokenState(null);
@@ -617,6 +640,20 @@ export default function MeetAddonPanelPage() {
          >
             {zenMode ? <Minimize2 className="w-4 h-4 transition-transform group-hover:scale-95" /> : <Maximize2 className="w-4 h-4 transition-transform group-hover:scale-110" />}
          </button>
+
+         {!zenMode && (
+           <button
+             onClick={openMainStage}
+             disabled={mainStageLoading}
+             title="Open Main Stage for all participants"
+             className="p-2.5 rounded-full border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300 transition-all shadow-lg group backdrop-blur-md disabled:opacity-50"
+           >
+             {mainStageLoading
+               ? <Loader2 className="w-4 h-4 animate-spin" />
+               : <MonitorPlay className="w-4 h-4 group-hover:scale-110 transition-transform" />
+             }
+           </button>
+         )}
 
          {!zenMode && (
            <button onClick={handleLogout} title="Log Out" className="p-2.5 rounded-full border border-white/10 bg-neutral-900/40 hover:bg-red-500/20 hover:border-red-500/30 text-gray-400 hover:text-red-400 transition-all shadow-lg group backdrop-blur-md">
