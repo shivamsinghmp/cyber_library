@@ -645,7 +645,7 @@ export default function MeetAddonPanelPage() {
            <button
              onClick={openMainStage}
              disabled={mainStageLoading}
-             title="Open Main Stage for all participants"
+             title="Open Main Stage (sirf aapke liye)"
              className="p-2.5 rounded-full border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300 transition-all shadow-lg group backdrop-blur-md disabled:opacity-50"
            >
              {mainStageLoading
