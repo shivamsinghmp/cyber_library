@@ -188,7 +188,7 @@ export default function AdminBlogPage() {
           value={formSlug}
           onChange={(e) => setFormSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
           placeholder="how-body-doubling-helps"
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+          className="admin-input"
           required
         />
       </div>
@@ -199,7 +199,7 @@ export default function AdminBlogPage() {
           value={formTitle}
           onChange={(e) => setFormTitle(e.target.value)}
           placeholder="Post title"
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+          className="admin-input"
           required
         />
       </div>
@@ -210,7 +210,7 @@ export default function AdminBlogPage() {
           onChange={(e) => setFormExcerpt(e.target.value)}
           placeholder="Brief summary for listing"
           rows={2}
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+          className="admin-input"
         />
       </div>
       <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden [&_.quill]:bg-white/5 [&_.ql-toolbar]:border-none [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-white/10 [&_.ql-container]:border-none [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:text-[var(--cream)] [&_.ql-editor]:text-sm [&_.ql-stroke]:stroke-white [&_.ql-fill]:fill-white [&_.ql-picker]:text-white">
@@ -255,7 +255,7 @@ export default function AdminBlogPage() {
           type="datetime-local"
           value={formPublishedAt}
           onChange={(e) => setFormPublishedAt(e.target.value)}
-          className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+          className="admin-input"
         />
       </div>
     </>

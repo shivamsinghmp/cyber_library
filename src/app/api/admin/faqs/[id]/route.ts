@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const params = await context.params;
     const data = await request.json();
@@ -28,9 +29,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const params = await context.params;
     await prisma.faq.delete({ where: { id: params.id } });

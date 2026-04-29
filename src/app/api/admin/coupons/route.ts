@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const createCouponSchema = z.object({
   code: z.string().min(1).max(50).transform((s) => s.trim().toUpperCase()),
@@ -17,11 +18,9 @@ const createCouponSchema = z.object({
 
 export async function GET() {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const coupons = await prisma.coupon.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { redemptions: true } } },
@@ -35,11 +34,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const body = await request.json();
     const parsed = createCouponSchema.safeParse({
       ...body,

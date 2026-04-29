@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET() {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const faqs = await prisma.faq.findMany({ orderBy: { order: "asc" } });
     return NextResponse.json(faqs);
@@ -18,9 +19,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const data = await request.json();
     const faq = await prisma.faq.create({

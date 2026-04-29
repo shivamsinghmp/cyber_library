@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { sendEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
-
-const role = (u: unknown) => (u as { role?: string })?.role;
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { to, subject, message, accountId } = await request.json();
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 function toDateOnly(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -9,10 +10,9 @@ function toDateOnly(d: Date): string {
 /** GET: Traffic stats. Query: from, to (YYYY-MM-DD) for date range; else returns summary only. */
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const now = new Date();
     const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);

@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-
-const role = (u: unknown) => (u as { role?: string })?.role;
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const templates = await prisma.emailTemplate.findMany({
       orderBy: { purpose: "asc" },
@@ -24,10 +22,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { purpose, subject, bodyHtml, variables } = await request.json();
     if (!purpose || !subject || !bodyHtml) {

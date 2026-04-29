@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCalendarEventAttendees } from "@/lib/google-calendar";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");

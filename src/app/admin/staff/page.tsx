@@ -352,7 +352,7 @@ export default function AdminStaffPage() {
                 onChange={(e) =>
                   setAccountType(e.target.value === "INFLUENCER" ? "INFLUENCER" : "EMPLOYEE")
                 }
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               >
                 <option value="EMPLOYEE">Staff</option>
                 <option value="INFLUENCER">Influencer</option>
@@ -537,7 +537,7 @@ export default function AdminStaffPage() {
               <input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               />
             </div>
             <div>
@@ -547,7 +547,7 @@ export default function AdminStaffPage() {
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
                 required
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               />
             </div>
             <div>
@@ -555,7 +555,7 @@ export default function AdminStaffPage() {
               <select
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value as "EMPLOYEE" | "INFLUENCER")}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               >
                 <option value="EMPLOYEE">Staff</option>
                 <option value="INFLUENCER">Influencer</option>
@@ -569,7 +569,7 @@ export default function AdminStaffPage() {
                 onChange={(e) => setEditNewPassword(e.target.value)}
                 minLength={8}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               />
             </div>
             <div className="flex gap-2 pt-2">

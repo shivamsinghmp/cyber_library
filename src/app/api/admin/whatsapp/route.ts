@@ -3,16 +3,16 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppText } from "@/lib/whatsapp";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 /**
  * GET: Fetch unique contacts (recent conversations) and their chat history.
  */
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { searchParams } = new URL(request.url);
     const phoneNumber = searchParams.get("phoneNumber");
@@ -66,10 +66,9 @@ const sendSchema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const body = await request.json();
     const parsed = sendSchema.safeParse(body);

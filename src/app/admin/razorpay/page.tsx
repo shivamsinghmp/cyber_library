@@ -187,7 +187,7 @@ export default function AdminRazorpayPage() {
             value={keyId}
             onChange={(e) => setKeyId(e.target.value)}
             placeholder="rzp_test_... or rzp_live_..."
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
             autoComplete="off"
           />
         </div>
@@ -202,7 +202,7 @@ export default function AdminRazorpayPage() {
             value={keySecret}
             onChange={(e) => setKeySecret(e.target.value)}
             placeholder={hasSecret ? "Leave blank to keep current secret" : "Enter your Key Secret"}
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
             autoComplete="new-password"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">
@@ -245,7 +245,7 @@ export default function AdminRazorpayPage() {
               value={smtpHost}
               onChange={(e) => setSmtpHost(e.target.value)}
               placeholder="smtp.example.com"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
               autoComplete="off"
             />
           </div>
@@ -260,7 +260,7 @@ export default function AdminRazorpayPage() {
               value={smtpPort}
               onChange={(e) => setSmtpPort(e.target.value)}
               placeholder="587"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             />
           </div>
         </div>
@@ -275,7 +275,7 @@ export default function AdminRazorpayPage() {
               value={smtpUser}
               onChange={(e) => setSmtpUser(e.target.value)}
               placeholder="your_smtp_user"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
               autoComplete="off"
             />
           </div>
@@ -288,7 +288,7 @@ export default function AdminRazorpayPage() {
               value={smtpFrom}
               onChange={(e) => setSmtpFrom(e.target.value)}
               placeholder='The Cyber Library <no-reply@virtuallibrary.com>'
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
               autoComplete="off"
             />
           </div>
@@ -307,7 +307,7 @@ export default function AdminRazorpayPage() {
                 ? "Leave blank to keep current password"
                 : "Enter your SMTP password"
             }
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
             autoComplete="new-password"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">

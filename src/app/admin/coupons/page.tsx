@@ -300,7 +300,7 @@ export default function AdminCouponsPage() {
               value={formCode}
               onChange={(e) => setFormCode(e.target.value.toUpperCase())}
               placeholder="e.g. SAVE10"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
               required
             />
           </div>
@@ -310,7 +310,7 @@ export default function AdminCouponsPage() {
               <select
                 value={formDiscountType}
                 onChange={(e) => setFormDiscountType(e.target.value as "PERCENT" | "FIXED")}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               >
                 <option value="PERCENT">Percent (%)</option>
                 <option value="FIXED">Fixed (₹)</option>
@@ -326,7 +326,7 @@ export default function AdminCouponsPage() {
                 max={formDiscountType === "PERCENT" ? 100 : undefined}
                 value={formDiscountValue}
                 onChange={(e) => setFormDiscountValue(Number(e.target.value))}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
           </div>
@@ -339,7 +339,7 @@ export default function AdminCouponsPage() {
                 value={formMinOrder}
                 onChange={(e) => setFormMinOrder(e.target.value)}
                 placeholder="Optional"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
             <div>
@@ -350,7 +350,7 @@ export default function AdminCouponsPage() {
                 value={formMaxUses}
                 onChange={(e) => setFormMaxUses(e.target.value)}
                 placeholder="Unlimited"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
           </div>
@@ -361,7 +361,7 @@ export default function AdminCouponsPage() {
                 type="date"
                 value={formValidFrom}
                 onChange={(e) => setFormValidFrom(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
             <div>
@@ -370,7 +370,7 @@ export default function AdminCouponsPage() {
                 type="date"
                 value={formValidUntil}
                 onChange={(e) => setFormValidUntil(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
           </div>
@@ -381,7 +381,7 @@ export default function AdminCouponsPage() {
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
               placeholder="e.g. 10% off"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -415,7 +415,7 @@ export default function AdminCouponsPage() {
                 value={formCode}
                 onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                 placeholder="e.g. SAVE10"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
                 required
               />
             </div>
@@ -425,7 +425,7 @@ export default function AdminCouponsPage() {
                 <select
                   value={formDiscountType}
                   onChange={(e) => setFormDiscountType(e.target.value as "PERCENT" | "FIXED")}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 >
                   <option value="PERCENT">Percent (%)</option>
                   <option value="FIXED">Fixed (₹)</option>
@@ -439,7 +439,7 @@ export default function AdminCouponsPage() {
                   max={formDiscountType === "PERCENT" ? 100 : undefined}
                   value={formDiscountValue}
                   onChange={(e) => setFormDiscountValue(Number(e.target.value))}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 />
               </div>
             </div>
@@ -452,7 +452,7 @@ export default function AdminCouponsPage() {
                   value={formMinOrder}
                   onChange={(e) => setFormMinOrder(e.target.value)}
                   placeholder="Optional"
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 />
               </div>
               <div>
@@ -463,7 +463,7 @@ export default function AdminCouponsPage() {
                   value={formMaxUses}
                   onChange={(e) => setFormMaxUses(e.target.value)}
                   placeholder="Unlimited"
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 />
               </div>
             </div>
@@ -474,7 +474,7 @@ export default function AdminCouponsPage() {
                   type="date"
                   value={formValidFrom}
                   onChange={(e) => setFormValidFrom(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 />
               </div>
               <div>
@@ -483,7 +483,7 @@ export default function AdminCouponsPage() {
                   type="date"
                   value={formValidUntil}
                   onChange={(e) => setFormValidUntil(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 />
               </div>
             </div>
@@ -494,7 +494,7 @@ export default function AdminCouponsPage() {
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder="e.g. 10% off"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
             <div className="flex items-center gap-2">

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
-const role = (u: unknown) => (u as { role?: string })?.role;
 const TYPES = ["text", "number", "email", "textarea", "select"] as const;
 
 const updateSchema = z.object({
@@ -20,10 +20,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const { id } = await params;
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
@@ -67,10 +66,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const { id } = await params;
     await prisma.profileFieldDefinition.delete({ where: { id } });
     return NextResponse.json({ ok: true });

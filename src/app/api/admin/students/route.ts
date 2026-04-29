@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateStudentId } from "@/lib/studentId";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const createStudentSchema = z.object({
   email: z.string().email("Invalid email").max(255),
@@ -15,11 +16,9 @@ const createStudentSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim() || "";
@@ -89,11 +88,9 @@ export async function GET(request: Request) {
 /** POST: Create a new student account (admin only) */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const body = await request.json();
     const parsed = createStudentSchema.safeParse(body);

@@ -3,8 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppText } from "@/lib/whatsapp";
 import { z } from "zod";
-
-const role = (u: unknown) => (u as { role?: string })?.role;
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 /**
  * GET: List recipients for broadcast.
@@ -12,10 +11,9 @@ const role = (u: unknown) => (u as { role?: string })?.role;
  */
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { searchParams } = new URL(request.url);
     const slotId = searchParams.get("slotId") || undefined;
@@ -153,10 +151,9 @@ async function getRecipients(slotId: string | undefined) {
  */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const body = await request.json();
     const parsed = postSchema.safeParse(body);

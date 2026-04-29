@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encrypt";
-
-const role = (u: unknown) => (u as { role?: string })?.role;
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const accounts = await prisma.emailAccount.findMany({
       orderBy: { createdAt: "desc" },
@@ -35,10 +33,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { email, password, purpose, senderName } = await request.json();
     if (!email || !password || !purpose) {
@@ -75,10 +72,9 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const url = new URL(request.url);
     const id = url.searchParams.get("id");
@@ -97,10 +93,9 @@ export async function DELETE(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const body = await request.json();
     const { id, isActive, purpose, senderName } = body;

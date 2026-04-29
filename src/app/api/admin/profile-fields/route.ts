@@ -2,18 +2,17 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
-const role = (u: unknown) => (u as { role?: string })?.role;
 const ROLES = ["STUDENT", "EMPLOYEE", "AUTHOR", "LEAD"] as const;
 const TYPES = ["text", "number", "email", "textarea", "select"] as const;
 
 /** GET: List profile field definitions, optionally by role. Query: ?role=STUDENT */
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const { searchParams } = new URL(request.url);
     const roleFilter = searchParams.get("role");
     const where = roleFilter && ROLES.includes(roleFilter as (typeof ROLES)[number])
@@ -43,10 +42,9 @@ const createSchema = z.object({
 /** POST: Create a profile field definition */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const body = await request.json();
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {

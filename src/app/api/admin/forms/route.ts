@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const fieldSchema = z.object({
   id: z.string().optional(),
@@ -22,10 +23,9 @@ const createFormSchema = z.object({
 /** GET: List all student forms (admin) */
 export async function GET() {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const forms = await prisma.studentForm.findMany({
       orderBy: { updatedAt: "desc" },
       include: {
@@ -43,10 +43,9 @@ export async function GET() {
 /** POST: Create a new student form with fields (admin) */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const body = await request.json();
     const parsed = createFormSchema.safeParse(body);
     if (!parsed.success) {

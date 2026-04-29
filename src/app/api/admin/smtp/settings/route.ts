@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encrypt";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const bodySchema = z.object({
   host: z.string().max(500).optional(),
@@ -15,11 +16,9 @@ const bodySchema = z.object({
 /** GET: Return SMTP values (no password, only hasPass boolean). */
 export async function GET() {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const row = await prisma.smtpSetting.findFirst({
       orderBy: { updatedAt: "desc" },
     });
@@ -50,11 +49,9 @@ export async function GET() {
 /** POST: Save SMTP settings (password encrypted). */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {

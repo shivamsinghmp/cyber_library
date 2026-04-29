@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { applyStudyStreakForQualifyingDay } from "@/lib/gamification/study-streak";
+import { requireUser } from "@/lib/api-helpers";
 
 const bodySchema = z.object({
   type: z.enum(["START", "STOP"]),
@@ -12,11 +13,10 @@ const bodySchema = z.object({
 /** GET: Return current user's active session (no endedAt) if any. */
 export async function GET() {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
-    if (!session?.user || !userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const { user } = auth;
+    const userId = user.id;
 
     const active = await prisma.studySession.findFirst({
       where: { userId, endedAt: null },
@@ -38,11 +38,10 @@ export async function GET() {
 /** POST: START creates a new StudySession; STOP ends the active one and updates Profile.totalStudyHours. */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
-    if (!session?.user || !userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const { user } = auth;
+    const userId = user.id;
 
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);

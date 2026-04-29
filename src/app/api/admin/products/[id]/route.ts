@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -18,10 +19,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const { id } = await params;
     const product = await prisma.digitalProduct.findUnique({ where: { id } });
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -38,10 +38,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const { id } = await params;
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
@@ -72,10 +71,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const { id } = await params;
     await prisma.digitalProduct.delete({ where: { id } });
     return NextResponse.json({ success: true });

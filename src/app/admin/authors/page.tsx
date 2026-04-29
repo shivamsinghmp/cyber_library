@@ -401,7 +401,7 @@ export default function AdminAuthorsPage() {
               value={formName}
               onChange={(e) => onNameChange(e.target.value)}
               placeholder="e.g. Jane Doe"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
               required
             />
           </div>
@@ -422,7 +422,7 @@ export default function AdminAuthorsPage() {
               onChange={(e) => setFormBio(e.target.value)}
               placeholder="Short bio..."
               rows={3}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             />
           </div>
           <div>
@@ -432,7 +432,7 @@ export default function AdminAuthorsPage() {
               value={formImageUrl}
               onChange={(e) => setFormImageUrl(e.target.value)}
               placeholder="https://..."
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
@@ -456,7 +456,7 @@ export default function AdminAuthorsPage() {
                 value={formName}
                 onChange={(e) => onNameChange(e.target.value)}
                 placeholder="e.g. Jane Doe"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
                 required
               />
             </div>
@@ -477,7 +477,7 @@ export default function AdminAuthorsPage() {
                 onChange={(e) => setFormBio(e.target.value)}
                 placeholder="Short bio..."
                 rows={3}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
             <div>
@@ -487,7 +487,7 @@ export default function AdminAuthorsPage() {
                 value={formImageUrl}
                 onChange={(e) => setFormImageUrl(e.target.value)}
                 placeholder="https://..."
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
             <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-3">
@@ -579,7 +579,7 @@ export default function AdminAuthorsPage() {
               <select
                 value={formUserId}
                 onChange={(e) => setFormUserId(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               >
                 <option value="">— No user linked —</option>
                 {users.map((u) => (

@@ -106,7 +106,7 @@ export default function AdminVirtualLibraryPage() {
             value={values.SITE_LOGO_URL}
             onChange={(e) => setValue("SITE_LOGO_URL", e.target.value)}
             placeholder="/logo.svg or https://..."
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Shown in navbar, login, sidebar. Empty = /logo.svg</p>
         </div>
@@ -134,7 +134,7 @@ export default function AdminVirtualLibraryPage() {
             value={values.SITE_FAVICON_URL}
             onChange={(e) => setValue("SITE_FAVICON_URL", e.target.value)}
             placeholder="https://... or /favicon.ico"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Browser tab icon</p>
         </div>
@@ -148,7 +148,7 @@ export default function AdminVirtualLibraryPage() {
             value={values.SITE_TITLE}
             onChange={(e) => setValue("SITE_TITLE", e.target.value)}
             placeholder="The Cyber Library"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Browser title and name next to logo</p>
         </div>
@@ -162,7 +162,7 @@ export default function AdminVirtualLibraryPage() {
             value={values.SITE_TAGLINE}
             onChange={(e) => setValue("SITE_TAGLINE", e.target.value)}
             placeholder="The Focus Hub"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Line under the site name in navbar</p>
         </div>

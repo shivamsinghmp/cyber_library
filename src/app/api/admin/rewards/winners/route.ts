@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 /** GET: List all reward winners (admin) */
 export async function GET() {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const list = await prisma.rewardWinner.findMany({
       orderBy: { wonAt: "desc" },
       include: {
@@ -33,10 +33,9 @@ const addWinnerSchema = z.object({
 /** POST: Add a winner (admin) - user wins the reward, amount pending until marked paid */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const body = await request.json();
     const parsed = addWinnerSchema.safeParse(body);
     if (!parsed.success) {

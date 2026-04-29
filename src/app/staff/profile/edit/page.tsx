@@ -133,7 +133,7 @@ export default function StaffProfileEditPage() {
             {...register("fullName")}
             type="text"
             placeholder="Your name"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
           />
         </div>
         <div>
@@ -144,7 +144,7 @@ export default function StaffProfileEditPage() {
             {...register("phone")}
             type="tel"
             placeholder="Phone number"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
           />
         </div>
         <div>
@@ -155,7 +155,7 @@ export default function StaffProfileEditPage() {
             {...register("institution")}
             type="text"
             placeholder="Institution or organisation"
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+            className="admin-input"
           />
         </div>
         <div>
@@ -182,14 +182,14 @@ export default function StaffProfileEditPage() {
                     value={customFieldsValues[f.key] ?? ""}
                     onChange={(e) => setCustomFieldsValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                    className="admin-input"
                     required={f.required}
                   />
                 ) : f.type === "select" && Array.isArray(f.options) ? (
                   <select
                     value={customFieldsValues[f.key] ?? ""}
                     onChange={(e) => setCustomFieldsValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                    className="admin-input"
                     required={f.required}
                   >
                     <option value="">Select</option>
@@ -202,7 +202,7 @@ export default function StaffProfileEditPage() {
                     type={f.type === "number" ? "number" : f.type === "email" ? "email" : "text"}
                     value={customFieldsValues[f.key] ?? ""}
                     onChange={(e) => setCustomFieldsValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                    className="admin-input"
                     required={f.required}
                   />
                 )}

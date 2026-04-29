@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireUser } from "@/lib/api-helpers";
 
 const bodySchema = z.object({ studySlotId: z.string().min(1) });
 
@@ -10,11 +11,10 @@ const SUBSCRIPTION_DAYS = 30;
 /** POST: Record a room check-in for the current user. Requires active subscription to the slot. */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
-    if (!session?.user || !userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const { user } = auth;
+    const userId = user.id;
 
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);

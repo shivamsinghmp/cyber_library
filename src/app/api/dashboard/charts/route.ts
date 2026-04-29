@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { format, eachDayOfInterval, startOfDay, endOfDay, isSameDay, subDays } from "date-fns";
+import { requireUser } from "@/lib/api-helpers";
 
 async function sumStudyHoursForRange(
   userId: string,
@@ -83,15 +84,10 @@ function buildInsights(
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    let userId = (session.user as { id?: string }).id;
-    if (!userId && session.user?.email) {
-      const dbUser = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } });
-      if (dbUser) userId = dbUser.id;
-    }
-
-    if (!userId) return NextResponse.json({ error: "User not found" }, { status: 401 });
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const { user } = auth;
+    const userId = user.id;
 
     const searchParams = req.nextUrl.searchParams;
     const fromParam = searchParams.get("from");

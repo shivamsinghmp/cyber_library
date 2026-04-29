@@ -2,16 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { APP_SETTING_KEYS, getAppSetting, setAppSetting } from "@/lib/app-settings";
 import { z } from "zod";
-
-const role = (u: unknown) => (u as { role?: string })?.role;
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 /** GET: List all supported keys with current value (masked for secrets). */
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const keys = Object.keys(APP_SETTING_KEYS) as (keyof typeof APP_SETTING_KEYS)[];
     const result: Record<string, { label: string; secret: boolean; value: string | null; hasValue: boolean }> = {};
@@ -42,10 +40,9 @@ const postSchema = z.object({
 /** POST: Save one setting. Body: { key, value }. */
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const body = await request.json();
     const parsed = postSchema.safeParse(body);

@@ -67,3 +67,21 @@ h1, h2, h3, h4, h5, h6 {
   content: '';
   @apply pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent rounded-[2.5rem];
 }
+
+/* Admin panel input — replaces 70+ repeated className strings */
+.admin-input {
+  @apply w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none transition-colors;
+}
+
+.admin-input-sm {
+  @apply w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none transition-colors;
+}
+
+/* Admin action buttons */
+.admin-btn {
+  @apply rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50;
+}
+
+.admin-btn-ghost {
+  @apply rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-[var(--cream)] hover:bg-white/10 transition-colors;
+}

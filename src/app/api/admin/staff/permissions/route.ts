@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/audit-logger";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET(req: Request) {
   try {
-    const session = await auth();
-    // Only real ADMIN can manage permissions
-    if ((session?.user as any)?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const url = new URL(req.url);
     const userId = url.searchParams.get("userId");
@@ -23,8 +24,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if ((session?.user as any)?.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { userId, modules } = await req.json();
     if (!userId || !Array.isArray(modules)) return NextResponse.json({ error: "Invalid data" }, { status: 400 });

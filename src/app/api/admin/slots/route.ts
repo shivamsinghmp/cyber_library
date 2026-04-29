@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createStudyRoomEvent } from "@/lib/google-calendar";
 import { generateRoomId } from "@/lib/roomId";
 import * as fs from "fs";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const SLOT_TYPES = ["STUDY", "MENTORSHIP", "MENTAL"] as const;
 
@@ -25,11 +26,9 @@ const createSlotSchema = z.object({
 
 export async function GET() {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const slots = await prisma.studySlot.findMany({
       orderBy: { createdAt: "asc" },
     });
@@ -52,11 +51,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
-    const role = (session?.user as { role?: string })?.role;
-    if (!session?.user || role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
     const body = await request.json();
     const parsed = createSlotSchema.safeParse({
       ...body,

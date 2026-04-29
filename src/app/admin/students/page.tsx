@@ -387,7 +387,7 @@ export default function AdminStudentsPage() {
               value={createEmail}
               onChange={(e) => setCreateEmail(e.target.value)}
               required
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input-sm"
             />
           </div>
           <div>
@@ -400,7 +400,7 @@ export default function AdminStudentsPage() {
               onChange={(e) => setCreatePassword(e.target.value)}
               required
               minLength={8}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input-sm"
             />
             <p className="mt-0.5 text-[10px] text-[var(--cream-muted)]">
               Min 8 characters
@@ -416,7 +416,7 @@ export default function AdminStudentsPage() {
               onChange={(e) => setCreateConfirmPassword(e.target.value)}
               required
               minLength={8}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input-sm"
             />
           </div>
           <div>
@@ -427,7 +427,7 @@ export default function AdminStudentsPage() {
               type="text"
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input-sm"
             />
           </div>
           <div>
@@ -437,7 +437,7 @@ export default function AdminStudentsPage() {
             <select
               value={createGoal}
               onChange={(e) => setCreateGoal(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input-sm"
             >
               <option value="">Select goal</option>
               {GOAL_OPTIONS.filter(Boolean).map((g) => (
@@ -564,7 +564,7 @@ export default function AdminStudentsPage() {
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               />
             </div>
             <div>
@@ -576,7 +576,7 @@ export default function AdminStudentsPage() {
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
                 required
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               />
             </div>
             <div>
@@ -586,7 +586,7 @@ export default function AdminStudentsPage() {
               <select
                 value={editGoal}
                 onChange={(e) => setEditGoal(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               >
                 <option value="">Select goal</option>
                 {GOAL_OPTIONS.filter(Boolean).map((g) => (
@@ -605,7 +605,7 @@ export default function AdminStudentsPage() {
                 value={editNewPassword}
                 onChange={(e) => setEditNewPassword(e.target.value)}
                 minLength={8}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input-sm"
               />
             </div>
             <div className="flex gap-2 pt-2">

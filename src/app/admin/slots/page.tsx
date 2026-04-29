@@ -425,7 +425,7 @@ export default function AdminSlotsPage() {
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               placeholder="e.g. Morning"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
               required
             />
           </div>
@@ -436,7 +436,7 @@ export default function AdminSlotsPage() {
                 type="time"
                 value={formStartTime}
                 onChange={(e) => setFormStartTime(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
                 required
               />
             </div>
@@ -446,7 +446,7 @@ export default function AdminSlotsPage() {
                 type="time"
                 value={formEndTime}
                 onChange={(e) => setFormEndTime(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
                 required
               />
             </div>
@@ -456,7 +456,7 @@ export default function AdminSlotsPage() {
             <select
               value={formGoal}
               onChange={(e) => setFormGoal(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             >
               {GOAL_OPTIONS.map((g) => (
                 <option key={g || "any"} value={g}>
@@ -470,7 +470,7 @@ export default function AdminSlotsPage() {
             <select
               value={formSlotType}
               onChange={(e) => setFormSlotType(e.target.value as "STUDY" | "MENTORSHIP" | "MENTAL")}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             >
               {SLOT_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -496,7 +496,7 @@ export default function AdminSlotsPage() {
                   type="time"
                   value={formStartTime}
                   onChange={(e) => setFormStartTime(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                   required
                 />
               </div>
@@ -506,7 +506,7 @@ export default function AdminSlotsPage() {
                   type="time"
                   value={formEndTime}
                   onChange={(e) => setFormEndTime(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                   required
                 />
               </div>
@@ -521,7 +521,7 @@ export default function AdminSlotsPage() {
                   value={formMeetLink}
                   onChange={(e) => setFormMeetLink(e.target.value)}
                   placeholder="https://meet.google.com/..."
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 />
               </div>
               <div>
@@ -531,7 +531,7 @@ export default function AdminSlotsPage() {
                   value={formCalendarEventId}
                   onChange={(e) => setFormCalendarEventId(e.target.value)}
                   placeholder="Optional: Paste event ID here"
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                 />
               </div>
             </>
@@ -543,7 +543,7 @@ export default function AdminSlotsPage() {
               min={0}
               value={formCapacity}
               onChange={(e) => setFormCapacity(Number(e.target.value) || 0)}
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             />
           </div>
           <div>
@@ -554,7 +554,7 @@ export default function AdminSlotsPage() {
               value={formPrice}
               onChange={(e) => setFormPrice(Number(e.target.value) || 0)}
               placeholder="0 = free"
-              className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+              className="admin-input"
             />
           </div>
           <label className="flex items-center gap-2">
@@ -600,7 +600,7 @@ export default function AdminSlotsPage() {
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g. Morning"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
                 required
               />
             </div>
@@ -611,7 +611,7 @@ export default function AdminSlotsPage() {
                   type="time"
                   value={formStartTime}
                   onChange={(e) => setFormStartTime(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                   required
                 />
               </div>
@@ -621,7 +621,7 @@ export default function AdminSlotsPage() {
                   type="time"
                   value={formEndTime}
                   onChange={(e) => setFormEndTime(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                  className="admin-input"
                   required
                 />
               </div>
@@ -631,7 +631,7 @@ export default function AdminSlotsPage() {
               <select
                 value={formGoal}
                 onChange={(e) => setFormGoal(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               >
                 {GOAL_OPTIONS.map((g) => (
                   <option key={g || "any"} value={g}>
@@ -645,7 +645,7 @@ export default function AdminSlotsPage() {
               <select
                 value={formSlotType}
                 onChange={(e) => setFormSlotType(e.target.value as "STUDY" | "MENTORSHIP" | "MENTAL")}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               >
                 {SLOT_TYPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -672,7 +672,7 @@ export default function AdminSlotsPage() {
                     value={formMeetLink}
                     onChange={(e) => setFormMeetLink(e.target.value)}
                     placeholder="https://meet.google.com/..."
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                    className="admin-input"
                   />
                 </div>
                 <div>
@@ -682,7 +682,7 @@ export default function AdminSlotsPage() {
                     value={formCalendarEventId}
                     onChange={(e) => setFormCalendarEventId(e.target.value)}
                     placeholder="Optional: Paste event ID here"
-                    className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                    className="admin-input"
                   />
                 </div>
               </>
@@ -694,7 +694,7 @@ export default function AdminSlotsPage() {
                 min={0}
                 value={formCapacity}
                 onChange={(e) => setFormCapacity(Number(e.target.value) || 0)}
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
             <div>
@@ -705,7 +705,7 @@ export default function AdminSlotsPage() {
                 value={formPrice}
                 onChange={(e) => setFormPrice(Number(e.target.value) || 0)}
                 placeholder="0 = free"
-                className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                className="admin-input"
               />
             </div>
             <label className="flex items-center gap-2">

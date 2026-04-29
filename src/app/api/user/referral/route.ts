@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateStudentReferralCode } from "@/lib/referral";
 import { headers } from "next/headers";
+import { requireUser } from "@/lib/api-helpers";
 
 async function getBaseUrl(): Promise<string> {
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
@@ -15,11 +16,10 @@ async function getBaseUrl(): Promise<string> {
 /** GET: Current user's referral code, link, referred count and list. */
 export async function GET() {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
-    if (!session?.user || !userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const { user } = auth;
+    const userId = user.id;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -64,11 +64,10 @@ export async function GET() {
 /** POST: Generate referral code for current user if not already set (students get REF- prefix). */
 export async function POST() {
   try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
-    if (!session?.user || !userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const { user } = auth;
+    const userId = user.id;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },

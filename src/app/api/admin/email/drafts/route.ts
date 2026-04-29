@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-
-const role = (u: unknown) => (u as { role?: string })?.role;
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const drafts = await prisma.emailDraft.findMany({ orderBy: { createdAt: "desc" } });
     return NextResponse.json(drafts);
@@ -19,8 +19,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const { id, name, subject, bodyHtml } = await req.json();
     if (!name || !subject || !bodyHtml) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -45,8 +46,9 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user || role(session.user) !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user } = auth;
 
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
