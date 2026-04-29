@@ -20,10 +20,10 @@ export async function GET(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
 
     const { id } = await params;
-    const [user, sessions] = await Promise.all([
+    const [studentUser, sessions] = await Promise.all([
       prisma.user.findFirst({
         where: { id, role: "STUDENT", deletedAt: null },
         include: { profile: true },
@@ -33,7 +33,7 @@ export async function GET(
         select: { startedAt: true, durationMinutes: true },
       }),
     ]);
-    if (!user) {
+    if (!studentUser) {
       return NextResponse.json({ error: "Student not found." }, { status: 404 });
     }
 
@@ -46,7 +46,7 @@ export async function GET(
       (mins) => mins >= 30
     ).length;
 
-    const { password: _, ...safe } = user;
+    const { password: _, ...safe } = studentUser;
     return NextResponse.json({ ...safe, attendanceDays });
   } catch (e) {
     console.error("GET /api/admin/students/[id]:", e);
@@ -62,7 +62,7 @@ export async function PUT(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
 
     const { id } = await params;
     const existing = await prisma.user.findFirst({
@@ -127,7 +127,7 @@ export async function DELETE(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
 
     const { id } = await params;
     const existing = await prisma.user.findFirst({
