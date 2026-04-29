@@ -56,6 +56,8 @@ export default function EmailDashboardPage() {
   const [actPass, setActPass] = useState("");
   const [actPurpose, setActPurpose] = useState("GENERAL");
   const [actName, setActName] = useState("The Cyber Library");
+  const [actSmtpHost, setActSmtpHost] = useState("smtp.gmail.com");
+  const [actSmtpPort, setActSmtpPort] = useState("2525");
   const [loadingActs, setLoadingActs] = useState(true);
 
   // Templates State
@@ -177,7 +179,7 @@ export default function EmailDashboardPage() {
     const res = await fetch("/api/admin/email/accounts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: actEmail, password: actPass, purpose: actPurpose, senderName: actName }),
+      body: JSON.stringify({ email: actEmail, password: actPass, purpose: actPurpose, senderName: actName, smtpHost: actSmtpHost, smtpPort: Number(actSmtpPort) }),
     });
     if (res.ok) {
       toast.success("Account added securely");
@@ -370,12 +372,22 @@ export default function EmailDashboardPage() {
                 <input required value={actName} onChange={e => setActName(e.target.value)} className="w-full rounded-xl bg-black/20 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]" />
               </div>
               <div>
-                <label className="text-xs text-[var(--cream-muted)] block mb-1">Gmail Address</label>
+                <label className="text-xs text-[var(--cream-muted)] block mb-1">Email Address</label>
                 <input required type="email" value={actEmail} onChange={e => setActEmail(e.target.value)} placeholder="no-reply@gmail.com" className="w-full rounded-xl bg-black/20 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]" />
               </div>
               <div>
-                <label className="text-xs text-[var(--cream-muted)] block mb-1">App Password (16-digits)</label>
+                <label className="text-xs text-[var(--cream-muted)] block mb-1">Password / App Password</label>
                 <input required type="password" value={actPass} onChange={e => setActPass(e.target.value)} placeholder="• • • • • • • • • • • • • • • •" className="w-full rounded-xl bg-black/20 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-[var(--cream-muted)] block mb-1">SMTP Host</label>
+                  <input value={actSmtpHost} onChange={e => setActSmtpHost(e.target.value)} placeholder="smtp.gmail.com" className="w-full rounded-xl bg-black/20 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]" />
+                </div>
+                <div>
+                  <label className="text-xs text-[var(--cream-muted)] block mb-1">SMTP Port</label>
+                  <input type="number" value={actSmtpPort} onChange={e => setActSmtpPort(e.target.value)} placeholder="2525" className="w-full rounded-xl bg-black/20 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]" />
+                </div>
               </div>
               <div>
                 <label className="text-xs text-[var(--cream-muted)] block mb-1">Primary Routing Purpose</label>

@@ -695,7 +695,9 @@ model EmailAccount {
   iv                String   @db.Text
   purpose           String   @default("GENERAL") // OTP | SUPPORT | GENERAL | MARKETING
   isActive          Boolean  @default(true)
-  senderName        String   @default("The Cyber Library") // e.g., "The Cyber Library Support"
+  senderName        String   @default("The Cyber Library")
+  smtpHost          String   @default("smtp.gmail.com")
+  smtpPort          Int      @default(2525)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }

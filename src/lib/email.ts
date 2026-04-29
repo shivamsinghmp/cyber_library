@@ -22,15 +22,18 @@ async function getMailerForPurpose(purposeOrAccountId: string, isAccountId: bool
     if (account) {
       if (!transporters.has(account.id)) {
         const pass = decrypt(account.passwordEncrypted, account.iv);
+        const host = (account as typeof account & { smtpHost?: string }).smtpHost || "smtp.gmail.com";
+        const port = (account as typeof account & { smtpPort?: number }).smtpPort ?? 2525;
+        const secure = port === 465;
         const transporter = nodemailer.createTransport({
-          host: "smtp.gmail.com",
-          port: 465,
-          secure: true,
+          host,
+          port,
+          secure,
           auth: {
             user: account.email,
             pass: pass,
           },
-          xMailer: false, // Prevents Gmail from hiding avatar for automated emails
+          xMailer: false,
         });
         transporters.set(account.id, transporter);
       }
@@ -47,7 +50,7 @@ async function getMailerForPurpose(purposeOrAccountId: string, isAccountId: bool
   let host = process.env.SMTP_HOST;
   let user = process.env.SMTP_USER;
   let pass = process.env.SMTP_PASS;
-  let port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
+  let port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 2525;
   let from = process.env.SMTP_FROM || "The Cyber Library <no-reply@virtuallibrary.com>";
 
   try {

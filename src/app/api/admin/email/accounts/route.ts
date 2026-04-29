@@ -21,6 +21,8 @@ export async function GET() {
       purpose: act.purpose,
       isActive: act.isActive,
       senderName: act.senderName,
+      smtpHost: (act as typeof act & { smtpHost?: string }).smtpHost || 'smtp.gmail.com',
+      smtpPort: (act as typeof act & { smtpPort?: number }).smtpPort ?? 2525,
       createdAt: act.createdAt,
     }));
 
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     const { user } = auth;
 
-    const { email, password, purpose, senderName } = await request.json();
+    const { email, password, purpose, senderName, smtpHost, smtpPort } = await request.json();
     if (!email || !password || !purpose) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -51,6 +53,8 @@ export async function POST(request: Request) {
         iv,
         purpose,
         senderName: senderName || "The Cyber Library",
+        smtpHost: smtpHost || "smtp.gmail.com",
+        smtpPort: smtpPort ? Number(smtpPort) : 2525,
         isActive: true,
       },
       select: {
@@ -98,7 +102,7 @@ export async function PATCH(request: Request) {
     const { user } = auth;
 
     const body = await request.json();
-    const { id, isActive, purpose, senderName } = body;
+    const { id, isActive, purpose, senderName, smtpHost, smtpPort } = body;
     if (!id) return NextResponse.json({ error: "No ID provided" }, { status: 400 });
 
     const updated = await prisma.emailAccount.update({
@@ -107,6 +111,8 @@ export async function PATCH(request: Request) {
         ...(isActive !== undefined && { isActive }),
         ...(purpose !== undefined && { purpose }),
         ...(senderName !== undefined && { senderName }),
+        ...(smtpHost !== undefined && { smtpHost }),
+        ...(smtpPort !== undefined && { smtpPort: Number(smtpPort) }),
       },
       select: {
         id: true, email: true, purpose: true, isActive: true, senderName: true
