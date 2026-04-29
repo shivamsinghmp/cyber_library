@@ -21,7 +21,7 @@ export async function POST(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const { id: authorId } = await params;
     const author = await prisma.author.findUnique({
       where: { id: authorId },

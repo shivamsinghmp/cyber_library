@@ -18,7 +18,7 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const row = await prisma.smtpSetting.findFirst({
       orderBy: { updatedAt: "desc" },
     });
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { host, port, user, pass, from } = parsed.data;
+    const { host, port, user: smtpUser, pass, from } = parsed.data;
 
     const existing = await prisma.smtpSetting.findFirst({
       orderBy: { updatedAt: "desc" },

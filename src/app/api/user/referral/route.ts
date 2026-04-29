@@ -18,7 +18,7 @@ export async function GET() {
   try {
     const auth = await requireUser();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const userId = user.id;
 
     const user = await prisma.user.findUnique({
@@ -66,7 +66,7 @@ export async function POST() {
   try {
     const auth = await requireUser();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const userId = user.id;
 
     const user = await prisma.user.findUnique({

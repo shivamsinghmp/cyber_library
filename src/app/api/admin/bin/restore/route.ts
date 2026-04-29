@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
 
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);

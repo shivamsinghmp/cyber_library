@@ -20,7 +20,7 @@ export async function GET(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const { id } = await params;
     const user = await prisma.user.findFirst({
       where: { id, role: { in: ["EMPLOYEE", "INFLUENCER"] } },
@@ -42,7 +42,7 @@ export async function PUT(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const { id } = await params;
     const existing = await prisma.user.findFirst({
       where: { id, role: { in: ["EMPLOYEE", "INFLUENCER"] } },

@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const list = await prisma.rewardWinner.findMany({
       orderBy: { wonAt: "desc" },
       include: {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    const { user: adminUser } = auth;
     const body = await request.json();
     const parsed = addWinnerSchema.safeParse(body);
     if (!parsed.success) {
