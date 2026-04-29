@@ -61,8 +61,9 @@ export async function POST(request: Request) {
         );
       }
       const startedAt = new Date();
+      const studySlotId = parsed.data.studySlotId ?? undefined;
       const sessionRecord = await prisma.studySession.create({
-        data: { userId, startedAt },
+        data: { userId, startedAt, ...(studySlotId ? { studySlotId } : {}) },
       });
       return NextResponse.json({
         session: { id: sessionRecord.id, startedAt: sessionRecord.startedAt.toISOString() },

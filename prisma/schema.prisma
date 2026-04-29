@@ -164,6 +164,7 @@ model StudySlot {
 
   subscriptions RoomSubscription[]
   checkIns      RoomCheckIn[]
+  studySessions StudySession[]
 }
 
 // Student's purchased room subscriptions (after checkout)
@@ -550,16 +551,19 @@ model RewardWinner {
 model StudySession {
   id              String    @id @default(cuid())
   userId          String
+  studySlotId     String?   // auto-detected from Google Meet ID
   startedAt       DateTime
   endedAt         DateTime?
-  durationMinutes Int? // optional; can be computed from startedAt/endedAt
+  durationMinutes Int?
   createdAt       DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studySlot StudySlot?  @relation(fields: [studySlotId], references: [id], onDelete: SetNull)
 
-  @@index([userId, startedAt])       // leaderboard + stats queries
-  @@index([userId, endedAt])         // active session lookup
-  @@index([startedAt])               // global leaderboard range scan
+  @@index([userId, startedAt])
+  @@index([userId, endedAt])
+  @@index([startedAt])
+  @@index([studySlotId])
 }
 
 // Room check-in: student marks attendance for a subscribed slot (dashboard or WhatsApp)

@@ -106,6 +106,10 @@ export default function MeetAddonPanelPage() {
   const [zenMode, setZenMode] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mainStageLoading, setMainStageLoading] = useState(false);
+  const [resolvedSlot, setResolvedSlot] = useState<{ slotId: string; slotName: string; timeLabel: string } | null>(null);
+  const [slotResolving, setSlotResolving] = useState(false);
+  const [customTimerInput, setCustomTimerInput] = useState("");
+  const [showCustomTimer, setShowCustomTimer] = useState(false);
 
   // --- NEW FEATURES: BRAIN DUMP ---
   const [brainDumps, setBrainDumps] = useState<{id: string, title?: string, text: string}[]>([]);
@@ -126,11 +130,37 @@ export default function MeetAddonPanelPage() {
       try {
         const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
         if (!sessionCreated) {
-           sessionCreated = true;
-           await meet.addon.createAddonSession({
-             cloudProjectNumber: "273461550329",
-           });
-           console.log("Successfully handshaked with Google Meet!");
+          sessionCreated = true;
+          const addonSession = await meet.addon.createAddonSession({
+            cloudProjectNumber: "273461550329",
+          });
+          console.log("Successfully handshaked with Google Meet!");
+
+          // Auto-detect slot from Google Meet ID
+          try {
+            const sidePanelClient = await addonSession.createSidePanelClient();
+            const meetingInfo = await sidePanelClient.getMeetingInfo();
+            const meetingId = meetingInfo?.meetingId ?? meetingInfo?.callId ?? "";
+            if (meetingId) {
+              setSlotResolving(true);
+              const storedToken = getToken();
+              const res = await fetch(
+                `/api/meet-addon/resolve-slot?meetingId=${encodeURIComponent(meetingId)}`,
+                { headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {} }
+              );
+              if (res.ok) {
+                const data = await res.json();
+                if (data.slotId) {
+                  setResolvedSlot({ slotId: data.slotId, slotName: data.slotName, timeLabel: data.timeLabel });
+                  console.log("Slot auto-detected:", data.slotName);
+                }
+              }
+              setSlotResolving(false);
+            }
+          } catch (slotErr) {
+            console.warn("Slot auto-detect failed (non-critical):", slotErr);
+            setSlotResolving(false);
+          }
         }
       } catch (err) {
         console.error("Failed to initialize Meet Addon SDK:", err);
@@ -414,7 +444,7 @@ export default function MeetAddonPanelPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-           roomKey: "local-room",
+           roomKey: resolvedSlot?.slotId ?? "local-room",
            plannedSeconds: planned,
            completedSeconds: completed,
            completedFully: isFinished
@@ -429,7 +459,7 @@ export default function MeetAddonPanelPage() {
       fetch("/api/meet-addon/presence", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ event: eventType, roomKey: "local-room" })
+        body: JSON.stringify({ event: eventType, roomKey: resolvedSlot?.slotId ?? "local-room" })
       }).catch(console.error);
     };
     sendPresence("ping"); // initial ping
@@ -714,6 +744,31 @@ export default function MeetAddonPanelPage() {
           {/* LIVE CLOCK HEADER */}
           {!zenMode && <LiveClock />}
 
+          {/* SLOT INDICATOR */}
+          {!zenMode && (
+            <div className="w-full flex justify-center mb-4">
+              {slotResolving ? (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--ink)]/40 border border-[var(--wood)]/15 text-xs text-[var(--cream-muted)]">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Detecting study slot...</span>
+                </div>
+              ) : resolvedSlot ? (
+                <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-bold text-emerald-400">{resolvedSlot.slotName}</span>
+                  {resolvedSlot.timeLabel && (
+                    <span className="text-[10px] text-emerald-400/60">· {resolvedSlot.timeLabel}</span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--ink)]/40 border border-[var(--wood)]/15">
+                  <span className="h-2 w-2 rounded-full bg-[var(--wood)]/40" />
+                  <span className="text-xs text-[var(--cream-muted)]">No slot detected</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* MONITOR NAVIGATION BUTTON */}
           {!zenMode && (
           <div className="w-full flex justify-center mb-8 relative">
@@ -928,21 +983,31 @@ export default function MeetAddonPanelPage() {
                     </button>
                   ))}
                   
-                  {/* Custom Input */}
-                  <div className={`flex items-center bg-white/5 border border-white/10 rounded-xl transition-all shadow-inner ml-1 ${timerMode === 'focus' ? 'focus-within:border-[var(--accent)]' : 'focus-within:border-blue-400'} focus-within:bg-black/50`}>
-                    <input
-                      type="number"
-                      min="1"
-                      max="999"
-                      value={Math.floor(timerDuration / 60)}
-                      onChange={(e) => {
-                         const val = parseInt(e.target.value);
-                         if (!isNaN(val) && val > 0) setDuration(val);
-                      }}
-                      className="w-12 bg-transparent text-center text-[12px] font-bold text-white py-2 focus:outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-none"
-                      placeholder="Min"
-                    />
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 pr-3 select-none">m</span>
+                  {/* Custom Timer Input */}
+                  <div className="flex items-center gap-1 ml-1">
+                    <button
+                      onClick={() => { const cur = Math.floor(timerDuration/60); if(cur > 1) setDuration(cur - 1); }}
+                      className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white text-base font-bold transition-all flex items-center justify-center"
+                    >−</button>
+                    <div className={`flex items-center bg-white/5 border border-white/10 rounded-xl transition-all shadow-inner ${timerMode === 'focus' ? 'focus-within:border-[var(--accent)]' : 'focus-within:border-blue-400'} focus-within:bg-black/50`}>
+                      <input
+                        type="number"
+                        min="1"
+                        max="999"
+                        value={Math.floor(timerDuration / 60)}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!isNaN(val) && val >= 1 && val <= 999) setDuration(val);
+                        }}
+                        className="w-12 bg-transparent text-center text-[12px] font-bold text-white py-2 focus:outline-none appearance-none [&::-webkit-inner-spin-button]:appearance-none shadow-none"
+                        placeholder="Min"
+                      />
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-500 pr-3 select-none">m</span>
+                    </div>
+                    <button
+                      onClick={() => { const cur = Math.floor(timerDuration/60); if(cur < 999) setDuration(cur + 1); }}
+                      className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10 hover:text-white text-base font-bold transition-all flex items-center justify-center"
+                    >+</button>
                   </div>
                 </div>
               ) : (
