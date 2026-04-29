@@ -59,9 +59,11 @@ export async function POST(request: Request) {
     const success = await sendWhatsAppText(phoneNumber, textMessage);
 
     if (!success && !process.env.WHATSAPP_PHONE_NUMBER_ID) {
-      console.log("\n==============================");
-      console.log(`DEV MODE OTP FOR ${phoneNumber}: ${otp}`);
-      console.log("==============================\n");
+      if (process.env.NODE_ENV !== "production") {
+        console.log("\n==============================");
+        console.log(`DEV MODE OTP FOR ${phoneNumber}: ${otp}`);
+        console.log("==============================\n");
+      }
       // Bypass the 502 error during local development without keys
       return NextResponse.json({ ok: true, message: "OTP bypassed to server console for testing" });
     } else if (!success) {

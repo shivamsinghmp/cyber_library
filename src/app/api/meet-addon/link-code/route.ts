@@ -17,6 +17,7 @@ function generateCode(): string {
 }
 
 export async function POST() {
+  try {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -52,4 +53,8 @@ export async function POST() {
     expiresAt: expiresAt.toISOString(),
     expiresInMinutes: EXPIRY_MINUTES,
   });
+  } catch (e) {
+    console.error("[meet-addon/link-code] POST error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

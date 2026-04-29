@@ -25,6 +25,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const cors = getMeetAddonCorsHeaders(request);
   const userId = authUserId(request);
   if (!userId) {
@@ -55,4 +56,8 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, sessionId: session.id }, { headers: cors });
+  } catch (e) {
+    console.error("[meet-addon/focus/heartbeat] POST error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export async function GET() {
+  try {
   const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
 
@@ -17,9 +18,14 @@ export async function GET() {
       createdAt: p.createdAt.toISOString(),
     }))
   );
+  } catch (e) {
+    console.error("[admin/meet-polls] GET error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
   const { user } = auth;
@@ -35,9 +41,14 @@ export async function POST(request: NextRequest) {
   });
   console.info("meet-poll-created", { pollId: poll.id, adminId: user.id });
   return NextResponse.json({ id: poll.id, question: poll.question, options: poll.options, expiresAt: poll.expiresAt });
+  } catch (e) {
+    console.error("[admin/meet-polls] POST error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: NextRequest) {
+  try {
   const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
   const { user } = auth;
@@ -55,9 +66,14 @@ export async function PATCH(request: NextRequest) {
   });
   console.info("meet-poll-updated", { pollId: poll.id, adminId: user.id });
   return NextResponse.json({ id: poll.id, question: poll.question, options: poll.options, isActive: poll.isActive });
+  } catch (e) {
+    console.error("[admin/meet-polls] PATCH error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {
+  try {
   const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
   const { user } = auth;
@@ -66,4 +82,8 @@ export async function DELETE(request: NextRequest) {
   await prisma.meetPoll.delete({ where: { id } });
   console.info("meet-poll-deleted", { pollId: id, adminId: user.id });
   return NextResponse.json({ success: true });
+  } catch (e) {
+    console.error("[admin/meet-polls] DELETE error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

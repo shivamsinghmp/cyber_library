@@ -43,6 +43,7 @@ function taskJson(t: {
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const cors = getMeetAddonCorsHeaders(request);
   const payload = auth(request);
   if (!payload) {
@@ -60,9 +61,14 @@ export async function GET(request: NextRequest) {
     })
   ]);
   return NextResponse.json({ tasks: tasks.map(taskJson), totalPoints: profile?.totalPoints || 0 }, { headers: cors });
+  } catch (e) {
+    console.error("[meet-addon/today-task] GET error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const cors = getMeetAddonCorsHeaders(request);
   const payload = auth(request);
   if (!payload) {
@@ -157,4 +163,8 @@ export async function POST(request: NextRequest) {
     },
   });
   return NextResponse.json(taskJson(task), { headers: cors });
+  } catch (e) {
+    console.error("[meet-addon/today-task] POST error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

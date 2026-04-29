@@ -29,6 +29,7 @@ export async function OPTIONS() {
  * ping: create or refresh session; end: close active session for this room.
  */
 export async function POST(request: NextRequest) {
+  try {
   const cors = getMeetAddonCorsHeaders(request);
   const userId = authUserId(request);
   if (!userId) {
@@ -90,4 +91,8 @@ export async function POST(request: NextRequest) {
     { ok: true, sessionId: created.id, startedAt: created.startedAt.toISOString() },
     { headers: cors }
   );
+  } catch (e) {
+    console.error("[meet-addon/presence] POST error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }

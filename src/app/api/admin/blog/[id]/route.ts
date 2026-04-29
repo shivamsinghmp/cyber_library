@@ -6,7 +6,7 @@ import DOMPurify from "isomorphic-dompurify";
 import { logAdminAction } from "@/lib/audit-logger";
 import { rateLimit } from "@/lib/rate-limit";
 
-async function checkAdminContentAccess(session: any) {
+async function checkAdminContentAccess(session: { user?: { role?: string; id?: string } | null } | null) {
   if (!session?.user) return false;
   if (session.user.role === "ADMIN") return true;
   if (session.user.role === "EMPLOYEE") {

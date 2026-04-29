@@ -8,6 +8,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const cors = getMeetAddonCorsHeaders(request);
   const payload = verifyMeetAddonToken(
     request.headers.get("authorization")?.startsWith("Bearer ")
@@ -39,4 +40,8 @@ export async function POST(request: NextRequest) {
     update: { answer },
   });
   return NextResponse.json({ ok: true }, { headers: cors });
+  } catch (e) {
+    console.error("[meet-addon/poll-response] POST error:", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
 }
