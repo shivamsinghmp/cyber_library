@@ -7,8 +7,7 @@
     "meet": {
       "web": {
         "addOnOrigins": ["https://cyberlib.in"],
-        "sidePanelUrl": "https://cyberlib.in/meet-addon/panel",
-        "mainStageUrl": "https://cyberlib.in/meet-addon/main"
+        "sidePanelUrl": "https://cyberlib.in/meet-addon/panel"
       }
     },
     "httpOptions": {
