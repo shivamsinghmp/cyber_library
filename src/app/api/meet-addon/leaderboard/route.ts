@@ -23,17 +23,31 @@ export async function GET(request: NextRequest) {
   const userIds = sorted.map(([id]) => id);
   const users = await prisma.user.findMany({
     where: { id: { in: userIds }, deletedAt: null },
-    select: { id: true, name: true, studyStreak: { select: { currentDays: true } } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      profile: { select: { fullName: true } },
+      studyStreak: { select: { currentDays: true } },
+    },
   });
   const userMap = new Map(users.map((u) => [u.id, u]));
 
-  const leaderboard = sorted.map(([userId, coins], i) => ({
-    rank: i + 1,
-    userId,
-    name: userMap.get(userId)?.name ?? "Student",
-    coins,
-    streakDays: userMap.get(userId)?.studyStreak?.currentDays ?? 0,
-  }));
+  const leaderboard = sorted.map(([userId, coins], i) => {
+    const u = userMap.get(userId);
+    const displayName =
+      u?.profile?.fullName?.trim() ||
+      u?.name?.trim() ||
+      (u?.email ? u.email.split("@")[0] : null) ||
+      "Student";
+    return {
+      rank: i + 1,
+      userId,
+      name: displayName,
+      coins,
+      streakDays: u?.studyStreak?.currentDays ?? 0,
+    };
+  });
 
   return NextResponse.json({ leaderboard }, { headers: cors });
 }

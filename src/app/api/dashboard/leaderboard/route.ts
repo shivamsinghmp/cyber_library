@@ -46,6 +46,7 @@ export async function GET() {
       select: {
         id: true,
         name: true,
+        email: true,
         profile: { select: { fullName: true } },
         studyStreak: { select: { currentDays: true } },
       },
@@ -62,10 +63,15 @@ export async function GET() {
     const leaderboard = sorted.map((userId, i) => {
       const u = userMap.get(userId);
       const mins = byUser.get(userId) ?? 0;
+      const displayName =
+        u?.profile?.fullName?.trim() ||
+        u?.name?.trim() ||
+        (u?.email ? u.email.split("@")[0] : null) ||
+        "Student";
       return {
         rank: i + 1,
         userId,
-        name: u?.name || u?.profile?.fullName || "Anonymous",
+        name: displayName,
         weeklyMinutes: mins,
         weeklyHours: Math.round((mins / 60) * 10) / 10,
         coins: coinsByUser.get(userId) ?? 0,
