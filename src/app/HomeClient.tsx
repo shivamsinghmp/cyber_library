@@ -161,55 +161,90 @@ export function HomeClient({
           className="w-full md:max-w-[440px] z-10 animate-[float_6s_ease-in-out_infinite]"
         >
           <div className="glass-panel">
-            <div className="relative flex h-full flex-col justify-between gap-10 p-10">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--wood)]">
-                    Live Status
-                  </p>
-                  <span className="flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold tracking-widest text-emerald-400 ring-1 ring-inset ring-emerald-500/30">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]"></span> ACTIVE
-                  </span>
-                </div>
-                <p className="text-3xl font-extrabold text-[var(--cream)] tracking-tight leading-tight">
-                  <span className="text-[var(--accent)]">
-                    {stats ? (stats.activeNow > 0 ? stats.activeNow : "—") : "…"}
-                  </span>{" "}
-                  {stats?.activeNow === 0
-                    ? "Students ready to study. Start a session!"
-                    : "Students are currently deep in the zone."}
+            <div className="relative flex h-full flex-col gap-7 p-9">
+
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--wood)]">
+                  Your Study Journey
                 </p>
-                <p className="mt-4 text-sm text-[var(--cream-muted)] leading-relaxed">
-                  Multiple quiet blocks are running right now. Pick an open seat and drop your procrastination instantly.
-                </p>
+                <span className="rounded-full bg-[var(--accent)]/15 px-3 py-1 text-[10px] font-bold tracking-widest text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/30">
+                  FREE TO START
+                </span>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-2xl border border-[var(--wood)]/10 bg-[var(--background)]/80 px-6 py-5 shadow-inner">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--wood)]">
-                      Next Focus Sprint
-                    </p>
-                    <p className="text-sm font-bold text-[var(--cream)] mt-1">
-                      Starts every 30 minutes
-                    </p>
+              {/* Step list */}
+              <div className="space-y-3">
+                {[
+                  {
+                    step: "01",
+                    title: "Sign Up Free",
+                    desc: "Create your account in 30 seconds",
+                    done: true,
+                  },
+                  {
+                    step: "02",
+                    title: "Pick a Focus Slot",
+                    desc: "Morning, afternoon, or night blocks",
+                    done: true,
+                  },
+                  {
+                    step: "03",
+                    title: "Join the Google Meet Room",
+                    desc: "Cameras on. Mics off. Pure deep work.",
+                    done: false,
+                  },
+                  {
+                    step: "04",
+                    title: "Earn Coins & Climb Leaderboard",
+                    desc: "Streak rewards, study coins & badges",
+                    done: false,
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.step}
+                    className={`flex items-start gap-4 rounded-2xl border px-5 py-4 transition ${
+                      item.done
+                        ? "border-[var(--accent)]/30 bg-[var(--accent)]/8"
+                        : "border-[var(--wood)]/10 bg-white/[0.02]"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold ring-1 ${
+                        item.done
+                          ? "bg-[var(--accent)]/20 text-[var(--accent)] ring-[var(--accent)]/40"
+                          : "bg-white/5 text-[var(--cream-muted)] ring-white/10"
+                      }`}
+                    >
+                      {item.done ? (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      ) : (
+                        item.step
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-bold ${item.done ? "text-[var(--cream)]" : "text-[var(--cream-muted)]"}`}>
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-[var(--cream-muted)]/70 mt-0.5 leading-relaxed">
+                        {item.desc}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/30">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 text-xs text-[var(--cream-muted)] sm:grid-cols-2">
-                  <div className="rounded-2xl border border-[var(--wood)]/10 bg-white/[0.02] p-5 shadow-inner transition hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/30 backdrop-blur-md">
-                    <p className="mb-2 text-sm font-bold text-[var(--cream)]">Atmosphere</p>
-                    <p className="leading-relaxed">Total silence. Only typing and lo-fi beats.</p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--wood)]/10 bg-white/[0.02] p-5 shadow-inner transition hover:bg-[var(--accent)]/10 hover:border-[var(--accent)]/30 backdrop-blur-md">
-                    <p className="mb-2 text-sm font-bold text-[var(--cream)]">Structure</p>
-                    <p className="leading-relaxed">Mandatory breaks to preserve mental clarity.</p>
-                  </div>
-                </div>
+                ))}
               </div>
+
+              {/* CTA */}
+              <Link
+                href="/signup"
+                className="group relative flex w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] py-4 text-sm font-extrabold text-[var(--ink)] transition hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(154,130,100,0.4)]"
+              >
+                <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-700 group-hover:[transform:skew(-12deg)_translateX(150%)]">
+                  <div className="relative h-full w-8 bg-white/40 blur-sm" />
+                </div>
+                Start Your First Session →
+              </Link>
+
             </div>
           </div>
         </motion.div>
