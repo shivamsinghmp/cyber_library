@@ -77,9 +77,35 @@ export async function GET() {
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, minutes]) => ({ date, hours: Math.round((minutes / 60) * 10) / 10 }));
 
-    const totalStudyResult = await prisma.profile.aggregate({
-      _sum: { totalStudyHours: true },
-    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [
+      totalStudyResult,
+      todayRevenue,
+      newStudentsThisWeek,
+      activeSessionsNow,
+      pendingFeedback,
+      totalTransactions,
+    ] = await Promise.all([
+      prisma.profile.aggregate({ _sum: { totalStudyHours: true } }),
+      prisma.transaction.aggregate({
+        where: { status: "SUCCESS", createdAt: { gte: today } },
+        _sum: { amount: true },
+      }),
+      prisma.user.count({
+        where: {
+          role: "STUDENT",
+          createdAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+        },
+      }),
+      prisma.studySession.count({
+        where: { startedAt: { gte: new Date(Date.now() - 30 * 60 * 1000) }, endedAt: null },
+      }),
+      prisma.feedback.count({ where: { status: "OPEN" } }).catch(() => 0),
+      prisma.transaction.count({ where: { status: "SUCCESS" } }),
+    ]);
+
     const totalPlatformStudyHours = totalStudyResult._sum.totalStudyHours ?? 0;
 
     return NextResponse.json({
@@ -88,6 +114,11 @@ export async function GET() {
       popularSlots,
       studyHoursByDay,
       totalPlatformStudyHours,
+      todayRevenue: todayRevenue._sum.amount ?? 0,
+      newStudentsThisWeek,
+      activeSessionsNow,
+      pendingFeedback,
+      totalTransactions,
     });
   } catch (e) {
     console.error("GET /api/admin/analytics:", e);
