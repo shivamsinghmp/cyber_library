@@ -32,31 +32,56 @@ type Profile = ProfileForCompletion & {
   longestStreak?: number;
 };
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/tasks", label: "Tasks", icon: CheckCircle },
-  { href: "/dashboard/quiz", label: "Quiz", icon: HelpCircle },
-  { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
-  { href: "/dashboard/meet-addon", label: "Meet Add-on", icon: Video },
-  { href: "/dashboard/student-form", label: "Form", icon: ClipboardList },
-  { href: "/dashboard/downloads", label: "My Product", icon: Package },
-  { href: "/dashboard/subscription", label: "Study Room", icon: BookOpen },
-  { href: "/dashboard/transactions", label: "Transaction", icon: Receipt },
-  { href: "/dashboard/rewards", label: "My Reward", icon: Gift },
-  { href: "/dashboard/refer", label: "Refer", icon: UserPlus },
-  { href: "/dashboard/streaks", label: "Streak", icon: Flame },
-  { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
-  { href: "/dashboard/profile", label: "Profile", icon: UserCircle },
-  { href: "/dashboard/settings", label: "Setting", icon: Settings },
+const navSections = [
+  {
+    label: "Main",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/tasks", label: "Tasks", icon: CheckCircle },
+      { href: "/dashboard/streaks", label: "Streaks", icon: Flame },
+      { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
+      { href: "/dashboard/quiz", label: "Quiz", icon: HelpCircle },
+    ],
+  },
+  {
+    label: "Study",
+    items: [
+      { href: "/dashboard/subscription", label: "Study Room", icon: BookOpen },
+      { href: "/dashboard/meet-addon", label: "Meet Add-on", icon: Video },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { href: "/dashboard/rewards", label: "My Rewards", icon: Gift },
+      { href: "/dashboard/downloads", label: "My Products", icon: Package },
+      { href: "/dashboard/transactions", label: "Transactions", icon: Receipt },
+      { href: "/dashboard/refer", label: "Refer & Earn", icon: UserPlus },
+      { href: "/dashboard/student-form", label: "Profile Form", icon: ClipboardList },
+      { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
+      { href: "/dashboard/profile", label: "Profile", icon: UserCircle },
+      { href: "/dashboard/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
+const navItems = navSections.flatMap(s => s.items);
 
 export function StudentSidebar() {
   const pathname = usePathname();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [totalCoins, setTotalCoins] = useState<number | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [siteTitle, setSiteTitle] = useState("The Cyber Library");
+
+  useEffect(() => {
+    fetch("/api/dashboard/meet-addon", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { gamification?: { totalCoins: number } } | null) => {
+        if (d?.gamification?.totalCoins != null) setTotalCoins(d.gamification.totalCoins);
+      }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/site-branding")
@@ -135,30 +160,28 @@ export function StudentSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-0.5 p-3">
-        {navItems.map((item) => {
-          const href = "hash" in item && item.hash ? `${item.href}${item.hash}` : item.href;
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname === item.href || pathname.startsWith(item.href + "/");
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.label}
-              href={href}
-              onClick={() => setDrawerOpen(false)}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                isActive
-                  ? "bg-[var(--accent)]/20 text-[var(--cream)]"
-                  : "text-[var(--cream-muted)] hover:bg-white/5 hover:text-[var(--cream)]"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto p-2">
+        {navSections.map((section) => (
+          <div key={section.label} className="mb-1">
+            <p className="px-3 pt-3 pb-1 text-[9px] font-bold uppercase tracking-widest text-[var(--wood)]/50">{section.label}</p>
+            {section.items.map((item) => {
+              const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
+              const Icon = item.icon;
+              return (
+                <Link key={item.label} href={item.href} onClick={() => setDrawerOpen(false)}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                    isActive
+                      ? "bg-[var(--accent)]/15 text-[var(--cream)] border border-[var(--accent)]/15"
+                      : "text-[var(--cream-muted)] hover:bg-white/5 hover:text-[var(--cream)]"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="border-t border-white/10 p-3">
