@@ -33,8 +33,9 @@ export default function AdminVirtualLibraryPage() {
       .then((r) => (r.ok ? r.json() : {}))
       .then((data: Record<string, { value: string | null }>) => {
         const next: Record<string, string> = {};
+        for (const key of BRANDING_KEYS) {
           next[key] = data[key]?.value ?? "";
-        });
+        }
         setValues(next);
       })
       .catch(() => toast.error("Could not load settings"))
