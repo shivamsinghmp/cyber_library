@@ -106,6 +106,7 @@ export default function MeetAddonPanelPage() {
   const [zenMode, setZenMode] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mainStageLoading, setMainStageLoading] = useState(false);
+  const [isMainStageOpen, setIsMainStageOpen] = useState(false);
   const [resolvedSlot, setResolvedSlot] = useState<{ slotId: string; slotName: string; timeLabel: string } | null>(null);
   const [slotResolving, setSlotResolving] = useState(false);
   const [slotTodaySeconds, setSlotTodaySeconds] = useState(0);
@@ -215,18 +216,28 @@ export default function MeetAddonPanelPage() {
   async function openMainStage() {
     setMainStageLoading(true);
     try {
-      // Check if running inside Google Meet SDK
-      if (typeof window !== "undefined" && window.self !== window.top && meetClient) {
-        // Open the main stage (large shared screen visible to all participants)
-        await meetClient.startActivity({ mainStageUrl: "https://cyberlib.in/meet-addon/main" });
+      if (isMainStageOpen) {
+        if (typeof window !== "undefined" && window.self !== window.top && meetClient) {
+          if (typeof meetClient.unloadActivity === "function") await meetClient.unloadActivity();
+          else if (typeof meetClient.clearActivity === "function") await meetClient.clearActivity();
+          else if (typeof meetClient.endActivity === "function") await meetClient.endActivity();
+        }
+        setIsMainStageOpen(false);
       } else {
-        // Dev fallback: open in new tab
-        window.open("/meet-addon/main", "_blank");
+        // Check if running inside Google Meet SDK
+        if (typeof window !== "undefined" && window.self !== window.top && meetClient) {
+          // Open the main stage (large shared screen visible to all participants)
+          await meetClient.startActivity({ mainStageUrl: "https://cyberlib.in/meet-addon/main" });
+          setIsMainStageOpen(true);
+        } else {
+          // Dev fallback: open in new tab
+          window.open("/meet-addon/main", "_blank");
+        }
       }
     } catch (err) {
       console.error("openMainStage failed:", err);
       // Fallback: open in new tab
-      window.open("/meet-addon/main", "_blank");
+      if (!isMainStageOpen) window.open("/meet-addon/main", "_blank");
     } finally {
       setMainStageLoading(false);
     }
@@ -695,12 +706,14 @@ export default function MeetAddonPanelPage() {
            <button
              onClick={openMainStage}
              disabled={mainStageLoading}
-             title="Open Main Stage (sirf aapke liye)"
-             className="p-2.5 rounded-full border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300 transition-all shadow-lg group backdrop-blur-md disabled:opacity-50"
+             title={isMainStageOpen ? "Close Main Stage" : "Open Main Stage (sirf aapke liye)"}
+             className={`p-2.5 rounded-full border transition-all shadow-lg group backdrop-blur-md disabled:opacity-50 ${isMainStageOpen ? 'border-red-500/30 bg-red-500/10 hover:bg-red-500/25 text-red-400 hover:text-red-300' : 'border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 hover:text-blue-300'}`}
            >
              {mainStageLoading
                ? <Loader2 className="w-4 h-4 animate-spin" />
-               : <MonitorPlay className="w-4 h-4 group-hover:scale-110 transition-transform" />
+               : isMainStageOpen 
+                 ? <X className="w-4 h-4 group-hover:scale-110 transition-transform" /> 
+                 : <MonitorPlay className="w-4 h-4 group-hover:scale-110 transition-transform" />
              }
            </button>
          )}
