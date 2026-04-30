@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, password: true, role: true, deletedAt: true },
+      select: { id: true, password: true, role: true, deletedAt: true, name: true, profile: { select: { fullName: true } } },
     });
     if (!user?.password || (user as { deletedAt?: Date | null }).deletedAt) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401, headers: cors });
@@ -42,8 +42,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401, headers: cors });
     }
     const token = signMeetAddonToken(user.id);
+    const displayName = (user as { profile?: { fullName?: string | null } | null }).profile?.fullName?.trim()
+      || (user as { name?: string | null }).name?.trim()
+      || email.split("@")[0];
     console.info("meet-addon-login-success", { userId: user.id, ip });
-    return NextResponse.json({ token, userId: user.id }, { headers: cors });
+    return NextResponse.json({ token, userId: user.id, name: displayName }, { headers: cors });
   } catch (e) {
     console.error("meet-addon-login-failed", e);
     return NextResponse.json({ error: "Login failed" }, { status: 500, headers: cors });

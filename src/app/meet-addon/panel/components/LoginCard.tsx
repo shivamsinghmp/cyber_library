@@ -34,6 +34,7 @@ export function LoginCard({ onLogin }: Props) {
       });
       const data = await res.json();
       if (res.ok && data.token) {
+        if (data.name) localStorage.setItem("vl_meet_addon_name", data.name);
         onLogin(data.token);
       } else {
         setLoginError(data.error || "Login failed");
@@ -59,6 +60,7 @@ export function LoginCard({ onLogin }: Props) {
       });
       const data = await res.json();
       if (res.ok && data.token) {
+        if (data.name) localStorage.setItem("vl_meet_addon_name", data.name);
         onLogin(data.token);
       } else {
         setLinkCodeError(data.error || "Invalid code");

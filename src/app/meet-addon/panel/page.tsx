@@ -106,6 +106,7 @@ export default function MeetAddonPanelPage() {
   const [zenMode, setZenMode] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mainStageLoading, setMainStageLoading] = useState(false);
+  const [studentName, setStudentName] = useState<string>("");
   const [isMainStageOpen, setIsMainStageOpen] = useState(false);
   const [resolvedSlot, setResolvedSlot] = useState<{ slotId: string; slotName: string; timeLabel: string } | null>(null);
   const [slotResolving, setSlotResolving] = useState(false);
@@ -185,6 +186,8 @@ export default function MeetAddonPanelPage() {
   // Load Token and Timer State on mount
   useEffect(() => {
     setTokenState(getToken());
+    const savedName = localStorage.getItem("vl_meet_addon_name");
+    if (savedName) setStudentName(savedName);
     
     // Recover Timer
     const saved = localStorage.getItem(TIMER_STORAGE_KEY);
@@ -776,6 +779,18 @@ export default function MeetAddonPanelPage() {
 
           {/* LIVE CLOCK HEADER */}
           {!zenMode && <LiveClock />}
+
+          {/* STUDENT NAME BADGE */}
+          {!zenMode && studentName && (
+            <div className="w-full flex justify-center mb-3">
+              <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-[var(--accent)]/8 border border-[var(--accent)]/20">
+                <div className="w-7 h-7 rounded-full bg-[var(--accent)]/20 border border-[var(--accent)]/30 flex items-center justify-center text-xs font-extrabold text-[var(--accent)]">
+                  {studentName.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm font-bold text-[var(--cream)]">{studentName}</span>
+              </div>
+            </div>
+          )}
 
           {/* SLOT INDICATOR */}
           {!zenMode && (
