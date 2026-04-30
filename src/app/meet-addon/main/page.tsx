@@ -315,10 +315,7 @@ export default function MeetAddonMainStagePage() {
         )}
 
         {/* Timer */}
-        <div className="glass-panel relative rounded-[2rem] border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 mb-4 w-full">
-          <div className="absolute inset-0 rounded-[2rem] overflow-hidden pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent" />
-          </div>
+        <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 mb-4 w-full">
           <div className="relative z-10">
             {/* Mode selector */}
             <div className="flex gap-2 mb-5">
@@ -395,7 +392,7 @@ export default function MeetAddonMainStagePage() {
 
         {/* Tasks */}
         {!zenMode && (
-          <div className="glass-panel relative rounded-[2rem] border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 w-full">
+          <div className="relative rounded-[2rem] border border-white/10 bg-white/[0.03] backdrop-blur-xl p-6 w-full">
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--wood)]">Today&apos;s Tasks</span>
               <span className="text-[10px] font-bold text-emerald-400">{doneTasks}/{tasks.filter(t => !t.isPromise).length}</span>
