@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ template });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("POST /api/admin/email/templates:", e);
     return NextResponse.json({ error: "Failed to save template" }, { status: 500 });
   }

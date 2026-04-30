@@ -81,7 +81,7 @@ export default function FooterSettingsPage() {
         if (val) {
           try {
             const parsed = JSON.parse(val);
-            setConfig({ ...DEFAULT_FOOTER, ...parsed }); // Merge with default to ensure properties exist
+      .catch((e) => console.error("Fetch error:", e));
           } catch (e) {
             console.error("Invalid FOOTER_CONFIG_JSON", e);
           }

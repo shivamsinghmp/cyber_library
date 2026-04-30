@@ -110,8 +110,6 @@ export default function MeetAddonPanelPage() {
   const [slotResolving, setSlotResolving] = useState(false);
   const [slotTodaySeconds, setSlotTodaySeconds] = useState(0);
   const [slotLiveSeconds, setSlotLiveSeconds] = useState(0);
-  const [customTimerInput, setCustomTimerInput] = useState("");
-  const [showCustomTimer, setShowCustomTimer] = useState(false);
 
   // --- NEW FEATURES: BRAIN DUMP ---
   const [brainDumps, setBrainDumps] = useState<{id: string, title?: string, text: string}[]>([]);

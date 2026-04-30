@@ -33,8 +33,9 @@ export default function AdminVirtualLibraryPage() {
       .then((r) => (r.ok ? r.json() : {}))
       .then((data: Record<string, { value: string | null }>) => {
         const next: Record<string, string> = {};
-        BRANDING_KEYS.forEach((key) => {
-          next[key] = data[key]?.value ?? "";
+          next[key] = data[key]?.value ?? ""
+      .catch((e) => console.error("Fetch error:", e));
+
         });
         setValues(next);
       })

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { createStudyRoomEvent } from "@/lib/google-calendar";
+import { createStudyRoomEvent, addStudentToCalendarEvent } from "@/lib/google-calendar";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const updateSlotSchema = z.object({
@@ -79,6 +79,21 @@ export async function PUT(
       where: { id },
       data: validData,
     });
+    // If calendarEventId was set/changed → invite all existing subscribers
+    if (finalCalendarEventId && finalCalendarEventId !== slot.calendarEventId) {
+      const subscribers = await prisma.roomSubscription.findMany({
+        where: { studySlotId: id },
+        select: { user: { select: { email: true } } },
+      });
+      for (const sub of subscribers) {
+        if (sub.user.email) {
+          addStudentToCalendarEvent(finalCalendarEventId, sub.user.email).catch(e =>
+            console.error("Calendar re-invite error:", e)
+          );
+        }
+      }
+    }
+
     return NextResponse.json(slot);
   } catch (e) {
     if ((e as { code?: string })?.code === "P2025") {

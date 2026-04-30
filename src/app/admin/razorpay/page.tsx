@@ -36,12 +36,13 @@ export default function AdminRazorpayPage() {
         .then((res) => (res.ok ? res.json() : {}))
         .then((data: { configured?: boolean }) =>
           setConfigured(data.configured === true)
-        ),
+      .catch((e) => console.error("Fetch error:", e));
       fetch("/api/admin/razorpay/settings", { credentials: "include" })
         .then((res) => (res.ok ? res.json() : {}))
         .then((data: { keyId?: string | null; hasSecret?: boolean }) => {
-          setKeyId(data.keyId ?? "");
-          setHasSecret(data.hasSecret === true);
+          setHasSecret(data.hasSecret === true)
+      .catch((e) => console.error("Fetch error:", e));
+
         }),
       fetch("/api/admin/smtp/settings", { credentials: "include" })
         .then((res) => (res.ok ? res.json() : {}))
@@ -50,8 +51,9 @@ export default function AdminRazorpayPage() {
             host?: string | null;
             port?: number | null;
             user?: string | null;
-            from?: string | null;
-            hasPass?: boolean;
+            hasPass?: boolean
+      .catch((e) => console.error("Fetch error:", e));
+
           }) => {
             if (data.host) setSmtpHost(data.host);
             if (data.port) setSmtpPort(String(data.port));
