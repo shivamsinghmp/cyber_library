@@ -47,8 +47,7 @@ export default function AdminWhatsAppPage() {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setContacts(data)
-      .catch((e) => console.error("Fetch error:", e));
+          setContacts(data);
         }
       })
       .catch((err) => console.error(err))

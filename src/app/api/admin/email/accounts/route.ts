@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ account: newAccount });
-  } catch (e: unknown) {
+  } catch (e) {
     console.error("POST /api/admin/email/accounts:", e);
     if (e.code === 'P2002') return NextResponse.json({ error: "Email already exists" }, { status: 400 });
     return NextResponse.json({ error: "Failed to create account" }, { status: 500 });

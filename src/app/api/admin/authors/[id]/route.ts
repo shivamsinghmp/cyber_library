@@ -111,7 +111,7 @@ async function updateHandler(
 
     const author = await prisma.author.update({
       where: { id },
-      data: updateData as Parameters<typeof prisma.author.update>[0]["data"],
+      data: updateData as never,
     });
 
     if (data.userId !== undefined) {

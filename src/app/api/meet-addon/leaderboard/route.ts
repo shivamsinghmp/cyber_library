@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMeetAddonCorsHeaders } from "../cors";
 
+type UserRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  profile: { fullName: string | null } | null;
+  studyStreak: { currentDays: number } | null;
+  studentId?: string | null;
+};
+
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: { "Access-Control-Max-Age": "86400" } });
 }
@@ -32,7 +42,7 @@ export async function GET(request: NextRequest) {
       studyStreak: { select: { currentDays: true } },
     },
   });
-  const userMap = new Map(users.map((u) => [u.id, u]));
+  const userMap = new Map<string, UserRow>(users.map((u) => [u.id, u as UserRow]));
 
   const leaderboard = sorted.map(([userId, coins], i) => {
     const u = userMap.get(userId);

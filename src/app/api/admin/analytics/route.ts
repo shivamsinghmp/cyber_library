@@ -126,14 +126,18 @@ export async function GET() {
     // ── Popular slots ────────────────────────────────────────────────────────
     const slotMap = new Map(slots.map((s) => [s.id, s]));
     const occMap = new Map((slotOccupancy as Array<{ studySlotId: string; _count: { id: number } }>).map((o) => [o.studySlotId, o._count.id]));
-    const popularSlots = subs.map((s) => ({
+    type SlotInfo = { id: string; name: string; timeLabel: string; capacity: number };
+    const popularSlots = subs.map((s) => {
+      const slot = slotMap.get(s.studySlotId) as SlotInfo | undefined;
+      return {
       slotId: s.studySlotId,
-      name: slotMap.get(s.studySlotId)?.name ?? "Unknown",
-      timeLabel: slotMap.get(s.studySlotId)?.timeLabel ?? "",
-      capacity: slotMap.get(s.studySlotId)?.capacity ?? 20,
+      name: slot?.name ?? "Unknown",
+      timeLabel: slot?.timeLabel ?? "",
+      capacity: slot?.capacity ?? 20,
       occupancy: occMap.get(s.studySlotId) ?? 0,
       count: s._count.id,
-    }));
+    };
+    });
 
     // ── Activity feed ────────────────────────────────────────────────────────
     const [payments, signups, feedback, sessions] = recentActivity;

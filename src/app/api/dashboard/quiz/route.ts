@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const where: Prisma.MeetPollResponseWhereInput = {
+    const where: Parameters<typeof prisma.meetPollResponse.findMany>[0] extends { where?: infer W } ? W : object = {
       userId,
       createdAt: {
         gte: from,

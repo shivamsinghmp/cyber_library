@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const staff = await prisma.user.findUnique({ where: { id: userId }, select: { email: true }});
 
     await logAdminAction(
-      (session?.user as any)?.id || "UNKNOWN",
+      user.id,
       "GRANT",
       "STAFF_PERMISSIONS",
       `Updated module permissions for staff '${staff?.email || userId}' to [${modules.join(", ")}]`,

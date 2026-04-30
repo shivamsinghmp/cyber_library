@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     } = {};
     if (host !== undefined) data.host = host.trim() || null;
     if (port !== undefined) data.port = Number.isFinite(port) ? port : null;
-    if (user !== undefined) data.user = user.trim() || null;
+    if (smtpUser !== undefined) data.user = smtpUser ? smtpUser.trim() || null : null;
     if (from !== undefined) data.from = from.trim() || null;
     if (pass != null && pass.trim() !== "") {
       data.passEncrypted = passEncrypted;

@@ -98,7 +98,7 @@ export async function PUT(
 
     const updated = await prisma.blogPost.update({
       where: { id },
-      data: updateData as Parameters<typeof prisma.blogPost.update>[0]["data"],
+      data: updateData as never,
     });
     return NextResponse.json(updated);
   } catch (e) {

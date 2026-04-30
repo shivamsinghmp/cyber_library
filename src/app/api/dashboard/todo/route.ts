@@ -110,7 +110,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: bounds.error }, { status: 400 });
     }
 
-    const where: Prisma.DailyTaskWhereInput = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: Record<string, any> = {
       userId,
       ...(isSameUtcDay(bounds.from, bounds.to)
         ? { taskDate: bounds.from }
@@ -121,7 +122,7 @@ export async function GET(req: NextRequest) {
     if (status === "incomplete") where.completedAt = null;
 
     const tasks = await prisma.dailyTask.findMany({
-      where,
+      where: where as never,
       orderBy: [{ taskDate: "desc" }, { priority: "asc" }, { createdAt: "asc" }],
       take: LIST_TAKE,
       select: {

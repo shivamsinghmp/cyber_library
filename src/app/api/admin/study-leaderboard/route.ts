@@ -3,6 +3,16 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
+type UserRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  profile: { fullName: string | null } | null;
+  studyStreak: { currentDays: number } | null;
+  studentId?: string | null;
+};
+
+
 /** GET: Admin-only study leaderboard by period (week = last 7 days, month = last 30 days). */
 export async function GET(request: Request) {
   try {
@@ -52,7 +62,7 @@ export async function GET(request: Request) {
         profile: { select: { fullName: true } },
       },
     });
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    const userMap = new Map<string, UserRow>(users.map((u) => [u.id, u as UserRow]));
 
     const leaderboard = sorted
       .filter((id) => userMap.has(id))

@@ -3,6 +3,16 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { fetchWithCache } from "@/lib/redis";
 
+type UserRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  profile: { fullName: string | null } | null;
+  studyStreak: { currentDays: number } | null;
+  studentId?: string | null;
+};
+
+
 const CACHE_TTL = {
   today: 60,      // 1 min — changes frequently
   weekly: 300,    // 5 min
@@ -79,7 +89,7 @@ export async function GET(request: Request) {
           }),
         ]);
 
-        const userMap = new Map(users.map((u) => [u.id, u]));
+        const userMap = new Map<string, UserRow>(users.map((u) => [u.id, u as UserRow]));
         const coinsByUser = new Map(coinRows.map((r) => [r.userId, r._sum.coins ?? 0]));
 
         return sorted.map((userId, i) => {

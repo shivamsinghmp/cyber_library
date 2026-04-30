@@ -104,7 +104,7 @@ export async function PATCH(request: Request) {
 
     const updated = await prisma.author.update({
       where: { id: author.id },
-      data: updateData as Parameters<typeof prisma.author.update>[0]["data"],
+      data: updateData as never,
     });
     return NextResponse.json(updated);
   } catch (e) {

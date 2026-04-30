@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
+type UserRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  profile: { fullName: string | null } | null;
+  studyStreak: { currentDays: number } | null;
+  studentId?: string | null;
+};
+
+
 /** GET: Weekly study leaderboard — top users by study hours in the last 7 days. */
 export async function GET() {
   try {
@@ -51,7 +61,7 @@ export async function GET() {
         studyStreak: { select: { currentDays: true } },
       },
     });
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    const userMap = new Map<string, UserRow>(users.map((u) => [u.id, u as UserRow]));
     const coinsByUser = new Map<string, number>();
     const coinRows = await prisma.studyCoinLog.groupBy({
       by: ["userId"],

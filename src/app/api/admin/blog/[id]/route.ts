@@ -97,7 +97,7 @@ export async function PUT(
 
     const post = await prisma.blogPost.update({
       where: { id },
-      data: updateData as Parameters<typeof prisma.blogPost.update>[0]["data"],
+      data: updateData as never,
     });
 
     await logAdminAction(

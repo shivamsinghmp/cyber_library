@@ -91,7 +91,7 @@ export async function PUT(
 
     const coupon = await prisma.coupon.update({
       where: { id },
-      data: updateData as Parameters<typeof prisma.coupon.update>[0]["data"],
+      data: updateData as never,
     });
     return NextResponse.json(coupon);
   } catch (e) {

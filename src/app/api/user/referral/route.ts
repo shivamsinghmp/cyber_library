@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateStudentReferralCode } from "@/lib/referral";
 import { headers } from "next/headers";
@@ -10,41 +9,33 @@ async function getBaseUrl(): Promise<string> {
   const h = await headers();
   const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
-  return host ? `${proto}://${host}` : "https://virtuallibrary.com";
+  return host ? `${proto}://${host}` : "https://cyberlib.in";
 }
 
-/** GET: Current user's referral code, link, referred count and list. */
 export async function GET() {
   try {
-    const auth = await requireUser();
-    if (auth.error) return auth.error;
-    const { user: adminUser } = auth;
-    const userId = user.id;
+    const authResult = await requireUser();
+    if (authResult.error) return authResult.error;
+    const userId = authResult.user.id;
 
-    const user = await prisma.user.findUnique({
+    const dbUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { referralCode: true },
     });
 
     const referredUsers = await prisma.user.findMany({
       where: { referredById: userId, deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        referralRewarded: true,
-      },
+      select: { id: true, name: true, email: true, createdAt: true, referralRewarded: true },
       orderBy: { createdAt: "desc" },
     });
 
     const baseUrl = await getBaseUrl();
-    const referralLink = user?.referralCode
-      ? `${baseUrl}/signup?ref=${encodeURIComponent(user.referralCode)}`
+    const referralLink = dbUser?.referralCode
+      ? `${baseUrl}/signup?ref=${encodeURIComponent(dbUser.referralCode)}`
       : null;
 
     return NextResponse.json({
-      referralCode: user?.referralCode ?? null,
+      referralCode: dbUser?.referralCode ?? null,
       referralLink,
       referredCount: referredUsers.length,
       referredUsers: referredUsers.map((u) => ({
@@ -61,35 +52,31 @@ export async function GET() {
   }
 }
 
-/** POST: Generate referral code for current user if not already set (students get REF- prefix). */
 export async function POST() {
   try {
-    const auth = await requireUser();
-    if (auth.error) return auth.error;
-    const { user: adminUser } = auth;
-    const userId = user.id;
+    const authResult = await requireUser();
+    if (authResult.error) return authResult.error;
+    const userId = authResult.user.id;
 
-    const user = await prisma.user.findUnique({
+    const dbUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { referralCode: true },
     });
 
-    if (user?.referralCode) {
+    if (dbUser?.referralCode) {
       const baseUrl = await getBaseUrl();
       return NextResponse.json({
-        referralCode: user.referralCode,
-        referralLink: `${baseUrl}/signup?ref=${encodeURIComponent(user.referralCode)}`,
+        referralCode: dbUser.referralCode,
+        referralLink: `${baseUrl}/signup?ref=${encodeURIComponent(dbUser.referralCode)}`,
         alreadyHad: true,
       });
     }
 
     const referralCode = await generateStudentReferralCode(userId);
     const baseUrl = await getBaseUrl();
-    const referralLink = `${baseUrl}/signup?ref=${encodeURIComponent(referralCode)}`;
-
     return NextResponse.json({
       referralCode,
-      referralLink,
+      referralLink: `${baseUrl}/signup?ref=${encodeURIComponent(referralCode)}`,
       alreadyHad: false,
     });
   } catch (e) {

@@ -140,7 +140,7 @@ export default function MeetAddonPanelPage() {
           try {
             const sidePanelClient = await addonSession.createSidePanelClient();
             const meetingInfo = await sidePanelClient.getMeetingInfo();
-            const meetingId = meetingInfo?.meetingId ?? meetingInfo?.callId ?? "";
+            const meetingId = (meetingInfo as { meetingId?: string; callId?: string })?.meetingId ?? (meetingInfo as { meetingId?: string; callId?: string })?.callId ?? "";
             if (meetingId) {
               setSlotResolving(true);
               const storedToken = getToken();
@@ -215,9 +215,10 @@ export default function MeetAddonPanelPage() {
       // Check if running inside Google Meet SDK
       if (typeof window !== "undefined" && window.location.search.includes("meet_sdk")) {
         const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
-        const session = meet.addon.getSession();
+        const addonSess = await meet.addon.createAddonSession({ cloudProjectNumber: "273461550329" });
+        const sidePanelClient = await addonSess.createSidePanelClient();
         // Open the main stage (large shared screen visible to all participants)
-        await session.openMainStage("https://cyberlib.in/meet-addon/main");
+        await sidePanelClient.startActivity({ mainStageUrl: "https://cyberlib.in/meet-addon/main" });
       } else {
         // Dev fallback: open in new tab
         window.open("/meet-addon/main", "_blank");
