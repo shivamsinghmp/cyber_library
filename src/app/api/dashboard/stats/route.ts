@@ -144,6 +144,7 @@ export async function GET() {
         : null;
 
     return NextResponse.json({
+      userId,
       currentStreak: studyStreak?.currentDays ?? 0,
       longestStreak: studyStreak?.longestDays ?? 0,
       totalStudyHours,
