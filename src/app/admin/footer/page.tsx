@@ -81,12 +81,12 @@ export default function FooterSettingsPage() {
         if (val) {
           try {
             const parsed = JSON.parse(val);
-      .catch((e) => console.error("Fetch error:", e));
           } catch (e) {
             console.error("Invalid FOOTER_CONFIG_JSON", e);
           }
         }
       })
+      .catch((e) => console.error("Fetch error:", e))
       .finally(() => setLoading(false));
   }, []);
 

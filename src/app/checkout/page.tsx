@@ -77,9 +77,7 @@ function CheckoutForm() {
     fetch("/api/user/subscriptions", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : []))
       .then((data: { studySlotId: string }[]) => {
-        setEnrolledSlotIds(new Set(ids))
-      .catch((e) => console.error("Fetch error:", e));
-
+        setEnrolledSlotIds(new Set(ids));
       })
       .catch(() => {})
       .finally(() => setSubsLoaded(true));

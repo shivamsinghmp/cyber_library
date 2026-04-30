@@ -33,9 +33,7 @@ export default function AdminVirtualLibraryPage() {
       .then((r) => (r.ok ? r.json() : {}))
       .then((data: Record<string, { value: string | null }>) => {
         const next: Record<string, string> = {};
-          next[key] = data[key]?.value ?? ""
-      .catch((e) => console.error("Fetch error:", e));
-
+          next[key] = data[key]?.value ?? "";
         });
         setValues(next);
       })
