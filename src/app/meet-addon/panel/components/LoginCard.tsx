@@ -171,6 +171,17 @@ export function LoginCard({ onLogin }: Props) {
                 >
                   {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Secure Log In"}
                 </button>
+                <div className="pt-4 text-center border-t border-[var(--wood)]/10 mt-4">
+                  <p className="text-[10px] text-[var(--wood)] mb-2 uppercase tracking-wider">New Scholar?</p>
+                  <a
+                    href="/signup"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block w-full rounded-[1rem] border border-[var(--accent)]/50 bg-[var(--accent)]/10 text-[var(--accent)] py-2.5 text-[10px] tracking-widest uppercase font-bold hover:bg-[var(--accent)] hover:text-[var(--ink)] transition-colors"
+                  >
+                    Sign Up
+                  </a>
+                </div>
               </form>
             )}
           </div>
