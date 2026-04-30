@@ -88,7 +88,7 @@ export function Navbar() {
 
   return (
     <>
-      <header className={`fixed inset-x-4 z-50 mx-auto max-w-6xl rounded-full transition-all duration-500 ease-out ${scrolled
+      <header data-navbar className={`fixed inset-x-4 z-50 mx-auto max-w-6xl rounded-full transition-all duration-500 ease-out ${scrolled
           ? "top-4 md:top-6 border border-[var(--wood)]/20 bg-[var(--ink)]/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
           : "top-6 md:top-8 border-transparent bg-transparent"
         }`}>

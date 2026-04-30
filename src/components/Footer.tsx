@@ -82,7 +82,7 @@ function resolveIcon(platform: string) {
 
 function FooterInner({ config }: { config: FooterConfig }) {
   return (
-    <footer className="mt-12 border-t border-white/5 bg-[rgba(10,12,16,0.96)] relative overflow-hidden">
+    <footer data-footer className="mt-12 border-t border-white/5 bg-[rgba(10,12,16,0.96)] relative overflow-hidden">
       {/* Subtle background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-[var(--accent)]/50 to-transparent shadow-[0_0_20px_var(--accent)]" />
 
