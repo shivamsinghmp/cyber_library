@@ -54,8 +54,7 @@ export function HomeClient({
     fetch("/api/site-branding")
       .then((r) => (r.ok ? r.json() : {}))
       .then((d: { headline?: string | null }) => {
-        if (d.headline && d.headline.trim()) setHeadline(d.headline.trim())
-      .catch((e) => console.error("Fetch error:", e));
+        if (d.headline && d.headline.trim()) setHeadline(d.headline.trim());
       })
       .catch(() => {});
   }, []);
