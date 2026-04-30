@@ -696,6 +696,18 @@ export default function MeetAddonPanelPage() {
       {!zenMode && <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-screen animate-[mesh] bg-[radial-gradient(circle_at_50%_0%,_var(--accent)_0%,_transparent_50%),radial-gradient(circle_at_80%_80%,_rgba(59,130,246,0.3)_0%,_transparent_40%),radial-gradient(circle_at_10%_80%,_var(--accent)_0%,_transparent_30%)]" />}
 
       {/* GLOBAL HEADER CONTROLS */}
+      {/* Student name in top-left */}
+      {studentName && !zenMode && (
+        <div className="fixed top-4 left-4 z-[9000]">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--accent)]/10 border border-[var(--accent)]/20 backdrop-blur-md">
+            <div className="w-6 h-6 rounded-full bg-[var(--accent)]/25 flex items-center justify-center text-[10px] font-extrabold text-[var(--accent)]">
+              {studentName.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-xs font-bold text-[var(--cream)] max-w-[120px] truncate">{studentName}</span>
+          </div>
+        </div>
+      )}
+
       <div className="fixed top-24 right-4 z-[9000] flex flex-col gap-3">
          <button 
            onClick={() => setZenMode(!zenMode)} 
