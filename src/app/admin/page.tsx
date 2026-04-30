@@ -44,7 +44,7 @@ export default async function AdminDashboardPage() {
     prisma.profile.aggregate({ _sum: { totalStudyHours: true } }),
     prisma.transaction.count({ where: { status: "SUCCESS" } }),
     prisma.feedback.count({ where: { status: "OPEN" } }).catch(() => 0),
-    prisma.blogPost.count({ where: { published: true } }).catch(() => 0),
+    prisma.blogPost.count({ where: { publishedAt: { not: null } } }).catch(() => 0),
     prisma.coupon.count({ where: { isActive: true } }).catch(() => 0),
   ]);
 
