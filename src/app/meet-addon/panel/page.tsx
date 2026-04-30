@@ -118,6 +118,7 @@ export default function MeetAddonPanelPage() {
   const [showDumps, setShowDumps] = useState(false);
 
   // --- GOOGLE MEET SDK INITIALIZATION ---
+  const [meetClient, setMeetClient] = useState<any>(null);
   useEffect(() => {
     let sessionCreated = false;
     async function initMeetAddon() {
@@ -136,9 +137,11 @@ export default function MeetAddonPanelPage() {
           });
           console.log("Successfully handshaked with Google Meet!");
 
+          const sidePanelClient = await addonSession.createSidePanelClient();
+          setMeetClient(sidePanelClient);
+
           // Auto-detect slot from Google Meet ID
           try {
-            const sidePanelClient = await addonSession.createSidePanelClient();
             const meetingInfo = await sidePanelClient.getMeetingInfo();
             const meetingId = (meetingInfo as { meetingId?: string; callId?: string })?.meetingId ?? (meetingInfo as { meetingId?: string; callId?: string })?.callId ?? "";
             if (meetingId) {
@@ -213,12 +216,9 @@ export default function MeetAddonPanelPage() {
     setMainStageLoading(true);
     try {
       // Check if running inside Google Meet SDK
-      if (typeof window !== "undefined" && window.self !== window.top) {
-        const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
-        const addonSess = await meet.addon.createAddonSession({ cloudProjectNumber: "273461550329" });
-        const sidePanelClient = await addonSess.createSidePanelClient();
+      if (typeof window !== "undefined" && window.self !== window.top && meetClient) {
         // Open the main stage (large shared screen visible to all participants)
-        await sidePanelClient.startActivity({ mainStageUrl: "https://cyberlib.in/meet-addon/main" });
+        await meetClient.startActivity({ mainStageUrl: "https://cyberlib.in/meet-addon/main" });
       } else {
         // Dev fallback: open in new tab
         window.open("/meet-addon/main", "_blank");
