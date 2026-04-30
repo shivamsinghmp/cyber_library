@@ -37,12 +37,17 @@ export async function fulfillOrder({
     });
     orderDetails = slots.map(s => ({ slotId: s.id, name: `${s.name} (${s.timeLabel})`, price: s.price }));
 
-    // Grant Room Subscriptions
+    // Grant Room Subscriptions (skip already enrolled)
     for (const slot of slots) {
-      await prisma.roomSubscription.upsert({
+      const existing = await prisma.roomSubscription.findUnique({
         where: { userId_studySlotId: { userId, studySlotId: slot.id } },
-        create: { userId, studySlotId: slot.id },
-        update: {},
+      });
+      if (existing) {
+        console.info(`fulfillOrder: userId=${userId} already enrolled in slot=${slot.id}, skipping`);
+        continue;
+      }
+      await prisma.roomSubscription.create({
+        data: { userId, studySlotId: slot.id },
       });
 
       if (slot.calendarEventId && user?.email) {

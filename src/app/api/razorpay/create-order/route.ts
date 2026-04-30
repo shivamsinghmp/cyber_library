@@ -35,8 +35,26 @@ export async function POST(request: Request) {
 
     // 1. Calculate base amount from strictly trusted database tables
     if (type === "CART") {
+      // Filter out already-enrolled slots to prevent double booking
+      const userId = (session?.user as { id?: string })?.id;
+      let filteredIds = ids;
+      if (userId) {
+        const existingSubs = await prisma.roomSubscription.findMany({
+          where: { userId, studySlotId: { in: ids } },
+          select: { studySlotId: true },
+        });
+        const alreadyEnrolled = new Set(existingSubs.map(s => s.studySlotId));
+        filteredIds = ids.filter(id => !alreadyEnrolled.has(id));
+        if (filteredIds.length === 0) {
+          return NextResponse.json({ error: "You are already enrolled in all selected slots." }, { status: 400 });
+        }
+        if (filteredIds.length < ids.length) {
+          // Some were filtered — update ids for fulfillment
+          parsed.data.ids = filteredIds;
+        }
+      }
       const slots = await prisma.studySlot.findMany({
-        where: { id: { in: ids } },
+        where: { id: { in: filteredIds } },
         select: { price: true },
       });
       computedAmountRupees = slots.reduce((sum, slot) => sum + slot.price, 0);

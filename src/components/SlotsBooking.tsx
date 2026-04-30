@@ -210,6 +210,10 @@ export function SlotsBooking({
                       type="button"
                       disabled={slot.seatsLeft === 0}
                       onClick={() => {
+                        if (enrolledSlotIds.has(slot.id)) {
+                          toast.error("You are already enrolled in this slot!");
+                          return;
+                        }
                         addItem({
                           slotId: slot.id,
                           name: slot.label,
