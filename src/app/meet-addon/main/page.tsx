@@ -35,6 +35,20 @@ export default function MeetAddonMainStagePage() {
   };
 
   useEffect(() => {
+    async function initMeetAddon() {
+      if (typeof window !== "undefined" && window.self === window.top) return;
+      try {
+        const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
+        await meet.addon.createAddonSession({
+          cloudProjectNumber: "273461550329",
+        });
+        console.log("Successfully handshaked with Google Meet Main Stage!");
+      } catch (err) {
+        console.error("Failed to initialize Meet Addon SDK in Main Stage:", err);
+      }
+    }
+    initMeetAddon();
+
     const stop = subscribeMeetEvents(onEvent);
     return () => stop();
   }, [onEvent]);
