@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Cyber Library — PiP",
+  "version": "1.0.0",
+  "description": "cyberlib.in ke kisi bhi tab ko Picture-in-Picture mein kholein — ek click mein.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://cyberlib.in/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Cyber Library PiP"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://cyberlib.in/*", "http://localhost:3000/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
