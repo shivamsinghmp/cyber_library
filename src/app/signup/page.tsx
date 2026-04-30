@@ -89,13 +89,17 @@ function SignupContent() {
         if (json.error?.email) setSubmitError(json.error.email[0]);
         else if (json.error?.whatsappNumber)
           setSubmitError(json.error.whatsappNumber[0]);
-        else if (json.error)
-          setSubmitError(
-            typeof json.error === "string"
-              ? json.error
-              : JSON.stringify(json.error)
-          );
-        else setSubmitError("Signup failed");
+        else if (json.error) {
+          if (typeof json.error === "object" && Object.keys(json.error).length > 0) {
+            const firstKey = Object.keys(json.error)[0];
+            const firstError = json.error[firstKey];
+            setSubmitError(Array.isArray(firstError) ? firstError[0] : String(firstError));
+          } else {
+            setSubmitError(String(json.error));
+          }
+        } else {
+          setSubmitError("Signup failed");
+        }
         return;
       }
 

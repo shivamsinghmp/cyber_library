@@ -122,7 +122,6 @@ export default async function AdminDashboardPage() {
     blue:    { bg: "bg-blue-500/15",    text: "text-blue-400",    ring: "ring-blue-500/20" },
     purple:  { bg: "bg-purple-500/15",  text: "text-purple-400",  ring: "ring-purple-500/20" },
     rose:    { bg: "bg-rose-500/15",    text: "text-rose-400",    ring: "ring-rose-500/20" },
-    amber:   { bg: "bg-amber-500/15",   text: "text-amber-400",   ring: "ring-amber-500/20" },
     cyan:    { bg: "bg-cyan-500/15",    text: "text-cyan-400",    ring: "ring-cyan-500/20" },
   };
 
@@ -248,7 +247,7 @@ export default async function AdminDashboardPage() {
           <ul className="divide-y divide-white/5">
             {employees.length === 0 ? (
               <li className="px-5 py-4 text-sm text-[var(--cream-muted)]">No team members yet</li>
-            ) : employees.map((u) => (
+            ) : employees.map((u: any) => (
               <li key={u.id} className="flex items-center justify-between px-5 py-3 hover:bg-white/3 transition">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/15 text-[var(--accent)] text-xs font-extrabold">

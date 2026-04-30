@@ -50,7 +50,7 @@ export default async function AdminSupportTickets() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {tickets.map((ticket) => {
+            {tickets.map((ticket: any) => {
               const data = ticket.data as any; // { name, email, subject, message }
               return (
                 <div 

@@ -67,7 +67,7 @@ export default async function AuditLogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {logs.map((log) => (
+              {logs.map((log: any) => (
                 <tr key={log.id} className="transition-colors hover:bg-white/[0.02]">
                   <td className="px-6 py-4 whitespace-nowrap text-[var(--cream-muted)] flex items-center gap-2">
                     <Clock className="w-3.5 h-3.5 opacity-50" />
