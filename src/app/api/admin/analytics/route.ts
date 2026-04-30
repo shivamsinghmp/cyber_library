@@ -66,7 +66,7 @@ export async function GET() {
         prisma.feedback.findMany({
           where: { createdAt: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) } },
           orderBy: { createdAt: "desc" }, take: 5,
-          select: { id: true, subject: true, status: true, createdAt: true, user: { select: { name: true, email: true } } },
+          select: { id: true, category: true, status: true, createdAt: true, user: { select: { name: true, email: true } } },
         }),
         prisma.studySession.findMany({
           where: { startedAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
@@ -148,7 +148,7 @@ export async function GET() {
     const feed: ActivityItem[] = [
       ...payments.map((p) => ({ id: p.id, type: "payment", label: getName(p.user), sub: `₹${p.amount.toLocaleString("en-IN")} payment`, time: p.createdAt.toISOString() })),
       ...signups.map((u) => ({ id: u.id, type: "signup", label: getName(u), sub: "Signed up", time: u.createdAt.toISOString() })),
-      ...feedback.map((f) => ({ id: f.id, type: "feedback", label: getName(f.user), sub: f.subject || "Opened a ticket", time: f.createdAt.toISOString() })),
+      ...feedback.map((f) => ({ id: f.id, type: "feedback", label: getName(f.user), sub: f.category || "Opened a ticket", time: f.createdAt.toISOString() })),
       ...sessions.map((s) => ({ id: s.id, type: "session", label: getName(s.user), sub: "Started study session", time: s.startedAt.toISOString() })),
     ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 12);
 
