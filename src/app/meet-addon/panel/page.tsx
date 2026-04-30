@@ -121,9 +121,9 @@ export default function MeetAddonPanelPage() {
   useEffect(() => {
     let sessionCreated = false;
     async function initMeetAddon() {
-      // Check if we are actually running inside Google Meet's iframe by checking for the SDK param
-      if (typeof window !== "undefined" && !window.location.search.includes("meet_sdk")) {
-        console.info("Running outside of Google Meet. SDK initialization skipped.");
+      // Check if we are actually running inside Google Meet's iframe
+      if (typeof window !== "undefined" && window.self === window.top) {
+        console.info("Running outside of an iframe. SDK initialization skipped.");
         return;
       }
 
@@ -213,7 +213,7 @@ export default function MeetAddonPanelPage() {
     setMainStageLoading(true);
     try {
       // Check if running inside Google Meet SDK
-      if (typeof window !== "undefined" && window.location.search.includes("meet_sdk")) {
+      if (typeof window !== "undefined" && window.self !== window.top) {
         const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
         const addonSess = await meet.addon.createAddonSession({ cloudProjectNumber: "273461550329" });
         const sidePanelClient = await addonSess.createSidePanelClient();
