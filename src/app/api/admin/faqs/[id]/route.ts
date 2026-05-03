@@ -8,7 +8,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const params = await context.params;
     const data = await request.json();
@@ -33,7 +33,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const params = await context.params;
     await prisma.faq.delete({ where: { id: params.id } });

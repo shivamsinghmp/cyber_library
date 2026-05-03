@@ -16,9 +16,25 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Security headers for all routes
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options",   value: "nosniff" },
+          { key: "X-Frame-Options",          value: "SAMEORIGIN" },
+          { key: "Referrer-Policy",          value: "strict-origin-when-cross-origin" },
+        ],
+      },
     ];
   },
-  typescript: { ignoreBuildErrors: true },
+  // Removed: typescript: { ignoreBuildErrors: true }
+  // All TS errors must be fixed explicitly — this was hiding real bugs.
+  images: {
+    // Allow Next.js image optimization for external sources if needed
+    remotePatterns: [],
+  },
+  // Compress responses
+  compress: true,
 };
 
 export default nextConfig;

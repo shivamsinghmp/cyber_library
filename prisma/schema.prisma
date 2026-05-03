@@ -66,6 +66,8 @@ model LoginLog {
   logoutAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loginAt])
 }
 
 model Profile {
@@ -178,6 +180,9 @@ model RoomSubscription {
   studySlot StudySlot @relation(fields: [studySlotId], references: [id], onDelete: Cascade)
 
   @@unique([userId, studySlotId])
+  @@index([userId])
+  @@index([studySlotId])
+  @@index([createdAt])
 }
 
 // Coupons: one-time use per user (one user can apply a coupon only once)
@@ -505,6 +510,7 @@ model StudyCoinLog {
 
   @@index([userId, createdAt])
   @@index([roomId])
+  @@index([userId, reason])   // AI message count queries: WHERE reason LIKE 'AI_MSG%'
 }
 
 // Meet add-on: persistent streak counter

@@ -124,8 +124,11 @@ export async function POST(request: Request) {
       });
     }
 
+    const rzpController = new AbortController();
+    const rzpTimer = setTimeout(() => rzpController.abort(), 15_000);
     const res = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
+      signal: rzpController.signal,
       headers: {
         "Content-Type": "application/json",
         Authorization: "Basic " + Buffer.from(credentials.keyId + ":" + credentials.keySecret).toString("base64"),
@@ -135,7 +138,7 @@ export async function POST(request: Request) {
         currency: "INR",
         receipt: "rcpt_" + Date.now(),
       }),
-    });
+    }).finally(() => clearTimeout(rzpTimer));
 
     if (!res.ok) {
       const err = await res.text();

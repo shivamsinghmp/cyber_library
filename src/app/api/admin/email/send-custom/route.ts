@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const { to, subject, message, accountId } = await request.json();
 

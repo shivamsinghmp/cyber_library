@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const now = new Date();
     const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);

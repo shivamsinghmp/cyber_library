@@ -20,7 +20,7 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const coupons = await prisma.coupon.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { redemptions: true } } },
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const body = await request.json();
     const parsed = createCouponSchema.safeParse({
       ...body,

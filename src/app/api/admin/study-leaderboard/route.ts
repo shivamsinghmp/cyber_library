@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") === "month" ? "month" : "week";

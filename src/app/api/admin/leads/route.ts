@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const leads = await prisma.leadSubmission.findMany({
       orderBy: { createdAt: "desc" },

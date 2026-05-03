@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const rules = await prisma.actionReward.findMany({ orderBy: { actionKey: "asc" } });
     return NextResponse.json(rules);
@@ -20,7 +20,7 @@ export async function PUT(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const data = await request.json(); // Expecting array of rules
     

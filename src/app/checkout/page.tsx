@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect, useCallback } from "react";
+import { useState, Suspense, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -166,9 +166,8 @@ function CheckoutForm() {
         clearCart();
     }
     toast.success("Subscription Activated Successfully!");
-    setTimeout(() => {
-      redirectToSuccess();
-    }, 1500);
+    const t = setTimeout(() => { redirectToSuccess(); }, 1500);
+    return () => clearTimeout(t);
   }
 
   function loadRazorpayScript(): Promise<void> {

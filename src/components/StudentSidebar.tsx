@@ -24,6 +24,7 @@ import {
   CheckCircle,
   MessageSquare,
   Trophy,
+  Sparkles,
 } from "lucide-react";
 import { calculateCompletion, type ProfileForCompletion } from "@/lib/profileCompletion";
 
@@ -46,6 +47,7 @@ const navSections = [
   {
     label: "Study",
     items: [
+      { href: "/dashboard/studymate", label: "StudyMate AI", icon: Sparkles },
       { href: "/dashboard/subscription", label: "Study Room", icon: BookOpen },
       { href: "/dashboard/meet-addon", label: "Meet Add-on", icon: Video },
     ],

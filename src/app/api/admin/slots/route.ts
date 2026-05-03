@@ -28,7 +28,7 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const slots = await prisma.studySlot.findMany({
       orderBy: { createdAt: "asc" },
     });
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const body = await request.json();
     const parsed = createSlotSchema.safeParse({
       ...body,

@@ -21,7 +21,7 @@ export async function PUT(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const { id } = await params;
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
@@ -47,7 +47,7 @@ export async function DELETE(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const { id } = await params;
     await prisma.reward.delete({ where: { id } });
     return NextResponse.json({ success: true });

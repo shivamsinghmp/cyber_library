@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronLeft, Mail, Plus, Trash2, Key, Save, Send, Clock, CheckCircle2, XCircle, Filter, FileText, Eye, Code } from "lucide-react";
+import DOMPurify from "isomorphic-dompurify";
 import toast from "react-hot-toast";
 
 type EmailAccount = {
@@ -519,7 +520,7 @@ export default function EmailDashboardPage() {
                 <div className="flex-1">
                   <label className="text-xs text-[var(--cream-muted)] block mb-1">Email Body</label>
                   {tmplShowPreview ? (
-                    <div className="w-full rounded-xl bg-white border border-white/10 text-black p-4 min-h-[300px] overflow-auto shadow-inner" style={{ fontFamily: "Arial, sans-serif" }} dangerouslySetInnerHTML={{ __html: tmplBodyHtml || "<p style='color:gray'>No HTML content...</p>" }} />
+                    <div className="w-full rounded-xl bg-white border border-white/10 text-black p-4 min-h-[300px] overflow-auto shadow-inner" style={{ fontFamily: "Arial, sans-serif" }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(tmplBodyHtml || "<p style='color:gray'>No HTML content...</p>") }} />
                   ) : (
                     <textarea 
                       required 
@@ -590,7 +591,7 @@ export default function EmailDashboardPage() {
                 <div className="flex-1">
                   <label className="text-xs text-[var(--cream-muted)] block mb-1">Email HTML Body</label>
                   {draftShowPreview ? (
-                    <div className="w-full rounded-xl bg-white border border-white/10 text-black p-4 min-h-[300px] overflow-auto shadow-inner" style={{ fontFamily: "Arial, sans-serif" }} dangerouslySetInnerHTML={{ __html: draftBodyHtml || "<p style='color:gray'>No HTML content...</p>" }} />
+                    <div className="w-full rounded-xl bg-white border border-white/10 text-black p-4 min-h-[300px] overflow-auto shadow-inner" style={{ fontFamily: "Arial, sans-serif" }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(draftBodyHtml || "<p style='color:gray'>No HTML content...</p>") }} />
                   ) : (
                     <textarea 
                       required 

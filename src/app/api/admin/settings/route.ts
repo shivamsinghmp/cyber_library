@@ -10,7 +10,7 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const keys = Object.keys(APP_SETTING_KEYS) as (keyof typeof APP_SETTING_KEYS)[];
     const result: Record<string, { label: string; secret: boolean; value: string | null; hasValue: boolean }> = {};
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
+    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const body = await request.json();
     const parsed = postSchema.safeParse(body);

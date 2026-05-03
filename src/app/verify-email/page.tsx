@@ -37,9 +37,8 @@ function VerifyEmailContent() {
         return;
       }
       setMessage("Email verified. You can now log in.");
-      setTimeout(() => {
-        router.push("/login?verified=1");
-      }, 800);
+      const t = setTimeout(() => { router.push("/login?verified=1"); }, 800);
+      return () => clearTimeout(t);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
