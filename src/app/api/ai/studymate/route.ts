@@ -95,8 +95,12 @@ async function getTodayCount(userId: string) {
 }
 
 async function getCoins(userId: string) {
-  const r = await prisma.studyCoinLog.aggregate({ where: { userId }, _sum: { coins: true } });
-  return r._sum.coins ?? 0;
+  // Use materialized Profile.coinBalance — O(1) vs SUM(StudyCoinLog)
+  const profile = await prisma.profile.findUnique({
+    where: { userId },
+    select: { coinBalance: true },
+  });
+  return profile?.coinBalance ?? 0;
 }
 
 async function getProfile(userId: string) {
@@ -126,13 +130,22 @@ async function _fetchProfile(userId: string) {
 }
 
 async function logUsage(userId: string, paid: boolean) {
-  await prisma.studyCoinLog.create({
-    data: {
-      userId,
-      coins: paid ? -COINS_PER_10_MESSAGES : 0,
-      reason: `AI_MSG_${paid ? "PAID" : "FREE"}_${Date.now()}`,
-    },
-  });
+  if (paid) {
+    // Deduct from materialized balance atomically
+    await prisma.$transaction([
+      prisma.studyCoinLog.create({
+        data: { userId, coins: -COINS_PER_10_MESSAGES, reason: `AI_MSG_PAID_${Date.now()}` },
+      }),
+      prisma.profile.update({
+        where: { userId },
+        data: { coinBalance: { decrement: COINS_PER_10_MESSAGES } },
+      }),
+    ]);
+  } else {
+    await prisma.studyCoinLog.create({
+      data: { userId, coins: 0, reason: `AI_MSG_FREE_${Date.now()}` },
+    });
+  }
   try { await redis.del(`ai:count:${userId}:${new Date().toISOString().slice(0, 10)}`); } catch {}
 }
 

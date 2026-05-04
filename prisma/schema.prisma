@@ -23,6 +23,7 @@ model User {
   referralCode     String?   @unique // for influencers/referrals (e.g. INV-ABC123)
   referredById     String? // user who referred this account (typically an INFLUENCER)
   referralRewarded Boolean   @default(false) // has first-purchase referral reward been granted
+  isSuperAdmin     Boolean   @default(false) // DB-controlled superadmin — replaces hardcoded email check
   deletedAt        DateTime? // soft delete: moved to bin; auto-deleted after 30 days
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -88,6 +89,7 @@ model Profile {
   lastStudyDate       DateTime?
   longestStreak       Int       @default(0)
   totalPoints         Int       @default(0)
+  coinBalance         Int       @default(0) // materialized coin balance — updated atomically on earn/spend
   dailyMantra         String?   @db.Text
   customFields        Json? // admin-defined custom fields (key -> value)
   createdAt           DateTime  @default(now())

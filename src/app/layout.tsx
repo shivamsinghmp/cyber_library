@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
+import { validateEnv } from "@/lib/env-check";
+
+// Validate critical env vars at startup — throws if DATABASE_URL, AUTH_SECRET, etc. are missing
+validateEnv();
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });

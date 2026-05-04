@@ -167,21 +167,38 @@ export async function POST(request: Request) {
     const { target, slotId, message } = parsed.data;
     const recipients = await getRecipients(target === "slot" ? slotId : undefined);
 
+    // Process in batches of 50 with 300ms delay between batches.
+    // Prevents: OOM crash, WhatsApp API rate limiting, blocking main thread.
+    const BATCH_SIZE = 50;
+    const BATCH_DELAY_MS = 300;
+
     let sent = 0;
     let failed = 0;
-    for (const r of recipients) {
-      const ok = await sendWhatsAppText(r.phoneNumber, message);
-      await prisma.whatsAppMessage.create({
-        data: {
-          phoneNumber: r.phoneNumber,
-          content: message,
-          direction: "OUTBOUND",
-          status: ok ? "SENT" : "FAILED",
-          userId: r.userId,
-        },
-      });
-      if (ok) sent++;
-      else failed++;
+
+    for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+      const batch = recipients.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(
+        batch.map(async (r) => {
+          const ok = await sendWhatsAppText(r.phoneNumber, message);
+          await prisma.whatsAppMessage.create({
+            data: {
+              phoneNumber: r.phoneNumber,
+              content: message,
+              direction: "OUTBOUND",
+              status: ok ? "SENT" : "FAILED",
+              userId: r.userId,
+            },
+          });
+          if (ok) sent++;
+          else failed++;
+        })
+      );
+
+      // Delay between batches (skip delay after last batch)
+      if (i + BATCH_SIZE < recipients.length) {
+        await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
+      }
     }
 
     return NextResponse.json({

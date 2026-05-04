@@ -53,20 +53,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
       }
 
-      // --- VALIDATE SESSION (If not first login) ---
+      // --- VALIDATE SESSION (Force-revocation support) ---
+      // If admin deletes a session from DB, return empty token → NextAuth treats as invalid → 401.
       if (!user && token.jti) {
-         try {
-            const dbSession = await prisma.session.findUnique({
-               where: { sessionToken: token.jti as string }
-            });
-            // If the session was deleted, we log a warning but DO NOT revoke the token 
-            // to avoid a disparity between middleware.ts and useSession()
-            if (!dbSession) {
-               // console.warn("Session missing in DB for JWT, ignoring to maintain UI state.");
-            }
-         } catch (e) {
-            // DB fail fallback - continue allowing request
-         }
+        try {
+          const dbSession = await prisma.session.findUnique({
+            where: { sessionToken: token.jti as string },
+          });
+          if (!dbSession) {
+            console.info(`[auth] Session revoked for user ${token.id} — forcing re-login`);
+            return {} as typeof token;
+          }
+        } catch {
+          // DB unreachable — fail open to avoid locking out everyone during DB outage
+        }
       }
 
       if (token.id) {
@@ -141,7 +141,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           Google({
             clientId: process.env.AUTH_GOOGLE_ID,
             clientSecret: process.env.AUTH_GOOGLE_SECRET,
-            allowDangerousEmailAccountLinking: true,
+            // Removed: allowDangerousEmailAccountLinking — prevented OAuth-based account takeover
           }),
         ]
       : []),

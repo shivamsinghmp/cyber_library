@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { generateTransactionId } from "@/lib/transactionId";
 import { addStudentToCalendarEvent } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
-import * as fs from "fs";
 
 export async function fulfillOrder({
   userId,
@@ -52,8 +51,7 @@ export async function fulfillOrder({
 
       if (slot.calendarEventId && user?.email) {
         addStudentToCalendarEvent(slot.calendarEventId, user.email).catch(err => {
-           console.error("Calendar Invite Error:", err);
-           try { fs.writeFileSync("calendar-invite-error.txt", `Failed Invite: ${err}\n`, { flag: 'a' }); } catch {}
+          console.error(`[fulfillOrder] Calendar invite failed for userId=${userId} slotId=${slot.id}:`, err);
         });
       }
 
