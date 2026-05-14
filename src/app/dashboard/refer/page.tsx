@@ -1,28 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, Link2, Copy } from "lucide-react";
+import { UserPlus, Link2, Copy, Gift, Users, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 type ReferredUser = {
-  id: string;
-  name: string;
-  email: string;
-  joinedAt: string;
-  rewarded: boolean;
+  id: string; name: string; email: string; joinedAt: string; rewarded: boolean;
 };
 
+const HOW_STEPS = [
+  { icon: Link2,        label: "Get your link",    desc: "Generate your unique referral link below" },
+  { icon: Users,        label: "Invite friends",   desc: "Share with friends who want to study seriously" },
+  { icon: Gift,         label: "Earn rewards",     desc: "Get rewarded when they join & purchase a plan" },
+];
+
 export default function ReferPage() {
-  const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [referralLink, setReferralLink] = useState<string | null>(null);
-  const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([]);
-  const [referralLoading, setReferralLoading] = useState(true);
+  const [referralCode, setReferralCode]     = useState<string | null>(null);
+  const [referralLink, setReferralLink]     = useState<string | null>(null);
+  const [referredUsers, setReferredUsers]   = useState<ReferredUser[]>([]);
+  const [referralLoading, setReferralLoading]     = useState(true);
   const [referralGenerating, setReferralGenerating] = useState(false);
 
   useEffect(() => {
     setReferralLoading(true);
     fetch("/api/user/referral", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : {}))
+      .then(res => res.ok ? res.json() : {})
       .then((data: { referralCode?: string; referralLink?: string; referredUsers?: ReferredUser[] }) => {
         setReferralCode(data.referralCode ?? null);
         setReferralLink(data.referralLink ?? null);
@@ -42,108 +44,154 @@ export default function ReferPage() {
         setReferralLink(data.referralLink ?? null);
         toast.success("Referral link ready! Share it with friends.");
       } else toast.error(data.error || "Could not generate link");
-    } catch {
-      toast.error("Could not generate link");
-    } finally {
-      setReferralGenerating(false);
-    }
+    } catch { toast.error("Could not generate link"); }
+    finally { setReferralGenerating(false); }
   }
 
-  function copyReferralLink() {
+  function copyLink() {
     if (!referralLink) return;
-    navigator.clipboard.writeText(referralLink).then(
-      () => toast.success("Link copied!"),
-      () => toast.error("Copy failed")
-    );
+    navigator.clipboard.writeText(referralLink)
+      .then(() => toast.success("Link copied!"))
+      .catch(() => toast.error("Copy failed"));
   }
+
+  const rewarded = referredUsers.filter(u => u.rewarded).length;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">Refer & Earn</h1>
-        <p className="mt-1 text-sm text-[var(--cream-muted)]">Invite friends and earn rewards when they join</p>
+    <div className="mx-auto max-w-4xl space-y-6">
+
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-6 py-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+          <Gift className="w-5 h-5 text-emerald-600" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-[var(--foreground)]">Refer & Earn</h1>
+          <p className="text-xs text-[var(--muted-text)]">Invite friends and earn rewards when they join</p>
+        </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-6 md:p-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-semibold text-[var(--cream)]">
-            <UserPlus className="h-6 w-6 text-[var(--accent)]" />
-            Your Referral
-          </h2>
+      {/* How it works */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {HOW_STEPS.map(({ icon: Icon, label, desc }, i) => (
+          <div key={label} className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-5 py-4 flex items-start gap-3">
+            <div className="shrink-0 w-8 h-8 rounded-lg bg-[var(--accent-pale)] border border-[var(--accent-border)] flex items-center justify-center">
+              <Icon className="w-4 h-4 text-[var(--accent)]" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-[var(--muted-text)] uppercase tracking-widest mb-0.5">Step {i + 1}</p>
+              <p className="text-sm font-bold text-[var(--foreground)]">{label}</p>
+              <p className="text-xs text-[var(--muted-text)] mt-0.5 leading-relaxed">{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Stats strip */}
+      {referralCode && (
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Total Referred", value: referredUsers.length, color: "text-[var(--accent)]" },
+            { label: "Rewarded", value: rewarded, color: "text-emerald-600" },
+            { label: "Pending", value: referredUsers.length - rewarded, color: "text-amber-600" },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-5 py-4 text-center">
+              <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-[var(--muted-text)] mt-0.5">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Referral link / generate */}
+      <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)] flex items-center gap-2">
+          <UserPlus className="w-4 h-4 text-[var(--accent)]" />
+          <h2 className="text-sm font-bold text-[var(--foreground)]">Your Referral Link</h2>
         </div>
 
-        {referralLoading ? (
-          <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-center text-sm text-[var(--cream-muted)]">
-            Loading your referral info…
-          </p>
-        ) : !referralCode ? (
-          <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-10 text-center max-w-md mx-auto">
-            <UserPlus className="mx-auto mb-4 h-12 w-12 text-[var(--accent)]/50" />
-            <p className="text-sm text-[var(--cream-muted)] mb-6">
-              Apna referral link banao — jitne friends is link se sign up karenge, unka data yahan dikhega.
-            </p>
-            <button
-              type="button"
-              onClick={handleGenerateReferral}
-              disabled={referralGenerating}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--ink)] hover:opacity-90 disabled:opacity-50"
-            >
-              <Link2 className="h-5 w-5" />
-              {referralGenerating ? "Generating…" : "Generate referral link"}
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-5 py-5 max-w-2xl">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-[var(--cream-muted)] mb-1">Your referral link</p>
-                <p className="truncate font-mono text-base text-[var(--cream)] select-all">{referralLink}</p>
+        <div className="px-6 py-6">
+          {referralLoading ? (
+            <div className="flex items-center gap-3 py-4 justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-[var(--accent)]" />
+              <span className="text-sm text-[var(--muted-text)]">Loading referral info…</span>
+            </div>
+          ) : !referralCode ? (
+            <div className="text-center py-6 space-y-4">
+              <div className="w-16 h-16 rounded-full bg-[var(--accent-pale)] border border-[var(--accent-border)] flex items-center justify-center mx-auto">
+                <Link2 className="w-7 h-7 text-[var(--accent)]" />
               </div>
-              <button
-                type="button"
-                onClick={copyReferralLink}
-                className="shrink-0 flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-[var(--cream)] hover:bg-white/20 transition"
-              >
-                <Copy className="h-4 w-4" />
-                Copy link
+              <div>
+                <p className="text-sm font-semibold text-[var(--foreground)] mb-1">Generate your referral link</p>
+                <p className="text-xs text-[var(--muted-text)] max-w-sm mx-auto leading-relaxed">
+                  Apna referral link banao — jitne friends is link se sign up karenge, unka data yahan dikhega.
+                </p>
+              </div>
+              <button type="button" onClick={handleGenerateReferral} disabled={referralGenerating}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-bold transition-all shadow-[var(--shadow-brand)] disabled:opacity-60">
+                {referralGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                {referralGenerating ? "Generating…" : "Generate Referral Link"}
               </button>
             </div>
-            
-            <div className="border-t border-white/10 pt-8">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[var(--cream)]">
-                  Referred friends ({referredUsers.length})
-                </h3>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-pale)] px-4 py-3">
+                <p className="flex-1 font-mono text-sm text-[var(--foreground)] truncate select-all">{referralLink}</p>
+                <button type="button" onClick={copyLink}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all">
+                  <Copy className="w-3.5 h-3.5" /> Copy
+                </button>
               </div>
-              {referredUsers.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-white/20 bg-black/10 px-4 py-8 text-center text-sm text-[var(--cream-muted)] max-w-xl">
-                  Abhi koi aapke link se sign up nahi kiya. Link share karo!
-                </p>
-              ) : (
-                <ul className="space-y-3 max-w-2xl">
-                  {referredUsers.map((u) => (
-                    <li
-                      key={u.id}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-[var(--cream)] truncate text-base">{u.name}</p>
-                        <p className="text-xs text-[var(--cream-muted)] mt-0.5">{u.email}</p>
-                      </div>
-                      <div className="shrink-0 text-right ml-4">
-                        <span className="text-xs text-[var(--cream-muted)] block">Joined</span>
-                        <span className="text-sm font-medium text-[var(--cream)]">
-                          {new Date(u.joinedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <p className="text-xs text-[var(--muted-text)] text-center">Share this link with friends. They get a welcome bonus, you earn rewards!</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* Referred users */}
+      {referralCode && (
+        <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-[var(--accent)]" />
+              <h2 className="text-sm font-bold text-[var(--foreground)]">Referred Friends</h2>
+            </div>
+            <span className="text-xs font-semibold text-[var(--muted-text)] bg-[var(--page-bg)] border border-[var(--border)] px-2 py-0.5 rounded-full">{referredUsers.length}</span>
+          </div>
+
+          {referredUsers.length === 0 ? (
+            <div className="px-6 py-10 text-center">
+              <Users className="w-8 h-8 text-[var(--muted-text)] mx-auto mb-2 opacity-40" />
+              <p className="text-sm font-semibold text-[var(--foreground)]">No referrals yet</p>
+              <p className="text-xs text-[var(--muted-text)] mt-1">Abhi koi aapke link se sign up nahi kiya. Link share karo!</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {referredUsers.map(u => (
+                <li key={u.id} className="flex items-center gap-4 px-6 py-4 hover:bg-[var(--page-bg)] transition-colors">
+                  <div className="w-9 h-9 rounded-full bg-[var(--accent-pale)] border border-[var(--accent-border)] flex items-center justify-center text-sm font-bold text-[var(--accent)] shrink-0">
+                    {u.name?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[var(--foreground)] truncate">{u.name}</p>
+                    <p className="text-xs text-[var(--muted-text)]">{u.email}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-[var(--muted-text)]">{new Date(u.joinedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    {u.rewarded ? (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5 justify-end">
+                        <CheckCircle2 className="w-3 h-3" /> Rewarded
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full mt-0.5 block">Pending</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

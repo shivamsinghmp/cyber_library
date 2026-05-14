@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Trophy, Share2, ChevronLeft, Flame, Clock, Zap } from "lucide-react";
+import { Trophy, Share2, Flame, Clock, Zap, Medal, TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
 
 type Entry = {
@@ -25,19 +24,11 @@ function getInitials(name: string) {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
 }
 
-function getMedalColor(rank: number) {
-  if (rank === 1) return { bg: "bg-amber-500/20", text: "text-amber-300", border: "border-amber-500/30", glow: "shadow-[0_0_20px_rgba(245,158,11,0.2)]" };
-  if (rank === 2) return { bg: "bg-slate-400/20", text: "text-slate-300", border: "border-slate-400/30", glow: "" };
-  if (rank === 3) return { bg: "bg-amber-700/20", text: "text-amber-600", border: "border-amber-700/30", glow: "" };
-  return { bg: "bg-white/5", text: "text-[var(--cream-muted)]", border: "border-white/8", glow: "" };
-}
-
-function getMedal(rank: number) {
-  if (rank === 1) return "🥇";
-  if (rank === 2) return "🥈";
-  if (rank === 3) return "🥉";
-  return rank.toString();
-}
+const PODIUM = [
+  { rank: 2, idx: 1, medal: "🥈", height: "h-16", bg: "bg-slate-50 border-slate-200", text: "text-slate-600", avatar: "bg-slate-100 border-slate-300 text-slate-600" },
+  { rank: 1, idx: 0, medal: "🥇", height: "h-24", bg: "bg-amber-50 border-amber-300", text: "text-amber-700", avatar: "bg-amber-100 border-amber-400 text-amber-700", glow: true },
+  { rank: 3, idx: 2, medal: "🥉", height: "h-12", bg: "bg-orange-50 border-orange-200", text: "text-orange-600", avatar: "bg-orange-100 border-orange-300 text-orange-600" },
+];
 
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<"today" | "weekly" | "alltime">("weekly");
@@ -47,7 +38,6 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Get current user id from session
   useEffect(() => {
     fetch("/api/dashboard/stats", { credentials: "include" })
       .then(r => r.ok ? r.json() : {})
@@ -68,18 +58,16 @@ export default function LeaderboardPage() {
       .finally(() => setLoading(false));
   }, [period]);
 
-  const shareText = myRank != null
-    ? `I'm #${myRank} on The Cyber Library leaderboard with ${myHours}h studied! 🏆`
-    : "Check out The Cyber Library study leaderboard!";
-
   function handleShare() {
+    const text = myRank != null
+      ? `I'm #${myRank} on The Cyber Library leaderboard with ${myHours}h studied! 🏆`
+      : "Check out The Cyber Library study leaderboard!";
     const url = window.location.href;
     if (navigator.share) {
-      navigator.share({ title: "Cyber Library Leaderboard", text: shareText, url })
-        .catch(e => { if (e.name !== "AbortError") toast.error("Share failed"); });
+      navigator.share({ title: "Cyber Library Leaderboard", text, url }).catch(e => { if (e.name !== "AbortError") toast.error("Share failed"); });
     } else {
-      navigator.clipboard?.writeText(`${shareText} ${url}`)
-        .then(() => toast.success("Copied!"))
+      navigator.clipboard?.writeText(`${text} ${url}`)
+        .then(() => toast.success("Copied to clipboard!"))
         .catch(() => toast.error("Copy failed"));
     }
   }
@@ -89,174 +77,137 @@ export default function LeaderboardPage() {
   const maxHours = Math.max(...leaderboard.map(e => e.totalHours), 1);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5 px-4 py-6">
-      {/* Back */}
-      <Link href="/dashboard" className="flex items-center gap-1 text-sm text-[var(--cream-muted)] hover:text-[var(--accent)] transition-colors">
-        <ChevronLeft className="h-4 w-4" /> Back
-      </Link>
+    <div className="mx-auto max-w-3xl space-y-6">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-[var(--cream)] flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-amber-400" /> Study Leaderboard
-          </h1>
-          <p className="text-xs text-[var(--cream-muted)] mt-0.5">Top studiers by hours</p>
+      {/* ── Header ── */}
+      <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center">
+            <Trophy className="w-5 h-5 text-amber-500" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-[var(--foreground)]">Study Leaderboard</h1>
+            <p className="text-xs text-[var(--muted-text)]">Top studiers ranked by hours</p>
+          </div>
         </div>
-        {myRank && (
+        {myRank != null && (
           <button onClick={handleShare}
-            className="flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-2 text-xs font-bold text-[var(--ink)] hover:opacity-90 transition">
-            <Share2 className="h-3.5 w-3.5" /> Share
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--accent)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all shadow-[var(--shadow-brand)]">
+            <Share2 className="w-3.5 h-3.5" /> Share
           </button>
         )}
       </div>
 
-      {/* Period tabs */}
-      <div className="flex gap-2">
+      {/* ── Period Tabs ── */}
+      <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] p-1.5 flex gap-1">
         {PERIODS.map(p => (
           <button key={p.value} onClick={() => setPeriod(p.value)}
-            className={`rounded-xl px-4 py-2 text-xs font-bold transition ${period === p.value
-              ? "bg-[var(--accent)] text-[var(--ink)]"
-              : "bg-white/8 text-[var(--cream-muted)] hover:bg-white/12"}`}>
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${period === p.value ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--muted-text)] hover:bg-[var(--page-bg)]"}`}>
             {p.label}
           </button>
         ))}
       </div>
 
-      {/* My rank card */}
+      {/* ── My Rank ── */}
       {myRank != null && (
-        <div className="rounded-2xl border border-[var(--accent)]/25 bg-[var(--accent)]/8 px-5 py-4 flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-lg font-extrabold text-[var(--accent)]">
+        <div className="bg-[var(--accent-pale)] border border-[var(--accent-border)] rounded-2xl px-5 py-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-[var(--accent)]/20 border-2 border-[var(--accent)]/30 flex items-center justify-center text-lg font-black text-[var(--accent)]">
             #{myRank}
           </div>
           <div className="flex-1">
-            <p className="text-xs text-[var(--cream-muted)]">Your position</p>
-            <p className="text-lg font-extrabold text-[var(--cream)]">
-              Rank #{myRank} · {myHours}h studied
-            </p>
+            <p className="text-xs text-[var(--muted-text)]">Your current position</p>
+            <p className="text-base font-black text-[var(--foreground)]">Rank #{myRank} · {myHours}h studied</p>
           </div>
-          <div className="text-2xl">{myRank <= 3 ? getMedal(myRank) : "🎯"}</div>
+          <span className="text-2xl">{myRank <= 3 ? ["🥇","🥈","🥉"][myRank-1] : "🎯"}</span>
         </div>
       )}
 
       {loading ? (
-        <div className="space-y-2">
-          {[1,2,3,4,5].map(i => (
-            <div key={i} className="h-16 rounded-2xl bg-white/5 animate-pulse" />
-          ))}
+        <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] p-12 flex justify-center">
+          <div className="space-y-3 w-full max-w-sm">
+            {[1,2,3,4,5].map(i => <div key={i} className="h-14 rounded-xl bg-[var(--page-bg)] animate-pulse" />)}
+          </div>
         </div>
       ) : leaderboard.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-black/30 px-6 py-14 text-center">
-          <Trophy className="h-10 w-10 text-[var(--wood)] mx-auto mb-3" />
-          <p className="text-sm font-semibold text-[var(--cream-muted)]">No data yet for this period</p>
-          <p className="text-xs text-[var(--wood)] mt-1">Study sessions start karein aur yahan appear karein!</p>
+        <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-6 py-16 text-center">
+          <Trophy className="w-10 h-10 text-amber-300 mx-auto mb-3" />
+          <p className="text-sm font-bold text-[var(--foreground)]">No data yet for this period</p>
+          <p className="text-xs text-[var(--muted-text)] mt-1">Study sessions shuru karo aur leaderboard pe aa jao!</p>
         </div>
       ) : (
-        <>
-          {/* Top 3 podium */}
-          {top3.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {/* 2nd place */}
-              {top3[1] ? (
-                <div className={`flex flex-col items-center rounded-2xl border ${getMedalColor(2).border} ${getMedalColor(2).bg} p-4 pt-3`}>
-                  <div className="text-2xl mb-2">🥈</div>
-                  <div className={`w-10 h-10 rounded-full border ${getMedalColor(2).border} flex items-center justify-center text-xs font-extrabold ${getMedalColor(2).text} mb-2`}>
-                    {getInitials(top3[1].name)}
-                  </div>
-                  <p className="text-[11px] font-bold text-[var(--cream)] text-center truncate w-full">{top3[1].name}</p>
-                  <p className="text-sm font-extrabold text-slate-300 mt-1">{top3[1].totalHours}h</p>
-                  {top3[1].streakDays ? <p className="text-[9px] text-amber-400 mt-0.5">🔥{top3[1].streakDays}d</p> : null}
-                </div>
-              ) : <div />}
-
-              {/* 1st place - center, taller */}
-              {top3[0] && (
-                <div className={`flex flex-col items-center rounded-2xl border ${getMedalColor(1).border} ${getMedalColor(1).bg} ${getMedalColor(1).glow} p-4 pt-2 -mt-3`}>
-                  <div className="text-3xl mb-2">🥇</div>
-                  <div className={`w-12 h-12 rounded-full border-2 ${getMedalColor(1).border} flex items-center justify-center text-sm font-extrabold ${getMedalColor(1).text} mb-2`}>
-                    {getInitials(top3[0].name)}
-                  </div>
-                  <p className="text-[11px] font-bold text-[var(--cream)] text-center truncate w-full">{top3[0].name}</p>
-                  <p className="text-base font-extrabold text-amber-300 mt-1">{top3[0].totalHours}h</p>
-                  {top3[0].streakDays ? <p className="text-[9px] text-amber-400 mt-0.5">🔥{top3[0].streakDays}d</p> : null}
-                  {top3[0].coins ? <p className="text-[9px] text-amber-500 mt-0.5">🪙{top3[0].coins}</p> : null}
-                </div>
-              )}
-
-              {/* 3rd place */}
-              {top3[2] ? (
-                <div className={`flex flex-col items-center rounded-2xl border ${getMedalColor(3).border} ${getMedalColor(3).bg} p-4 pt-3`}>
-                  <div className="text-2xl mb-2">🥉</div>
-                  <div className={`w-10 h-10 rounded-full border ${getMedalColor(3).border} flex items-center justify-center text-xs font-extrabold ${getMedalColor(3).text} mb-2`}>
-                    {getInitials(top3[2].name)}
-                  </div>
-                  <p className="text-[11px] font-bold text-[var(--cream)] text-center truncate w-full">{top3[2].name}</p>
-                  <p className="text-sm font-extrabold text-amber-600 mt-1">{top3[2].totalHours}h</p>
-                  {top3[2].streakDays ? <p className="text-[9px] text-amber-400 mt-0.5">🔥{top3[2].streakDays}d</p> : null}
-                </div>
-              ) : <div />}
+        <div className="space-y-5">
+          {/* Podium */}
+          {top3.length >= 1 && (
+            <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Medal className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold text-[var(--foreground)]">Top 3 Scholars</h3>
+              </div>
+              <div className="flex items-end justify-center gap-3 h-52">
+                {PODIUM.map(({ rank, idx, medal, height, bg, text, avatar, glow }) => {
+                  const entry = top3[idx];
+                  if (!entry) return <div key={rank} className="flex-1" />;
+                  return (
+                    <div key={rank} className="flex-1 flex flex-col items-center gap-2">
+                      <span className="text-2xl">{medal}</span>
+                      <div className={`w-12 h-12 rounded-full border-2 ${avatar} flex items-center justify-center text-sm font-extrabold`}>
+                        {getInitials(entry.name)}
+                      </div>
+                      <p className="text-xs font-bold text-[var(--foreground)] text-center truncate w-full px-1">{entry.name}</p>
+                      {entry.streakDays ? <p className="text-[10px] text-amber-500">🔥{entry.streakDays}d</p> : null}
+                      <div className={`w-full ${height} rounded-t-xl border ${bg} flex items-start justify-center pt-2 ${glow ? "shadow-[0_-4px_16px_rgba(245,158,11,0.2)]" : ""}`}>
+                        <span className={`text-base font-black ${text}`}>{entry.totalHours}h</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {/* Rest of leaderboard */}
+          {/* Rest list */}
           {rest.length > 0 && (
-            <ul className="space-y-2">
-              {rest.map(entry => {
-                const isMe = entry.userId === currentUserId;
-                const colors = getMedalColor(entry.rank);
-                const barPct = Math.round((entry.totalHours / maxHours) * 100);
-                return (
-                  <li key={entry.userId}
-                    className={`relative flex items-center gap-3 rounded-2xl border px-4 py-3 overflow-hidden transition ${isMe
-                      ? "border-[var(--accent)]/30 bg-[var(--accent)]/8"
-                      : "border-white/8 bg-black/20 hover:bg-black/30"}`}>
-                    {/* Progress bar background */}
-                    <div className="absolute inset-0 opacity-10">
-                      <div className="h-full bg-[var(--accent)] transition-all" style={{ width: `${barPct}%` }} />
-                    </div>
-
-                    {/* Rank */}
-                    <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-extrabold ${colors.bg} ${colors.border} ${colors.text}`}>
-                      {getMedal(entry.rank)}
-                    </span>
-
-                    {/* Avatar */}
-                    <div className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${isMe ? "border-[var(--accent)]/40 bg-[var(--accent)]/15 text-[var(--accent)]" : "border-white/10 bg-white/5 text-[var(--cream-muted)]"}`}>
-                      {getInitials(entry.name)}
-                    </div>
-
-                    {/* Info */}
-                    <div className="relative z-10 flex-1 min-w-0">
-                      <p className={`text-sm font-bold truncate ${isMe ? "text-[var(--accent)]" : "text-[var(--cream)]"}`}>
-                        {entry.name} {isMe && <span className="text-[10px] font-normal opacity-60">(you)</span>}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {entry.streakDays ? (
-                          <span className="flex items-center gap-0.5 text-[10px] text-amber-400">
-                            <Flame className="h-3 w-3" />{entry.streakDays}d
-                          </span>
-                        ) : null}
-                        {entry.coins ? (
-                          <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
-                            <Zap className="h-3 w-3" />{entry.coins}
-                          </span>
-                        ) : null}
+            <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-4 h-4 text-[var(--accent)]" />
+                <h3 className="text-sm font-bold text-[var(--foreground)]">Rankings</h3>
+              </div>
+              <ul className="space-y-2">
+                {rest.map(entry => {
+                  const isMe = entry.userId === currentUserId;
+                  const barPct = Math.round((entry.totalHours / maxHours) * 100);
+                  return (
+                    <li key={entry.userId}
+                      className={`relative flex items-center gap-3 rounded-xl border px-4 py-3 overflow-hidden transition-all ${isMe ? "border-[var(--accent-border)] bg-[var(--accent-pale)]" : "border-[var(--border)] bg-white hover:bg-[var(--page-bg)]"}`}>
+                      <div className="absolute inset-0 opacity-[0.06] pointer-events-none">
+                        <div className="h-full bg-[var(--accent)] transition-all" style={{ width: `${barPct}%` }} />
                       </div>
-                    </div>
-
-                    {/* Hours */}
-                    <div className="relative z-10 flex items-center gap-1 shrink-0">
-                      <Clock className="h-3.5 w-3.5 text-[var(--wood)]" />
-                      <span className={`text-base font-extrabold ${isMe ? "text-[var(--accent)]" : "text-[var(--cream)]"}`}>
-                        {entry.totalHours}h
+                      <span className={`relative z-10 w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-xs font-black ${isMe ? "bg-[var(--accent)] text-white" : "bg-[var(--page-bg)] border border-[var(--border)] text-[var(--muted-text)]"}`}>
+                        {entry.rank}
                       </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                      <div className={`relative z-10 w-9 h-9 shrink-0 rounded-full border-2 flex items-center justify-center text-xs font-bold ${isMe ? "border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]" : "border-[var(--border)] bg-[var(--page-bg)] text-[var(--muted-text)]"}`}>
+                        {getInitials(entry.name)}
+                      </div>
+                      <div className="relative z-10 flex-1 min-w-0">
+                        <p className={`text-sm font-bold truncate ${isMe ? "text-[var(--accent)]" : "text-[var(--foreground)]"}`}>
+                          {entry.name} {isMe && <span className="text-[10px] font-normal text-[var(--muted-text)]">(you)</span>}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {entry.streakDays ? <span className="text-[10px] text-amber-500 flex items-center gap-0.5"><Flame className="w-3 h-3"/>{entry.streakDays}d</span> : null}
+                          {entry.coins ? <span className="text-[10px] text-[var(--accent)] flex items-center gap-0.5"><Zap className="w-3 h-3"/>{entry.coins}</span> : null}
+                        </div>
+                      </div>
+                      <div className="relative z-10 flex items-center gap-1 shrink-0">
+                        <Clock className="w-3.5 h-3.5 text-[var(--muted-text)]" />
+                        <span className={`text-base font-black ${isMe ? "text-[var(--accent)]" : "text-[var(--foreground)]"}`}>{entry.totalHours}h</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

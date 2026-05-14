@@ -5,11 +5,14 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 
+// Synthetic ID used for the env-based superadmin (never stored in DB)
+const ENV_SUPERADMIN_ID = "ENV_SUPERADMIN";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { 
+  session: {
     strategy: "jwt",
-    maxAge: 7 * 24 * 60 * 60, // 7 days (reduced from 30)
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   },
   trustHost: true,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
@@ -19,76 +22,106 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        token.id   = user.id;
         token.goal = (user as { goal?: string }).goal;
         token.role = (user as { role?: string }).role ?? "STUDENT";
-        
-        // --- 4 DEVICE LIMIT LOGIC ---
-        // 1. Generate a new JWT ID for this specific login session
+        token.isSuperAdmin = !!(user as { isSuperAdmin?: boolean }).isSuperAdmin;
+
+        // Env-based superadmin: stateless JWT only — no DB session created
+        if (user.id === ENV_SUPERADMIN_ID) {
+          return token;
+        }
+
+        // ── 4-device session limit ────────────────────────────────────
         const jti = crypto.randomUUID();
         token.jti = jti;
 
-        // 2. Count active sessions for this user
         const activeSessions = await prisma.session.findMany({
           where: { userId: user.id },
-          orderBy: { expires: "asc" }, // Oldest expires first
+          orderBy: { expires: "asc" },
         });
 
-        // 3. If there are already 4 or more sessions, delete the oldest ones so we only have 3 left
         if (activeSessions.length >= 4) {
           const toDelete = activeSessions.slice(0, activeSessions.length - 3);
-          const idsToDelete = toDelete.map(s => s.id);
           await prisma.session.deleteMany({
-            where: { id: { in: idsToDelete } }
+            where: { id: { in: toDelete.map(s => s.id) } },
           });
         }
 
-        // 4. Create the new session record in DB to track this specific device
         await prisma.session.create({
           data: {
-             sessionToken: jti,
-             userId: user.id as string,
-             expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-          }
+            sessionToken: jti,
+            userId: user.id as string,
+            expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          },
         });
       }
 
-      // --- VALIDATE SESSION (Force-revocation support) ---
-      // If admin deletes a session from DB, return empty token → NextAuth treats as invalid → 401.
+      // Env superadmin: JWT is self-validating, skip DB check
+      if (!user && token.id === ENV_SUPERADMIN_ID) {
+        return token;
+      }
+
+      // ── Validate DB session (force-revocation support) ────────────
       if (!user && token.jti) {
         try {
           const dbSession = await prisma.session.findUnique({
             where: { sessionToken: token.jti as string },
           });
           if (!dbSession) {
-            console.info(`[auth] Session revoked for user ${token.id} — forcing re-login`);
-            return {} as typeof token;
+            // Session record missing — could be stale (4-device cleanup) or deliberate revocation.
+            // Check if the user account still exists and is not deleted.
+            // If yes: self-heal by recreating the session record (stale jti case).
+            // If no:  force logout (account deleted / revoked).
+            if (token.id && token.id !== ENV_SUPERADMIN_ID) {
+              const userStillExists = await prisma.user.findUnique({
+                where: { id: token.id as string },
+                select: { id: true, deletedAt: true },
+              });
+              if (userStillExists && !userStillExists.deletedAt) {
+                // Self-heal: recreate session so subsequent requests work normally
+                await prisma.session.create({
+                  data: {
+                    sessionToken: token.jti as string,
+                    userId: token.id as string,
+                    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                  },
+                }).catch(() => {}); // ignore race-condition duplicates
+              } else {
+                // Account deleted or soft-deleted — force logout
+                console.info(`[auth] Account deleted for ${token.id} — forcing re-login`);
+                return {} as typeof token;
+              }
+            } else {
+              return {} as typeof token;
+            }
           }
         } catch {
-          // DB unreachable — fail open to avoid locking out everyone during DB outage
+          // DB unreachable — fail open to avoid mass lockout
         }
       }
 
-      if (token.id) {
-        if (!token.role) {
-          const u = await prisma.user.findUnique({
-            where: { id: token.id as string },
-            select: { role: true },
-          });
-          token.role = (u as { role?: string } | null)?.role ?? "STUDENT";
-        }
+      // Refresh role from DB on subsequent requests if missing
+      if (token.id && token.id !== ENV_SUPERADMIN_ID && !token.role) {
+        const u = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true },
+        });
+        token.role = (u as { role?: string } | null)?.role ?? "STUDENT";
       }
+
       return token;
     },
+
     session({ session, token }) {
       if (!token || (!token.id && !token.email)) {
-         return {} as any;
+        return {} as any;
       }
-
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
-        (session.user as { goal?: string }).goal = token.goal as string | undefined;
-        (session.user as { role?: string }).role = token.role as string;
+        (session.user as { id?: string }).id             = token.id as string;
+        (session.user as { goal?: string }).goal         = token.goal as string | undefined;
+        (session.user as { role?: string }).role         = token.role as string;
+        (session.user as { isSuperAdmin?: boolean }).isSuperAdmin = !!token.isSuperAdmin;
       }
       return session;
     },
@@ -97,41 +130,59 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        email:       { label: "Email",         type: "email" },
+        password:    { label: "Password",      type: "password" },
         loginAsRole: { label: "Login as role", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const email    = String(credentials.email).trim().toLowerCase();
+        const password = String(credentials.password);
+        const requestedRole = credentials.loginAsRole
+          ? String(credentials.loginAsRole).trim()
+          : null;
+
+        // ── Env-based superadmin (no DB lookup, no bcrypt) ────────────
+        const saEmail    = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
+        const saPassword = process.env.SUPERADMIN_PASSWORD?.trim();
+
+        if (saEmail && saPassword && email === saEmail && password === saPassword) {
+          // Only allow ADMIN role selection for the superadmin
+          if (requestedRole && requestedRole !== "ADMIN") return null;
+          return {
+            id:          ENV_SUPERADMIN_ID,
+            email:       saEmail,
+            name:        "Super Admin",
+            role:        "ADMIN",
+            isSuperAdmin: true,
+          } as any;
+        }
+
+        // ── Normal DB-based login ─────────────────────────────────────
         const user = await prisma.user.findUnique({
-          where: { email: String(credentials.email) },
+          where: { email },
           select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            goal: true,
-            password: true,
-            role: true,
-            deletedAt: true,
-            emailVerified: true,
+            id: true, name: true, email: true, image: true,
+            goal: true, password: true, role: true,
+            deletedAt: true, emailVerified: true,
           },
         });
+
         if (!user?.password || (user as { deletedAt?: Date | null }).deletedAt) return null;
-        const ok = await bcrypt.compare(
-          String(credentials.password),
-          user.password
-        );
+
+        const ok = await bcrypt.compare(password, user.password);
         if (!ok) return null;
+
         const role = (user as { role?: string }).role ?? "STUDENT";
-        const requestedRole = credentials.loginAsRole ? String(credentials.loginAsRole).trim() : null;
         if (requestedRole && role !== requestedRole) return null;
+
         return {
-          id: user.id,
-          name: user.name ?? undefined,
+          id:    user.id,
+          name:  user.name ?? undefined,
           email: user.email,
           image: user.image ?? undefined,
-          goal: user.goal ?? undefined,
+          goal:  user.goal ?? undefined,
           role,
         };
       },
@@ -139,9 +190,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
       ? [
           Google({
-            clientId: process.env.AUTH_GOOGLE_ID,
+            clientId:     process.env.AUTH_GOOGLE_ID,
             clientSecret: process.env.AUTH_GOOGLE_SECRET,
-            // Removed: allowDangerousEmailAccountLinking — prevented OAuth-based account takeover
           }),
         ]
       : []),
