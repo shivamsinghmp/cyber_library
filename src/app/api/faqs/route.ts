@@ -14,7 +14,9 @@ export async function GET() {
       }),
       600 // 10 min
     );
-    return NextResponse.json(faqs);
+    return NextResponse.json(faqs, {
+      headers: { "Cache-Control": "public, max-age=600, s-maxage=600, stale-while-revalidate=3600" },
+    });
   } catch (error) {
     console.error("GET /api/faqs:", error);
     return NextResponse.json({ error: "Failed to load FAQs" }, { status: 500 });

@@ -6,25 +6,10 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  LayoutDashboard,
-  Flame,
-  BookOpen,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  UserCircle,
-  Receipt,
-  Gift,
-  ClipboardList,
-  Package,
-  HelpCircle,
-  Video,
-  UserPlus,
-  CheckCircle,
-  MessageSquare,
-  Trophy,
-  Sparkles,
+  LayoutDashboard, Flame, BookOpen, Settings, LogOut,
+  Menu, X, UserCircle, Receipt, Gift, ClipboardList,
+  Package, HelpCircle, Video, UserPlus, CheckCircle,
+  MessageSquare, Trophy, Sparkles, Coins,
 } from "lucide-react";
 import { calculateCompletion, type ProfileForCompletion } from "@/lib/profileCompletion";
 
@@ -37,36 +22,35 @@ const navSections = [
   {
     label: "Main",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/dashboard/tasks", label: "Tasks", icon: CheckCircle },
-      { href: "/dashboard/streaks", label: "Streaks", icon: Flame },
+      { href: "/dashboard",             label: "Dashboard",   icon: LayoutDashboard },
+      { href: "/dashboard/tasks",       label: "Tasks",       icon: CheckCircle },
+      { href: "/dashboard/streaks",     label: "Streaks",     icon: Flame },
       { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
-      { href: "/dashboard/quiz", label: "Quiz", icon: HelpCircle },
+      { href: "/dashboard/quiz",        label: "Quiz",        icon: HelpCircle },
     ],
   },
   {
     label: "Study",
     items: [
-      { href: "/dashboard/studymate", label: "StudyMate AI", icon: Sparkles },
-      { href: "/dashboard/subscription", label: "Study Room", icon: BookOpen },
-      { href: "/dashboard/meet-addon", label: "Meet Add-on", icon: Video },
+      { href: "/dashboard/studymate",    label: "StudyMate AI", icon: Sparkles },
+      { href: "/dashboard/subscription", label: "Study Room",   icon: BookOpen },
+      { href: "/dashboard/meet-addon",   label: "Meet Add-on",  icon: Video },
     ],
   },
   {
     label: "Account",
     items: [
-      { href: "/dashboard/rewards", label: "My Rewards", icon: Gift },
-      { href: "/dashboard/downloads", label: "My Products", icon: Package },
+      { href: "/dashboard/rewards",      label: "My Rewards",   icon: Gift },
+      { href: "/dashboard/downloads",    label: "My Products",  icon: Package },
       { href: "/dashboard/transactions", label: "Transactions", icon: Receipt },
-      { href: "/dashboard/refer", label: "Refer & Earn", icon: UserPlus },
+      { href: "/dashboard/refer",        label: "Refer & Earn", icon: UserPlus },
       { href: "/dashboard/student-form", label: "Profile Form", icon: ClipboardList },
-      { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
-      { href: "/dashboard/profile", label: "Profile", icon: UserCircle },
-      { href: "/dashboard/settings", label: "Settings", icon: Settings },
+      { href: "/dashboard/feedback",     label: "Feedback",     icon: MessageSquare },
+      { href: "/dashboard/profile",      label: "Profile",      icon: UserCircle },
+      { href: "/dashboard/settings",     label: "Settings",     icon: Settings },
     ],
   },
 ];
-const navItems = navSections.flatMap(s => s.items);
 
 export function StudentSidebar() {
   const pathname = usePathname();
@@ -87,98 +71,105 @@ export function StudentSidebar() {
 
   useEffect(() => {
     fetch("/api/site-branding")
-      .then((r) => (r.ok ? r.json() : {}))
+      .then(r => r.ok ? r.json() : {})
       .then((d: { logoUrl?: string | null; title?: string | null }) => {
         if (d.logoUrl) setLogoUrl(d.logoUrl);
         if (d.title) setSiteTitle(d.title);
-      })
-      .catch(() => {});
+      }).catch(() => {});
   }, []);
 
   useEffect(() => {
     async function fetchProfile() {
       try {
         const res = await fetch("/api/user/profile", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          setProfile(data);
-        }
-      } catch {
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
+        if (res.ok) setProfile(await res.json());
+      } catch { setProfile(null); }
+      finally { setLoading(false); }
     }
     fetchProfile();
-
-    const handleProfileUpdate = () => fetchProfile();
-    window.addEventListener("profileUpdated", handleProfileUpdate);
-    return () => window.removeEventListener("profileUpdated", handleProfileUpdate);
+    const onUpdate = () => fetchProfile();
+    window.addEventListener("profileUpdated", onUpdate);
+    return () => window.removeEventListener("profileUpdated", onUpdate);
   }, []);
 
   const completion = calculateCompletion(profile ?? null);
   const displayName = profile?.fullName?.trim() || "Student";
-  const displayGoal = profile?.studyGoal?.trim() || "Not set";
+  const displayGoal = profile?.studyGoal?.trim() || "No goal set";
   const avatarUrl = profile?.profilePicUrl?.trim() || null;
+  const initials = displayName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "S";
 
-  const sidebarContent = (
-    <>
+  const SidebarBody = () => (
+    <div className="flex flex-1 flex-col min-h-0">
       {/* Profile section */}
-      <div className="border-b border-white/10 px-4 pb-4 pt-4">
-        <div className="flex flex-col items-center text-center">
-          <div className="relative">
-            <div className="absolute -inset-0.5 rounded-full bg-[var(--accent)]/40 blur-sm" />
-            <div className="relative flex h-20 w-20 overflow-hidden rounded-full border-2 border-[var(--accent)]/60 bg-black/40">
+      <div className="px-4 py-5 border-b border-[var(--cream-muted)]">
+        <div className="flex items-center gap-3">
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
+            <div className="h-12 w-12 rounded-2xl overflow-hidden border-2 border-[var(--cream-muted)] bg-[var(--cream)] flex items-center justify-center shadow-sm">
               {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
+                <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-[var(--cream-muted)]">
-                  {displayName.charAt(0).toUpperCase()}
-                </span>
+                <span className="text-lg font-black text-[var(--accent)]">{initials}</span>
               )}
             </div>
+            <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-400 border-2 border-white shadow-sm" />
           </div>
-          <p className="mt-3 text-xs font-medium text-[var(--cream-muted)]">
-            Profile Completion
-          </p>
-          <p className="text-lg font-bold text-[var(--cream)]">{completion}% Complete</p>
-          <div className="mt-1.5 h-2 w-full max-w-[140px] overflow-hidden rounded-full bg-white/10">
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-[var(--foreground)] truncate">{displayName}</p>
+            <p className="text-[10px] text-[var(--muted-text)] truncate">{displayGoal}</p>
+            {totalCoins !== null && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Coins className="h-3 w-3 text-amber-500" />
+                <span className="text-[10px] font-bold text-amber-600">{totalCoins.toLocaleString("en-IN")} coins</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-semibold text-[var(--muted-text)]">Profile Complete</span>
+            <span className="text-[10px] font-black text-[var(--accent)]">{completion}%</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-[var(--cream-muted)] overflow-hidden">
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${completion}%`,
-                backgroundColor: "var(--accent)",
-              }}
+              className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[#2DD4BF] transition-all duration-700"
+              style={{ width: `${completion}%` }}
             />
           </div>
-          <p className="mt-3 font-semibold text-[var(--cream)]">{displayName}</p>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--accent)]">Student</p>
-          <p className="text-xs text-[var(--cream-muted)]">{displayGoal}</p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-2">
+      <nav className="flex-1 overflow-y-auto py-2 px-2">
         {navSections.map((section) => (
           <div key={section.label} className="mb-1">
-            <p className="px-3 pt-3 pb-1 text-[9px] font-bold uppercase tracking-widest text-[var(--wood)]/50">{section.label}</p>
+            <p className="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent)]/60">
+              {section.label}
+            </p>
             {section.items.map((item) => {
-              const isActive = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(item.href + "/");
+              const isActive = item.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
               const Icon = item.icon;
               return (
-                <Link key={item.label} href={item.href} onClick={() => setDrawerOpen(false)}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setDrawerOpen(false)}
+                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 mb-0.5 ${
                     isActive
-                      ? "bg-[var(--accent)]/15 text-[var(--cream)] border border-[var(--accent)]/15"
-                      : "text-[var(--cream-muted)] hover:bg-white/5 hover:text-[var(--cream)]"
+                      ? "bg-[var(--accent)]/10 text-[var(--accent)] font-semibold border border-[var(--accent)]/20"
+                      : "text-[var(--body-text)] hover:bg-[var(--cream)] hover:text-[var(--accent)]"
                   }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[var(--accent)]" : "text-[var(--muted-text)]"}`} />
+                  <span>{item.label}</span>
+                  {isActive && (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                  )}
                 </Link>
               );
             })}
@@ -186,43 +177,39 @@ export function StudentSidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
+      {/* Logout */}
+      <div className="border-t border-[var(--cream-muted)] p-3">
         <button
           type="button"
           onClick={async () => {
-              try {
-                await fetch("/api/auth/record-logout", { method: "POST" });
-              } catch {
-                // ignore
-              }
-              signOut({ callbackUrl: "/" });
-            }}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--cream-muted)] transition hover:bg-white/5 hover:text-[var(--cream)]"
+            try { await fetch("/api/auth/record-logout", { method: "POST" }); } catch {}
+            signOut({ callbackUrl: "/" });
+          }}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--muted-text)] transition-all hover:bg-red-50 hover:text-red-600"
         >
           <LogOut className="h-4 w-4 shrink-0" />
-          Logout
+          Sign Out
         </button>
       </div>
-    </>
+    </div>
   );
 
   if (loading) {
     return (
-      <aside className="flex w-56 shrink-0 flex-col border-r border-white/10 bg-black/20 md:w-64">
-        <div className="flex h-14 items-center gap-2 border-b border-white/10 px-4 md:hidden">
-          <div className="h-8 w-8 animate-pulse rounded-lg bg-white/10" />
+      <aside className="hidden md:flex w-64 shrink-0 flex-col bg-white border-r border-[var(--cream-muted)]">
+        <div className="p-4 border-b border-[var(--cream-muted)]">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-[var(--cream)] animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3.5 w-24 rounded-full bg-[var(--cream)] animate-pulse" />
+              <div className="h-2.5 w-16 rounded-full bg-[var(--cream)] animate-pulse" />
+            </div>
+          </div>
         </div>
-        <div className="hidden flex-1 flex-col md:flex">
-          <div className="border-b border-white/10 p-4">
-            <div className="mx-auto h-20 w-20 animate-pulse rounded-full bg-white/10" />
-            <div className="mt-3 h-4 w-24 mx-auto animate-pulse rounded bg-white/10" />
-            <div className="mt-2 h-2 w-full max-w-[140px] mx-auto animate-pulse rounded-full bg-white/10" />
-          </div>
-          <div className="flex-1 space-y-2 p-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-10 animate-pulse rounded-xl bg-white/5" />
-            ))}
-          </div>
+        <div className="flex-1 p-3 space-y-1.5">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-10 rounded-xl bg-[var(--cream)] animate-pulse" />
+          ))}
         </div>
       </aside>
     );
@@ -230,56 +217,59 @@ export function StudentSidebar() {
 
   return (
     <>
-      {/* Mobile: hamburger button */}
+      {/* Mobile hamburger */}
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
-        className="fixed left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/40 text-[var(--cream)] md:hidden"
+        className="fixed left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--cream-muted)] bg-white text-[var(--foreground)] shadow-sm md:hidden"
         aria-label="Open menu"
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Mobile: overlay when drawer open */}
+      {/* Mobile overlay */}
       {drawerOpen && (
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          className="fixed inset-0 z-40 bg-[var(--foreground)]/20 backdrop-blur-sm md:hidden"
           onClick={() => setDrawerOpen(false)}
         />
       )}
 
-      {/* Sidebar: drawer on mobile, fixed on desktop */}
+      {/* Sidebar */}
       <aside
         className={`
-          fixed left-0 top-0 z-50 flex h-full w-64 shrink-0 flex-col border-r border-white/10 bg-[var(--background)] shadow-xl
+          fixed left-0 top-0 z-50 flex h-full w-64 shrink-0 flex-col
+          bg-white border-r border-[var(--cream-muted)] shadow-[4px_0_24px_rgba(13,148,136,0.06)]
           transition-transform duration-300 ease-out
-          md:static md:z-auto md:translate-x-0 md:shadow-none md:w-64
+          md:static md:z-auto md:translate-x-0 md:shadow-none
           ${drawerOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
-        <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-white/10 px-4 md:justify-center">
-          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-xl">
-            {(logoUrl?.trim() && logoUrl.startsWith("http")) ? (
-              <img src={logoUrl} alt={siteTitle} width={32} height={32} className="h-8 w-8 object-cover" />
-            ) : (
-              <Image src={logoUrl?.trim() || "/logo.svg"} alt={siteTitle} width={32} height={32} className="object-cover" />
-            )}
+        {/* Header */}
+        <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-[var(--cream-muted)]">
+          <div className="flex items-center gap-2.5">
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-xl border border-[var(--cream-muted)]">
+              {(logoUrl?.trim() && logoUrl.startsWith("http")) ? (
+                <img src={logoUrl} alt={siteTitle} className="h-full w-full object-cover" />
+              ) : (
+                <Image src={logoUrl?.trim() || "/logo.svg"} alt={siteTitle} width={32} height={32} className="object-cover" />
+              )}
+            </div>
+            <span className="text-sm font-bold text-[var(--foreground)] truncate">{siteTitle}</span>
           </div>
-          <span className="font-semibold text-[var(--cream)]">{siteTitle}</span>
           <button
             type="button"
             onClick={() => setDrawerOpen(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--cream-muted)] hover:bg-white/5 hover:text-[var(--cream)] md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--muted-text)] hover:bg-[var(--cream)] hover:text-[var(--foreground)] md:hidden transition-colors"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="flex flex-1 flex-col overflow-y-auto">
-          {sidebarContent}
-        </div>
+
+        <SidebarBody />
       </aside>
     </>
   );

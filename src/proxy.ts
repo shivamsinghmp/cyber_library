@@ -6,7 +6,15 @@ import { Redis } from "@upstash/redis";
 
 const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author", "/api/admin", "/api/dashboard", "/api/staff", "/api/student", "/api/study", "/api/profile", "/api/user", "/api/feedback", "/api/rewards"];
 
+// Public API routes that must stay accessible without login
+const PUBLIC_API_EXCEPTIONS = [
+  "/api/study/leaderboard",
+];
+
 function isProtected(pathname: string): boolean {
+  if (PUBLIC_API_EXCEPTIONS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    return false;
+  }
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
@@ -24,7 +32,7 @@ const ratelimit = process.env.UPSTASH_REDIS_REST_URL
     })
   : null;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // GLOBAL API RATE LIMITING (DDoS & Brute Force Protection)

@@ -18,26 +18,26 @@ export default function DashboardError({
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
-        <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-red-950/40 border border-red-900/40 flex items-center justify-center">
-          <AlertTriangle className="w-7 h-7 text-red-400" />
+        <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center">
+          <AlertTriangle className="w-7 h-7 text-red-500" />
         </div>
-        <h2 className="text-[#f8f4ed] text-xl font-bold font-heading mb-2">
+        <h2 className="text-[#0F2830] text-xl font-bold font-heading mb-2">
           Dashboard load nahi hua
         </h2>
-        <p className="text-[#9a8264] text-sm mb-6">
+        <p className="text-[#0D9488] text-sm mb-6">
           Thodi der mein dobara try karo. Agar problem bana rahe toh support se contact karo.
         </p>
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 bg-[#9a8264] hover:bg-[#b09575] text-[#1f1810] font-semibold px-4 py-2 rounded-xl transition-colors text-sm"
+            className="inline-flex items-center gap-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-semibold px-4 py-2 rounded-full transition-colors text-sm shadow-[0_4px_18px_rgba(13,148,136,0.35)]"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Retry
           </button>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 bg-[#1f1810] border border-[#2a2018] hover:border-[#9a8264] text-[#e0d5c8] px-4 py-2 rounded-xl transition-colors text-sm"
+            className="inline-flex items-center gap-2 bg-white border border-[#CCFBF1] hover:border-[#0D9488] text-[#0F2830] px-4 py-2 rounded-full transition-colors text-sm shadow-sm"
           >
             <Home className="w-3.5 h-3.5" />
             Dashboard

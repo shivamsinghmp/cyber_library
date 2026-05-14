@@ -9,733 +9,1281 @@ import { DynamicFaqs } from "@/components/DynamicFaqs";
 
 const TESTIMONIALS = [
   {
-    name: "Aman, Civil Services Aspirant",
+    name: "Aman",
+    role: "UPSC Aspirant",
     quote:
-      "I couldn't focus for even 20 minutes before discovering this. The body doubling sessions have completely transformed my study routine and consistency.",
+      "Ghar pe padhna impossible tha — phone, family, distractions. Yahan aake pehli baar 3 ghante continuous pada. Game changer hai seriously.",
+    initial: "A",
   },
   {
-    name: "Khushi, Engineering Student",
+    name: "Khushi",
+    role: "JEE Student",
     quote:
-      "I join the evening slots daily. The lo-fi music, built-in timers, and the silent accountability of cameras on really keeps me anchored.",
+      "Roz evening slot join karti hoon. Camera on hone se neend nahi aati aur baaki students ko dekhke motivation milta hai. Mere marks improve hue hain.",
+    initial: "K",
   },
   {
-    name: "Rohan, Working Professional",
+    name: "Rohan",
+    role: "NEET Aspirant",
     quote:
-      "I never found the discipline for my side projects. Now I join the weekend Night Shifts and effortlessly pull off 3–4 hours of raw deep work.",
+      "Pehle sochta tha 1 ghanta bhi focus nahi kar sakta. Ab daily 4-5 ghante ho jaate hain bina kisi problem ke. Yahi chahiye tha mujhe.",
+    initial: "R",
   },
 ];
 
-const DEFAULT_HEADLINE = "Transform Your Study Habits with Live Body Doubling.";
+const DEFAULT_HEADLINE = "Finally, a Place Where You Actually Study.";
+
+type Faq = { id: string; question: string; answer: string; order?: number };
 
 const fadeIn = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" as const } }
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+  },
 };
 
 const staggerContainer = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
+  visible: { opacity: 1, transition: { staggerChildren: 0.12 } },
 };
 
-export function HomeClient({ 
-  recentBlogs = [] 
-}: { 
-  recentBlogs?: Array<{ id: string, slug: string, title: string, excerpt: string | null, publishedAt: Date | null }> 
-}) {
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.88 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
+  },
+};
+
+type HomeClientProps = {
+  recentBlogs?: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    excerpt: string | null;
+    publishedAt: Date | null;
+  }>;
+  initialHeadline?: string | null;
+  initialFaqs?: Faq[];
+};
+
+export function HomeClient({
+  recentBlogs = [],
+  initialHeadline,
+  initialFaqs = [],
+}: HomeClientProps) {
   const { data: session, status } = useSession();
   const [activeTestimonial, setActiveTestimonial] = useState(0);
-  const [headline, setHeadline] = useState(DEFAULT_HEADLINE);
-  const [stats, setStats] = useState<{ totalStudents: number; totalHours: number; activeNow: number } | null>(null);
+  const headline = initialHeadline?.trim() || DEFAULT_HEADLINE;
+  const [stats, setStats] = useState<{
+    totalStudents: number;
+    totalHours: number;
+    activeNow: number;
+  } | null>(null);
   const isStudent =
-    session?.user && ((session.user as { role?: string }).role ?? "STUDENT") === "STUDENT";
+    session?.user &&
+    ((session.user as { role?: string }).role ?? "STUDENT") === "STUDENT";
   const isLoading = status === "loading";
-
-  useEffect(() => {
-    fetch("/api/site-branding")
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((d: { headline?: string | null }) => {
-        if (d.headline && d.headline.trim()) setHeadline(d.headline.trim());
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     fetch("/api/public-stats")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { totalStudents: number; totalHours: number; activeNow: number } | null) => {
-        if (d) setStats(d);
-      })
+      .then(
+        (d: { totalStudents: number; totalHours: number; activeNow: number } | null) => {
+          if (d) setStats(d);
+        }
+      )
       .catch(() => {});
   }, []);
 
+  /* ─── helpers ─── */
+  const words = headline.split(" ");
+  const headlineStart = words.slice(0, 3).join(" ");
+  const headlineMid   = words.slice(3, 6).join(" ");
+  const headlineEnd   = words.slice(6).join(" ");
+
   return (
-    <div className="relative overflow-hidden bg-[var(--background)] px-4 pb-12 pt-4 md:pb-24 md:pt-16 selection:bg-[var(--accent)] selection:text-black">
-      {/* Animated Premium Grid & Mesh Background */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#8b735510_1px,transparent_1px),linear-gradient(to_bottom,#8b735510_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-40 mix-blend-screen bg-[radial-gradient(circle_at_0%_0%,_var(--accent)_0%,_transparent_40%),radial-gradient(circle_at_100%_100%,_var(--wood)_0%,_transparent_40%)] bg-[length:200%_200%] animate-[mesh_15s_ease-in-out_infinite_alternate]" />
-      <div className="pointer-events-none absolute left-1/2 top-40 h-[800px] w-[800px] -translate-x-1/2 rounded-full bg-[var(--accent)]/5 blur-[200px] animate-[float_8s_ease-in-out_infinite]" />
-      
-      <motion.div 
-        initial="hidden" 
-        animate="visible" 
-        variants={fadeIn}
-        className="relative mx-auto flex max-w-6xl flex-col gap-16 pt-10 md:flex-row md:items-center"
-      >
-        {/* Hero left */}
-        <div className="max-w-xl space-y-10 z-10">
-          <motion.p 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)]/40 bg-[var(--ink)]/60 px-5 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)] backdrop-blur-md shadow-[0_4px_24px_rgba(139,115,85,0.15)] ring-1 ring-white/5"
-          >
-            <span className="flex h-2 w-2 rounded-full bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]">
-              <span className="m-auto h-1 w-1 rounded-full bg-white animate-pulse" />
-            </span>
-            Premium Live Focus Hub
-          </motion.p>
+    <div className="relative overflow-hidden" style={{ background: "var(--page-bg)" }}>
 
-          <h1 className="text-balance text-4xl font-extrabold tracking-tight text-[var(--cream)] sm:text-5xl md:text-6xl leading-[1.12]">
-            {headline}
-          </h1>
+      {/* ══════════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════════ */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
 
-          <p className="max-w-xl text-lg leading-relaxed text-[var(--cream-muted)]/90 font-medium">
-            The Cyber Library is an elite, structured online focus environment. Join quiet, intense study sessions via Google Meet to stay permanently accountable. No social networking, no distractions—just pure deep work alongside the ambitious.
-          </p>
+        {/* Background: dot grid */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: "radial-gradient(circle, #6366F122 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+          }}
+        />
 
-          <div className="flex flex-wrap gap-5 mt-4">
-            {isLoading ? (
-               <div className="h-[52px] w-[180px] animate-pulse rounded-full bg-[var(--wood)]/10 border border-[var(--wood)]/20" />
-            ) : !session?.user ? (
-              <>
-                <Link
-                  href="/login"
-                  className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] px-9 py-4 text-sm font-extrabold text-[var(--ink)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(154,130,100,0.5)]"
-                >
-                  <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-                    <div className="relative h-full w-10 bg-white/40 blur-sm" />
-                  </div>
-                  Join Session Now
-                </Link>
-                <Link
-                  href="/signup"
-                  className="inline-flex items-center justify-center rounded-full border border-[var(--wood)]/30 bg-white/[0.03] backdrop-blur-2xl px-9 py-4 text-sm font-bold text-[var(--cream)] transition-all hover:bg-white/[0.08] hover:border-[var(--accent)]/50 hover:text-white hover:scale-105 hover:shadow-[0_0_20px_rgba(154,130,100,0.2)]"
-                >
-                  Request Access
-                </Link>
-              </>
-            ) : (
-              <Link
-                href="/dashboard"
-                className="group relative inline-flex items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] px-9 py-4 text-sm font-extrabold text-[var(--ink)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(154,130,100,0.5)]"
+        {/* Gradient orbs */}
+        <div
+          className="pointer-events-none absolute -top-48 right-0 h-[700px] w-[700px] rounded-full blur-[140px] animate-[orb-move_22s_ease-in-out_infinite_alternate]"
+          style={{ background: "radial-gradient(circle, rgba(139,92,246,0.18) 0%, rgba(99,102,241,0.08) 60%, transparent 100%)" }}
+        />
+        <div
+          className="pointer-events-none absolute bottom-0 -left-32 h-[500px] w-[500px] rounded-full blur-[120px]"
+          style={{ background: "radial-gradient(circle, rgba(6,182,212,0.14) 0%, transparent 70%)" }}
+        />
+
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-24 md:py-32">
+          <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
+
+            {/* Left */}
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={staggerContainer}
+              className="space-y-8"
+            >
+              {/* Badge */}
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.15em]"
+                  style={{
+                    borderColor: "var(--accent-border)",
+                    background: "var(--accent-pale)",
+                    color: "var(--accent)",
+                  }}>
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+                      style={{ background: "var(--accent)" }} />
+                    <span className="relative inline-flex h-2 w-2 rounded-full"
+                      style={{ background: "var(--accent)" }} />
+                  </span>
+                  Trusted by 5000+ Students Across India
+                </span>
+              </motion.div>
+
+              {/* Headline */}
+              <motion.h1
+                variants={fadeIn}
+                className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight leading-[1.08]"
+                style={{ color: "var(--foreground)" }}
               >
-                <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-                  <div className="relative h-full w-10 bg-white/40 blur-sm" />
-                </div>
-                Go to Dashboard
-              </Link>
-            )}
-          </div>
+                {headlineStart}{" "}
+                <span
+                  className="bg-clip-text text-transparent animate-[gradient-shift_8s_ease_infinite]"
+                  style={{
+                    backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6, #06B6D4, #6366F1)",
+                    backgroundSize: "300% auto",
+                  }}
+                >
+                  {headlineMid}
+                </span>{" "}
+                {headlineEnd}
+              </motion.h1>
 
-          <div className="flex flex-wrap items-center gap-6 pt-2 text-sm font-semibold text-[var(--cream-muted)]">
-            <div className="inline-flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--accent)]/20 text-[var(--accent)] ring-1 ring-[var(--accent)]/30">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-              </span>
-              <span><strong className="text-[var(--cream)] font-bold">Body doubling</strong> accountability</span>
-            </div>
-            <div className="inline-flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--wood)]/20 text-[var(--wood)] ring-1 ring-[var(--wood)]/30">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </span>
-              <span>Pomodoro & Lo-fi pacing</span>
-            </div>
+              {/* Description */}
+              <motion.p
+                variants={fadeIn}
+                className="text-lg leading-relaxed max-w-lg"
+                style={{ color: "var(--body-text)" }}
+              >
+                Ghar pe focus nahi hota? Phone haath mein aa jaata hai? Cyber Library mein aao — yahan students saath milke padhte hain, cameras on, mics off. Koi bakwaas nahi, sirf padhai.
+              </motion.p>
+
+              {/* CTAs */}
+              <motion.div variants={fadeIn} className="flex flex-wrap gap-4">
+                {isLoading ? (
+                  <div className="h-14 w-44 animate-pulse rounded-full"
+                    style={{ background: "var(--accent-pale)" }} />
+                ) : !session?.user ? (
+                  <>
+                    <Link
+                      href="/login"
+                      className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-bold text-white transition-all hover:scale-105"
+                      style={{
+                        background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                        boxShadow: "var(--shadow-brand)",
+                      }}
+                    >
+                      <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
+                      Join Session Now
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </Link>
+                    <Link
+                      href="/signup"
+                      className="inline-flex items-center gap-2 rounded-full border-2 px-8 py-4 text-sm font-bold transition-all hover:scale-105"
+                      style={{
+                        borderColor: "var(--accent)",
+                        color: "var(--accent)",
+                        background: "white",
+                      }}
+                    >
+                      Request Access
+                    </Link>
+                  </>
+                ) : (
+                  <Link
+                    href="/dashboard"
+                    className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-bold text-white transition-all hover:scale-105"
+                    style={{
+                      background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                      boxShadow: "var(--shadow-brand)",
+                    }}
+                  >
+                    <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
+                    Go to Dashboard
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </Link>
+                )}
+              </motion.div>
+
+              {/* Bullets */}
+              <motion.div variants={fadeIn} className="flex flex-wrap gap-5">
+                {[
+                  { emoji: "👥", label: "Saath padhte hain, focus rehta hai" },
+                  { emoji: "⏱️", label: "Pomodoro timer + lo-fi music" },
+                  { emoji: "🏆", label: "Streaks, coins aur leaderboard" },
+                ].map((f) => (
+                  <div key={f.label} className="flex items-center gap-2 text-sm font-medium"
+                    style={{ color: "var(--body-text)" }}>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full text-sm"
+                      style={{ background: "var(--accent-pale)" }}>
+                      {f.emoji}
+                    </span>
+                    {f.label}
+                  </div>
+                ))}
+              </motion.div>
+            </motion.div>
+
+            {/* Right: 3D floating card */}
+            <motion.div
+              initial={{ opacity: 0, x: 60 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+              className="relative lg:flex lg:justify-end"
+            >
+              {/* Glow behind card */}
+              <div className="absolute -inset-10 rounded-[3rem] blur-3xl"
+                style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.12))" }} />
+
+              {/* Floating badges */}
+              <motion.div
+                animate={{ y: [0, 8, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute -top-6 -left-4 z-20 rounded-2xl border bg-white px-4 py-3"
+                style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-lg)" }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl text-lg"
+                    style={{
+                      background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                      boxShadow: "0 4px 12px rgba(99,102,241,0.40)",
+                    }}>
+                    🔥
+                  </div>
+                  <div>
+                    <p className="text-xs font-extrabold" style={{ color: "var(--foreground)" }}>7 Din ki Streak! 🔥</p>
+                    <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>Chalta reh bhai</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute -bottom-4 -right-4 z-20 rounded-2xl border bg-white px-4 py-3"
+                style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-lg)" }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl text-lg"
+                    style={{
+                      background: "linear-gradient(135deg, #10B981, #06B6D4)",
+                      boxShadow: "0 4px 12px rgba(16,185,129,0.40)",
+                    }}>
+                    ⚡
+                  </div>
+                  <div>
+                    <p className="text-xs font-extrabold" style={{ color: "var(--foreground)" }}>42 abhi pad rahe hain</p>
+                    <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>Tu bhi aa ja!</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Main card */}
+              <motion.div
+                animate={{ y: [0, -12, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                className="relative w-full max-w-md"
+              >
+                <div className="relative overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/85 p-8 backdrop-blur-xl"
+                  style={{ boxShadow: "0 32px 80px rgba(15,23,42,0.14), 0 8px 24px rgba(99,102,241,0.10)" }}>
+
+                  {/* Card gradient overlay */}
+                  <div className="pointer-events-none absolute inset-0 rounded-[2.5rem]"
+                    style={{ background: "linear-gradient(135deg, rgba(238,242,255,0.5) 0%, transparent 60%, rgba(245,243,255,0.4) 100%)" }} />
+
+                  {/* Header */}
+                  <div className="relative z-10 mb-7 flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-[0.2em]"
+                      style={{ color: "var(--accent)" }}>Teri Padhai Ka Safar</p>
+                    <span className="rounded-full px-3 py-1 text-[10px] font-extrabold text-white"
+                      style={{
+                        background: "linear-gradient(135deg, #10B981, #06B6D4)",
+                        boxShadow: "0 2px 8px rgba(16,185,129,0.4)",
+                      }}>
+                      FREE TO START
+                    </span>
+                  </div>
+
+                  {/* Steps */}
+                  <div className="relative z-10 space-y-3">
+                    {[
+                      { step: "01", title: "Free mein sign up karo", desc: "Sirf 30 second lagenge, I promise", done: true },
+                      { step: "02", title: "Apna slot choose karo", desc: "Morning, afternoon ya night — jo suit kare", done: true },
+                      { step: "03", title: "Google Meet join karo", desc: "Camera on, mic off. Bas padhna hai.", done: false },
+                      { step: "04", title: "Coins kamao, rank badhao", desc: "Roz aao, streak banao, leaderboard pe chao", done: false },
+                    ].map((item, i) => (
+                      <motion.div
+                        key={item.step}
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 + i * 0.1 }}
+                        className="flex items-start gap-4 rounded-2xl border px-4 py-3.5"
+                        style={{
+                          borderColor: item.done ? "var(--accent-border)" : "var(--border)",
+                          background: item.done ? "var(--accent-pale)" : "rgba(255,255,255,0.5)",
+                        }}
+                      >
+                        <span
+                          className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold"
+                          style={item.done ? {
+                            background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                            color: "white",
+                            boxShadow: "0 2px 8px rgba(99,102,241,0.40)",
+                          } : {
+                            background: "var(--border)",
+                            color: "var(--muted-text)",
+                          }}
+                        >
+                          {item.done ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                          ) : item.step}
+                        </span>
+                        <div>
+                          <p className="text-sm font-bold"
+                            style={{ color: item.done ? "var(--accent)" : "var(--foreground)" }}>
+                            {item.title}
+                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: "var(--muted-text)" }}>{item.desc}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Card CTA */}
+                  <div className="relative z-10 mt-6">
+                    <Link
+                      href="/signup"
+                      className="group flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 text-sm font-bold text-white transition-all hover:scale-[1.02]"
+                      style={{
+                        background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                        boxShadow: "var(--shadow-brand)",
+                      }}
+                    >
+                      <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
+                      Abhi Shuru Karo — Free Hai!
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
           </div>
         </div>
+      </section>
 
-        {/* Hero right card (Premium Glass Panel Widget) */}
-        <motion.div 
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
-          className="w-full md:max-w-[440px] z-10 animate-[float_6s_ease-in-out_infinite]"
-        >
-          <div className="glass-panel">
-            <div className="relative flex h-full flex-col gap-7 p-9">
-
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--wood)]">
-                  Your Study Journey
-                </p>
-                <span className="rounded-full bg-[var(--accent)]/15 px-3 py-1 text-[10px] font-bold tracking-widest text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/30">
-                  FREE TO START
-                </span>
-              </div>
-
-              {/* Step list */}
-              <div className="space-y-3">
-                {[
-                  {
-                    step: "01",
-                    title: "Sign Up Free",
-                    desc: "Create your account in 30 seconds",
-                    done: true,
-                  },
-                  {
-                    step: "02",
-                    title: "Pick a Focus Slot",
-                    desc: "Morning, afternoon, or night blocks",
-                    done: true,
-                  },
-                  {
-                    step: "03",
-                    title: "Join the Google Meet Room",
-                    desc: "Cameras on. Mics off. Pure deep work.",
-                    done: false,
-                  },
-                  {
-                    step: "04",
-                    title: "Earn Coins & Climb Leaderboard",
-                    desc: "Streak rewards, study coins & badges",
-                    done: false,
-                  },
-                ].map((item) => (
+      {/* ══════════════════════════════════════════════
+          STATS
+      ══════════════════════════════════════════════ */}
+      {stats && (stats.totalStudents > 0 || stats.totalHours > 0) && (
+        <section className="border-y bg-white py-16" style={{ borderColor: "var(--border)" }}>
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={staggerContainer}
+              className="grid grid-cols-3 gap-8"
+            >
+              {[
+                {
+                  value:
+                    stats.totalStudents >= 1000
+                      ? `${(stats.totalStudents / 1000).toFixed(1)}k+`
+                      : `${stats.totalStudents}+`,
+                  label: "Students Enrolled",
+                  emoji: "👥",
+                  bg: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                  glow: "rgba(99,102,241,0.35)",
+                },
+                {
+                  value:
+                    stats.totalHours >= 1000
+                      ? `${Math.floor(stats.totalHours / 1000)}k+`
+                      : `${stats.totalHours}+`,
+                  label: "Hours Studied",
+                  emoji: "⏱️",
+                  bg: "linear-gradient(135deg, #8B5CF6, #06B6D4)",
+                  glow: "rgba(139,92,246,0.35)",
+                },
+                {
+                  value: stats.activeNow > 0 ? `${stats.activeNow} Live` : "24/7",
+                  label: stats.activeNow > 0 ? "Studying Right Now" : "Always Open",
+                  emoji: stats.activeNow > 0 ? "🔴" : "✅",
+                  bg: "linear-gradient(135deg, #06B6D4, #10B981)",
+                  glow: "rgba(6,182,212,0.35)",
+                },
+              ].map((s, i) => (
+                <motion.div key={i} variants={fadeIn} className="flex flex-col items-center text-center gap-3">
                   <div
-                    key={item.step}
-                    className={`flex items-start gap-4 rounded-2xl border px-5 py-4 transition ${
-                      item.done
-                        ? "border-[var(--accent)]/30 bg-[var(--accent)]/8"
-                        : "border-[var(--wood)]/10 bg-white/[0.02]"
-                    }`}
+                    className="flex h-16 w-16 items-center justify-center rounded-2xl text-2xl"
+                    style={{
+                      background: s.bg,
+                      boxShadow: `0 2px 0 rgba(255,255,255,0.15) inset, 0 -3px 0 rgba(0,0,0,0.12) inset, 0 8px 20px ${s.glow}`,
+                    }}
                   >
-                    <span
-                      className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold ring-1 ${
-                        item.done
-                          ? "bg-[var(--accent)]/20 text-[var(--accent)] ring-[var(--accent)]/40"
-                          : "bg-white/5 text-[var(--cream-muted)] ring-white/10"
-                      }`}
-                    >
-                      {item.done ? (
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                      ) : (
-                        item.step
-                      )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className={`text-sm font-bold ${item.done ? "text-[var(--cream)]" : "text-[var(--cream-muted)]"}`}>
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-[var(--cream-muted)]/70 mt-0.5 leading-relaxed">
-                        {item.desc}
-                      </p>
-                    </div>
+                    {s.emoji}
                   </div>
+                  <p className="text-3xl md:text-4xl font-black" style={{ color: "var(--foreground)" }}>
+                    {s.value}
+                  </p>
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>
+                    {s.label}
+                  </p>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          SCIENCE SECTION
+      ══════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden py-28">
+        <div className="pointer-events-none absolute top-0 right-0 h-[400px] w-[400px] rounded-full blur-[100px]"
+          style={{ background: "radial-gradient(circle, rgba(139,92,246,0.12), transparent)" }} />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-[300px] w-[300px] rounded-full blur-[80px]"
+          style={{ background: "radial-gradient(circle, rgba(6,182,212,0.10), transparent)" }} />
+
+        <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+            className="space-y-16"
+          >
+            {/* Header */}
+            <div className="mx-auto max-w-3xl text-center">
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest mb-5"
+                  style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+                  Ye Kaam Karta Kyun Hai?
+                </span>
+              </motion.div>
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
+                style={{ color: "var(--foreground)" }}>
+                Akele padhna mushkil hai —{" "}
+                <span className="bg-clip-text text-transparent"
+                  style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
+                  Saath mein aasaan.
+                </span>
+              </motion.h2>
+              <motion.p variants={fadeIn} className="mt-5 text-lg leading-relaxed"
+                style={{ color: "var(--body-text)" }}>
+                Science kehta hai — jab aap doosron ke saath kaam karte ho, to focus 3x better hota hai. Hum usi principle pe kaam karte hain. Simple hai, effective hai.
+              </motion.p>
+            </div>
+
+            {/* Cards */}
+            <div className="grid gap-7 md:grid-cols-3">
+              {[
+                {
+                  iconBg: "linear-gradient(145deg, #818CF8, #4F46E5)",
+                  glow: "rgba(99,102,241,0.45)",
+                  cardBg: "linear-gradient(145deg, #EEF2FF 0%, #FFFFFF 100%)",
+                  borderColor: "#C7D2FE",
+                  icon: (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  ),
+                  title: "Saath padhne se focus badhta hai",
+                  desc: "Jab 30-40 students ek saath screen pe dikh rahe hote hain aur padh rahe hote hain — phone uthane ki ichchha khud khatam ho jaati hai. Ye peer pressure acha wala hai.",
+                  watermark: "👥",
+                },
+                {
+                  iconBg: "linear-gradient(145deg, #A78BFA, #7C3AED)",
+                  glow: "rgba(124,58,237,0.45)",
+                  cardBg: "linear-gradient(145deg, #F5F3FF 0%, #FFFFFF 100%)",
+                  borderColor: "#DDD6FE",
+                  icon: (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  ),
+                  title: "Timer se padhai, thakaan nahi",
+                  desc: "50 minute padho, 10 minute rest. Ye Pomodoro technique hai — doctors aur toppers dono use karte hain. Brain fresh rehta hai aur padhaya yaad bhi rehta hai.",
+                  watermark: "⏱️",
+                },
+                {
+                  iconBg: "linear-gradient(145deg, #22D3EE, #0891B2)",
+                  glow: "rgba(8,145,178,0.45)",
+                  cardBg: "linear-gradient(145deg, #ECFEFF 0%, #FFFFFF 100%)",
+                  borderColor: "#A5F3FC",
+                  icon: (
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                  ),
+                  title: "Dimag ko signal milta hai",
+                  desc: "Jab aap Cyber Library open karte ho, brain samajh jaata hai — 'ab padhna hai'. Kuch dino baad automatically focus mode on ho jaata hai. Ye conditioning hai.",
+                  watermark: "⚡",
+                },
+              ].map((item, i) => (
+                <motion.div
+                  variants={fadeIn}
+                  key={i}
+                  whileHover={{ y: -8, transition: { duration: 0.3 } }}
+                  className="group relative overflow-hidden rounded-[2rem] border p-8"
+                  style={{
+                    borderColor: item.borderColor,
+                    background: item.cardBg,
+                    boxShadow: "var(--shadow-md)",
+                  }}
+                >
+                  {/* 3D icon */}
+                  <div className="relative mb-8 inline-block">
+                    <div
+                      className="flex h-16 w-16 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110"
+                      style={{
+                        background: item.iconBg,
+                        boxShadow: `0 2px 0 rgba(255,255,255,0.18) inset, 0 -3px 0 rgba(0,0,0,0.15) inset, 0 8px 20px ${item.glow}, 0 2px 6px rgba(0,0,0,0.08)`,
+                      }}
+                    >
+                      {item.icon}
+                    </div>
+                    {/* 3D shadow clone */}
+                    <div className="absolute top-2 left-2 h-16 w-16 rounded-2xl opacity-20 blur-[10px]"
+                      style={{ background: item.iconBg }} />
+                  </div>
+
+                  <h3 className="mb-3 text-xl font-bold" style={{ color: "var(--foreground)" }}>{item.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>{item.desc}</p>
+
+                  {/* Background watermark */}
+                  <div className="absolute -bottom-2 -right-2 select-none text-[7rem] leading-none opacity-[0.04] pointer-events-none">
+                    {item.watermark}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════
+          HOW IT WORKS
+      ══════════════════════════════════════════════ */}
+      <section className="relative py-28 bg-white">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
+            <div className="mb-16 text-center">
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest mb-5"
+                  style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+                  Itna Simple Hai
+                </span>
+              </motion.div>
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
+                style={{ color: "var(--foreground)" }}>
+                4 Steps Mein Shuru Karo
+              </motion.h2>
+            </div>
+
+            <div className="relative grid gap-8 md:grid-cols-4">
+              {/* Connecting gradient line */}
+              <div
+                className="absolute top-12 left-[12.5%] right-[12.5%] hidden h-[2px] md:block"
+                style={{
+                  background: "linear-gradient(to right, #6366F1, #8B5CF6, #06B6D4, #10B981)",
+                  opacity: 0.3,
+                }}
+              />
+
+              {[
+                {
+                  step: "01",
+                  title: "Free Account Banao",
+                  desc: "Sirf naam aur email chahiye. 30 second mein ho jaata hai — koi credit card nahi.",
+                  color: "#6366F1",
+                },
+                {
+                  step: "02",
+                  title: "Slot Choose Karo",
+                  desc: "Morning, afternoon ya night — jo time suit kare woh slot book karo.",
+                  color: "#8B5CF6",
+                },
+                {
+                  step: "03",
+                  title: "Meet Join Karo",
+                  desc: "Camera on, mic off. Timer shuru hoga aur sab padhai mein lag jaayenge.",
+                  color: "#06B6D4",
+                },
+                {
+                  step: "04",
+                  title: "Roz Aao, Badhte Raho",
+                  desc: "Har din aane se streak banti hai, coins milte hain aur leaderboard pe rank improve hoti hai.",
+                  color: "#10B981",
+                },
+              ].map((item, i) => (
+                <motion.div
+                  variants={scaleIn}
+                  key={i}
+                  className="group relative text-center"
+                >
+                  {/* 3D badge */}
+                  <div className="relative mx-auto mb-8 flex h-24 w-24 items-center justify-center">
+                    <div
+                      className="absolute inset-0 rounded-full blur-[20px] opacity-25"
+                      style={{ background: item.color }}
+                    />
+                    <div
+                      className="relative flex h-24 w-24 items-center justify-center rounded-full text-2xl font-black text-white transition-all duration-300 group-hover:-translate-y-2 group-hover:scale-110"
+                      style={{
+                        background: `linear-gradient(145deg, ${item.color}BB, ${item.color})`,
+                        boxShadow: `0 2px 0 rgba(255,255,255,0.2) inset, 0 -4px 0 rgba(0,0,0,0.15) inset, 0 10px 28px ${item.color}60, 0 4px 8px rgba(0,0,0,0.10)`,
+                      }}
+                    >
+                      {item.step}
+                    </div>
+                    {/* ground shadow */}
+                    <div
+                      className="absolute -bottom-1 left-1/2 h-4 w-14 -translate-x-1/2 rounded-full blur-[8px] opacity-20 transition-opacity duration-300 group-hover:opacity-35"
+                      style={{ background: item.color }}
+                    />
+                  </div>
+
+                  <h4 className="mb-3 text-lg font-bold" style={{ color: "var(--foreground)" }}>{item.title}</h4>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>{item.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════
+          ECOSYSTEM BENTO
+      ══════════════════════════════════════════════ */}
+      <section className="relative py-28">
+        <div className="pointer-events-none absolute left-0 top-1/2 h-[500px] w-[500px] -translate-y-1/2 -translate-x-1/2 rounded-full blur-[120px]"
+          style={{ background: "radial-gradient(circle, rgba(139,92,246,0.10), transparent)" }} />
+
+        <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
+            <div className="mb-16 max-w-3xl mx-auto text-center">
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest mb-5"
+                  style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+                  Sirf Rooms Nahi, Bahut Kuch Hai
+                </span>
+              </motion.div>
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
+                style={{ color: "var(--foreground)" }}>
+                Study rooms ke alawa{" "}
+                <span className="bg-clip-text text-transparent"
+                  style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #06B6D4)" }}>
+                  aur bhi bahut kuch.
+                </span>
+              </motion.h2>
+              <motion.p variants={fadeIn} className="mt-5 text-lg" style={{ color: "var(--body-text)" }}>
+                Games, rewards, mental health support — sab kuch ek jagah. Padhai boring nahi lagegi jab progress dikh rahi ho.
+              </motion.p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-5">
+
+              {/* Feature 1: Live Focus (2 cols, dark) */}
+              <motion.div
+                variants={fadeIn}
+                className="md:col-span-2 group relative overflow-hidden rounded-[2rem] p-10 md:p-12"
+                style={{ background: "linear-gradient(135deg, #4338CA 0%, #5B21B6 55%, #1D4ED8 100%)" }}
+              >
+                {/* bright glow top-right */}
+                <div className="pointer-events-none absolute -top-12 -right-12 h-64 w-64 rounded-full blur-[60px]"
+                  style={{ background: "radial-gradient(circle, rgba(167,139,250,0.45), transparent)" }} />
+                {/* cyan glow bottom */}
+                <div className="pointer-events-none absolute -bottom-8 left-1/3 h-48 w-48 rounded-full blur-[50px]"
+                  style={{ background: "radial-gradient(circle, rgba(99,210,255,0.25), transparent)" }} />
+                {/* dot grid */}
+                <div className="pointer-events-none absolute inset-0"
+                  style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+
+                <div className="relative z-10">
+                  {/* icon box — white bg so it pops */}
+                  <div className="mb-7 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 ring-2 ring-white/30">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>
+                    </svg>
+                  </div>
+                  <h4 className="mb-4 text-2xl font-bold" style={{ color: "#FFFFFF" }}>Live Study Rooms</h4>
+                  <p className="mb-8 max-w-md text-base leading-relaxed font-medium" style={{ color: "#E0E7FF" }}>
+                    Google Meet pe silent sessions join karo. Pomodoro timer chalta hai, sab saath padhte hain. Ghar pe bhi library jaisi feeling aati hai.
+                  </p>
+                  <Link href="/study-room"
+                    className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold transition hover:bg-white/90 hover:scale-105"
+                    style={{ color: "#4338CA" }}>
+                    Explore Rooms
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                  </Link>
+                </div>
+              </motion.div>
+
+              {/* Feature 2: Gamification */}
+              <motion.div
+                variants={fadeIn}
+                className="group relative overflow-hidden rounded-[2rem] border bg-white p-8 transition-all hover:-translate-y-1"
+                style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
+              >
+                <div className="pointer-events-none absolute -top-8 -right-8 h-40 w-40 rounded-full blur-[50px] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  style={{ background: "radial-gradient(circle, rgba(16,185,129,0.2), transparent)" }} />
+                <div className="relative mb-7 inline-block">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110"
+                    style={{
+                      background: "linear-gradient(145deg, #34D399, #059669)",
+                      boxShadow: "0 2px 0 rgba(255,255,255,0.15) inset, 0 -3px 0 rgba(0,0,0,0.12) inset, 0 6px 16px rgba(5,150,105,0.40)",
+                    }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                      <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>
+                    </svg>
+                  </div>
+                  <div className="absolute top-1.5 left-1.5 h-14 w-14 rounded-2xl opacity-25 blur-[8px]"
+                    style={{ background: "linear-gradient(145deg, #34D399, #059669)" }} />
+                </div>
+                <h4 className="mb-3 text-xl font-bold" style={{ color: "var(--foreground)" }}>Streaks & Rewards 🏆</h4>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>
+                  Roz aao toh streak banti hai, coins milte hain. Leaderboard pe naam aata hai toh motivation automatic aa jaata hai.
+                </p>
+              </motion.div>
+
+              {/* Feature 3: Mental Health */}
+              <motion.div
+                variants={fadeIn}
+                className="group relative overflow-hidden rounded-[2rem] border bg-white p-8 transition-all hover:-translate-y-1"
+                style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
+              >
+                <div className="pointer-events-none absolute top-0 left-0 h-48 w-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  style={{ background: "linear-gradient(to bottom, rgba(59,130,246,0.06), transparent)" }} />
+                <div className="relative mb-7 inline-block">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110"
+                    style={{
+                      background: "linear-gradient(145deg, #60A5FA, #2563EB)",
+                      boxShadow: "0 2px 0 rgba(255,255,255,0.15) inset, 0 -3px 0 rgba(0,0,0,0.12) inset, 0 6px 16px rgba(37,99,235,0.40)",
+                    }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                      <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/>
+                      <path d="M12 8v4l3 3"/>
+                    </svg>
+                  </div>
+                  <div className="absolute top-1.5 left-1.5 h-14 w-14 rounded-2xl opacity-25 blur-[8px]"
+                    style={{ background: "linear-gradient(145deg, #60A5FA, #2563EB)" }} />
+                </div>
+                <h4 className="mb-3 text-xl font-bold" style={{ color: "var(--foreground)" }}>Mental Health Support 💙</h4>
+                <p className="mb-6 text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>
+                  Padhai ka pressure bahut hota hai. Agar kabhi overwhelmed lage toh 1-on-1 counselling sessions available hain — bilkul private.
+                </p>
+                <Link href="/mental-session"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold transition-colors"
+                  style={{ color: "#2563EB" }}>
+                  Book a Session
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                </Link>
+              </motion.div>
+
+              {/* Feature 4: Store (2 cols) */}
+              <motion.div
+                variants={fadeIn}
+                className="md:col-span-2 group relative overflow-hidden rounded-[2rem] border bg-white p-10 md:flex md:items-center md:gap-10 transition-all hover:-translate-y-1"
+                style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
+              >
+                <div className="pointer-events-none absolute bottom-0 right-0 h-64 w-64 rounded-full blur-[80px] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                  style={{ background: "radial-gradient(circle, rgba(245,158,11,0.15), transparent)" }} />
+                <div className="relative z-10 flex-1">
+                  <div className="relative mb-7 inline-block">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110"
+                      style={{
+                        background: "linear-gradient(145deg, #FCD34D, #D97706)",
+                        boxShadow: "0 2px 0 rgba(255,255,255,0.15) inset, 0 -3px 0 rgba(0,0,0,0.12) inset, 0 6px 16px rgba(217,119,6,0.40)",
+                      }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+                        <path d="M3 6h18"/>
+                        <path d="M16 10a4 4 0 0 1-8 0"/>
+                      </svg>
+                    </div>
+                    <div className="absolute top-1.5 left-1.5 h-14 w-14 rounded-2xl opacity-25 blur-[8px]"
+                      style={{ background: "linear-gradient(145deg, #FCD34D, #D97706)" }} />
+                  </div>
+                  <h4 className="mb-3 text-2xl font-bold" style={{ color: "var(--foreground)" }}>Study Material Store 📚</h4>
+                  <p className="mb-6 text-base leading-relaxed" style={{ color: "var(--body-text)" }}>
+                    Toppers ke banaye planners, notes aur trackers — seedha download karo. Khud dhundhne ki zarurat nahi.
+                  </p>
+                  <Link href="/store"
+                    className="inline-flex items-center gap-2 text-sm font-bold transition-colors"
+                    style={{ color: "#D97706" }}>
+                    Browse Collection
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                  </Link>
+                </div>
+                <div className="relative z-10 mt-8 hidden md:flex md:mt-0 h-40 w-40 shrink-0 items-center justify-center rounded-[2rem] border"
+                  style={{ borderColor: "var(--accent-border)", background: "linear-gradient(135deg, var(--accent-pale), var(--violet-pale))" }}>
+                  <div className="absolute inset-3 rounded-[1.5rem] border border-dashed"
+                    style={{ borderColor: "var(--accent-border)" }} />
+                  <span className="text-6xl transition-transform duration-500 group-hover:scale-110">📚</span>
+                </div>
+              </motion.div>
+
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════
+          STUDENT CTA
+      ══════════════════════════════════════════════ */}
+      {isStudent && (
+        <section className="py-10 px-4">
+          <div className="mx-auto max-w-5xl">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeIn}
+              className="relative overflow-hidden rounded-[2.5rem] p-px"
+              style={{
+                background: "linear-gradient(135deg, #6366F1, #8B5CF6, #06B6D4)",
+                boxShadow: "var(--shadow-brand)",
+              }}
+            >
+              <div className="rounded-[calc(2.5rem-1px)] px-10 py-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8"
+                style={{ background: "linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 50%, #F5F3FF 100%)" }}>
+                <div>
+                  <h2 className="text-3xl font-extrabold" style={{ color: "var(--foreground)" }}>
+                    Aaj se shuru karte hain? 🚀
+                  </h2>
+                  <p className="mt-3" style={{ color: "var(--body-text)" }}>
+                    Schedule dekho aur apna slot book karo — aaj ki padhai aaj hi ho.
+                  </p>
+                </div>
+                <Link href="/study-room"
+                  className="shrink-0 inline-flex items-center gap-2 rounded-full px-8 py-4 text-sm font-bold text-white transition hover:scale-105"
+                  style={{
+                    background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                    boxShadow: "var(--shadow-brand)",
+                  }}>
+                  Book Study Slot
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          RULES
+      ══════════════════════════════════════════════ */}
+      <section className="relative py-28 bg-white">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
+            <div className="mb-16 text-center">
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
+                style={{ color: "var(--foreground)" }}>
+                4 Simple Rules —{" "}
+                <span className="bg-clip-text text-transparent"
+                  style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
+                  Follow Karo, Fly Karo
+                </span>
+              </motion.h2>
+              <motion.p variants={fadeIn} className="mt-5 mx-auto max-w-2xl text-lg leading-relaxed"
+                style={{ color: "var(--body-text)" }}>
+                Ye rules isiliye hain taaki sab students ka experience best rahe. Ek ka distract hona sabko affect karta hai — isliye discipline must hai.
+              </motion.p>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  icon: (
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m2 2 20 20"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/>
+                      <path d="M5 10v2a7 7 0 0 0 12 5V11"/>
+                      <path d="M15.02 10.4 14 9V4a2 2 0 1 0-4 0v1.07"/>
+                      <path d="M14.53 14.53a3 3 0 0 1-5.06-2.11"/>
+                    </svg>
+                  ),
+                  title: "Mic Band Rakho",
+                  desc: "Room join karte hi mic mute karo. Ek ki awaaz bhi 40 logon ka focus toda sakti hai — isliye ye rule strict hai.",
+                  iconBg: "linear-gradient(145deg, #818CF8, #4F46E5)",
+                  glow: "rgba(99,102,241,0.45)",
+                  span: "lg:col-span-2",
+                },
+                {
+                  icon: (
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M3 9h18"/>
+                    </svg>
+                  ),
+                  title: "Camera On Rakho",
+                  desc: "Camera on hone se neend nahi aati aur phone haath mein nahi jaata. Ye sabse bada trick hai focus ke liye.",
+                  iconBg: "linear-gradient(145deg, #A78BFA, #7C3AED)",
+                  glow: "rgba(124,58,237,0.45)",
+                  span: "lg:col-span-1",
+                },
+                {
+                  icon: (
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/>
+                    </svg>
+                  ),
+                  title: "Baat Nahi, Padhai",
+                  desc: "Chat sirf admin announcements ke liye hai. Dost se baad mein baat karna — pehle apna syllabus complete karo.",
+                  iconBg: "linear-gradient(145deg, #22D3EE, #0891B2)",
+                  glow: "rgba(8,145,178,0.45)",
+                  span: "lg:col-span-1",
+                },
+                {
+                  icon: (
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <circle cx="12" cy="12" r="6"/>
+                      <circle cx="12" cy="12" r="2"/>
+                    </svg>
+                  ),
+                  title: "Pehle Plan, Phir Join",
+                  desc: "Room join karne se pehle decide karo — 'aaj kya padhna hai'. Ek clear goal hoga toh session waste nahi hoga. Timer bajne tak baithna hai!",
+                  iconBg: "linear-gradient(145deg, #34D399, #059669)",
+                  glow: "rgba(5,150,105,0.45)",
+                  span: "lg:col-span-4",
+                },
+              ].map((rule, i) => (
+                <motion.div
+                  key={i}
+                  variants={fadeIn}
+                  className={`group relative overflow-hidden rounded-[2rem] border p-8 transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-md)] ${rule.span}`}
+                  style={{ borderColor: "var(--border)", background: "var(--page-bg)" }}
+                >
+                  {/* Top accent line on hover */}
+                  <div className="absolute top-0 left-0 right-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 group-hover:scale-x-100 rounded-t-[2rem]"
+                    style={{ background: rule.iconBg }} />
+
+                  {/* 3D icon */}
+                  <div className="relative mb-6 inline-block">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:-translate-y-1 group-hover:scale-110"
+                      style={{
+                        background: rule.iconBg,
+                        boxShadow: `0 2px 0 rgba(255,255,255,0.15) inset, 0 -3px 0 rgba(0,0,0,0.12) inset, 0 6px 16px ${rule.glow}`,
+                      }}>
+                      {rule.icon}
+                    </div>
+                    <div className="absolute top-1.5 left-1.5 h-14 w-14 rounded-2xl opacity-20 blur-[8px]"
+                      style={{ background: rule.iconBg }} />
+                  </div>
+
+                  <h3 className="mb-3 text-xl font-bold" style={{ color: "var(--foreground)" }}>{rule.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>{rule.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════
+          TESTIMONIALS
+      ══════════════════════════════════════════════ */}
+      <section className="relative py-28">
+        <div className="pointer-events-none absolute inset-0"
+          style={{ background: "linear-gradient(to bottom, rgba(238,242,255,0.3), transparent 40%)" }} />
+
+        <div className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={staggerContainer}
+          >
+            <div className="mb-12 text-center">
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest mb-5"
+                  style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+                  Unhi Ki Zubaani
+                </span>
+              </motion.div>
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-4xl"
+                style={{ color: "var(--foreground)" }}>
+                Jo Aaye, Woh Bole
+              </motion.h2>
+            </div>
+
+            <motion.div
+              variants={fadeIn}
+              className="relative overflow-hidden rounded-[2.5rem] border bg-white p-10 md:p-14"
+              style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-lg)" }}
+            >
+              {/* Stars */}
+              <div className="mb-8 flex justify-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} width="20" height="20" viewBox="0 0 24 24" fill="#F59E0B">
+                    <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
                 ))}
               </div>
 
-              {/* CTA */}
-              <Link
-                href="/signup"
-                className="group relative flex w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] py-4 text-sm font-extrabold text-[var(--ink)] transition hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(154,130,100,0.4)]"
-              >
-                <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-700 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-                  <div className="relative h-full w-8 bg-white/40 blur-sm" />
-                </div>
-                Start Your First Session →
-              </Link>
-
-            </div>
-          </div>
-        </motion.div>
-      </motion.div>
-
-      {/* Real Platform Stats Bar */}
-      {stats && (stats.totalStudents > 0 || stats.totalHours > 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="mx-auto mt-16 max-w-4xl relative z-10"
-        >
-          <div className="grid grid-cols-3 divide-x divide-[var(--wood)]/15 rounded-2xl border border-[var(--wood)]/15 bg-[var(--ink)]/60 backdrop-blur-md overflow-hidden">
-            {[
-              {
-                value: stats.totalStudents >= 1000
-                  ? `${(stats.totalStudents / 1000).toFixed(1)}k+`
-                  : `${stats.totalStudents}+`,
-                label: "Students Enrolled",
-              },
-              {
-                value: stats.totalHours >= 1000
-                  ? `${Math.floor(stats.totalHours / 1000)}k+`
-                  : `${stats.totalHours}+`,
-                label: "Hours Studied",
-              },
-              {
-                value: stats.activeNow > 0 ? `${stats.activeNow} Live` : "24/7",
-                label: stats.activeNow > 0 ? "Studying Right Now" : "Always Open",
-              },
-            ].map((s, i) => (
-              <div key={i} className="flex flex-col items-center justify-center py-6 px-4 text-center">
-                <p className="text-2xl font-extrabold text-[var(--accent)] md:text-3xl">{s.value}</p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-[var(--cream-muted)]">{s.label}</p>
+              <div className="min-h-[120px] text-center">
+                <motion.p
+                  key={activeTestimonial}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="text-xl md:text-2xl font-semibold leading-relaxed tracking-tight"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  {`"${TESTIMONIALS[activeTestimonial].quote}"`}
+                </motion.p>
               </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
-      {/* NEW SECTION: Science of Body Doubling */}
-      <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
-        className="mx-auto mt-40 max-w-6xl space-y-16 z-10 relative"
-      >
-        <div className="max-w-3xl text-center mx-auto">
-          <motion.h2 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
-            The Science Behind Our Architecture
-          </motion.h2>
-          <motion.p variants={fadeIn} className="mt-6 text-lg text-[var(--cream-muted)] leading-relaxed md:text-xl font-medium">
-            Motivation is fleeting. Discipline is engineered. We leverage high-end psychological frameworks to force you into a flow state.
-          </motion.p>
-        </div>
-
-        <div className="grid gap-8 md:grid-cols-3">
-          {[
-            {
-              title: "Social Accountability",
-              desc: "Knowing that dozens of other ambitious students are actively working alongside you provides the positive peer pressure needed to prevent you from picking up your phone.",
-              icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            },
-            {
-              title: "Structured Productivity",
-              desc: "We utilize strictly timed Pomodoro sprints (e.g., 50 minutes of deep work followed by a 10-minute break) to optimize your brain's cognitive endurance and completely prevent burnout.",
-              icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            },
-            {
-              title: "Environmental Triggering",
-              desc: "By exclusively entering our virtual libraries when you intend to study, you condition your brain to immediately associate this digital environment with high-intensity focus.",
-              icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            },
-          ].map((item, i) => (
-             <motion.div
-              variants={fadeIn}
-              key={i}
-              className="glass-panel group p-10"
-            >
-              <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[var(--accent)]/10 blur-[50px] transition-all duration-700 group-hover:scale-150 group-hover:bg-[var(--accent)]/20" />
-              <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--background)] text-[var(--accent)] shadow-inner ring-1 ring-[var(--wood)]/20">
-                {item.icon}
-              </div>
-              <h3 className="mb-4 text-2xl font-bold text-[var(--cream)] tracking-tight">{item.title}</h3>
-              <p className="text-base leading-relaxed text-[var(--cream-muted)] font-medium">{item.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
-
-      {/* NEW SECTION: How It Works */}
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
-        className="mx-auto mt-40 max-w-6xl relative z-10"
-      >
-        <div className="absolute right-0 top-20 h-96 w-96 rounded-full bg-[var(--wood)]/10 blur-[120px] pointer-events-none" />
-        <div className="text-center mb-16">
-          <motion.h2 variants={fadeIn} className="text-xs font-extrabold uppercase tracking-[0.3em] text-[var(--accent)] mb-4">
-            Workflow
-          </motion.h2>
-          <motion.h3 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
-            How The Hub Operates
-          </motion.h3>
-        </div>
-
-        <div className="grid gap-10 md:grid-cols-4">
-          {[
-            {
-              step: "01",
-              title: "Reserve a Seat",
-              desc: "Browse securely scheduled deep-work sprints and select a slot that fits your study objective."
-            },
-            {
-              step: "02",
-              title: "Enter the Library",
-              desc: "Join our dedicated Google Meet infrastructure. Mute your microphone and keep the camera active."
-            },
-            {
-              step: "03",
-              title: "Lock In",
-              desc: "The admin initiates the Pomodoro timer. Complete silence falls. Raw, unfiltered focus begins."
-            },
-            {
-              step: "04",
-              title: "Rest & Repeat",
-              desc: "Take mandatory 10-minute breaks to stretch and reset your mental bandwidth before the next sprint."
-            }
-          ].map((item, i) => (
-             <motion.div variants={fadeIn} key={i} className="relative group">
-                <div className="mb-6 flex">
-                  <span className="text-6xl font-extrabold text-[var(--wood)]/20 transition-all duration-500 group-hover:text-[var(--accent)]/40 tracking-tighter">
-                    {item.step}
-                  </span>
-                </div>
-                <h4 className="mb-3 text-xl font-bold text-[var(--cream)]">{item.title}</h4>
-                <p className="text-sm leading-relaxed text-[var(--cream-muted)] font-medium">
-                  {item.desc}
-                </p>
-                {i !== 3 && (
-                  <div className="absolute right-0 top-8 hidden w-1/2 -translate-y-1/2 border-t-[1.5px] border-dashed border-[var(--wood)]/20 md:block" />
-                )}
-             </motion.div>
-          ))}
-        </div>
-      </motion.section>
-
-      {/* NEW SECTION: The Unfair Advantage (Ecosystem Showcase) */}
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
-        className="mx-auto mt-40 max-w-6xl relative z-10 px-4"
-      >
-        <div className="absolute left-0 top-1/2 -z-10 h-[600px] w-[600px] -translate-y-1/2 -translate-x-1/2 rounded-full bg-[var(--wood)]/5 blur-[160px]" />
-        
-        <div className="text-center mb-16 max-w-3xl mx-auto">
-          <motion.h2 variants={fadeIn} className="text-xs font-extrabold uppercase tracking-[0.3em] text-[var(--accent)] mb-4">
-            The Complete Ecosystem
-          </motion.h2>
-          <motion.h3 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight leading-tight">
-            Not just study rooms. <br className="hidden md:block"/> An entire productivity engine.
-          </motion.h3>
-          <motion.p variants={fadeIn} className="mt-6 text-lg text-[var(--cream-muted)] font-medium">
-            We combined high-stakes gamification with premium mental health support to create an environment where failure is virtually impossible.
-          </motion.p>
-        </div>
-
-        {/* Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-6">
-          {/* Feature 1: Realtime Focus (Spans 2 cols) */}
-          <motion.div variants={fadeIn} className="md:col-span-2 group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/20 bg-gradient-to-br from-[var(--ink)]/80 to-[var(--background)] p-8 md:p-12 shadow-[0_20px_40px_rgba(15,11,7,0.4)] backdrop-blur-3xl">
-            <div className="absolute right-0 top-0 h-full w-2/3 opacity-30 mix-blend-screen bg-[radial-gradient(ellipse_at_top_right,_var(--accent)_0%,_transparent_70%)] pointer-events-none transition-opacity duration-700 group-hover:opacity-50" />
-            <div className="relative z-10">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent)]/10 text-[var(--accent)] ring-1 ring-[var(--accent)]/30 backdrop-blur-md">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg>
-              </div>
-              <h4 className="text-2xl font-bold text-[var(--cream)] tracking-tight mb-3">Live Focus Architecture</h4>
-              <p className="text-base text-[var(--cream-muted)] leading-relaxed max-w-md font-medium mb-8">
-                Drop into highly structured, completely silent Google Meet rooms. Paced by Pomodoro timers and fueled by the collective willpower of top-tier aspirants.
-              </p>
-              <Link href="/study-room" className="inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)] hover:text-white transition-colors">
-                Explore Rooms <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
-              </Link>
-            </div>
-          </motion.div>
-
-          {/* Feature 2: Gamification */}
-          <motion.div variants={fadeIn} className="group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-white/[0.02] p-8 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30">
-            <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-[40px] pointer-events-none group-hover:bg-emerald-500/20 transition-all" />
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/></svg>
-            </div>
-            <h4 className="text-xl font-bold text-[var(--cream)] tracking-tight mb-3">Gamified Streaks</h4>
-            <p className="text-sm text-[var(--cream-muted)] leading-relaxed font-medium mb-6">
-              Track consistency, dominate the global leaderboard, and earn exclusive ranks and hardware rewards for pure discipline.
-            </p>
-          </motion.div>
-
-          {/* Feature 3: Mental Health */}
-          <motion.div variants={fadeIn} className="group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-white/[0.02] p-8 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30">
-            <div className="absolute top-0 left-0 h-40 w-full bg-gradient-to-b from-blue-500/10 to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100 pointer-events-none" />
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/30">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M12 8v4l3 3"/></svg>
-            </div>
-            <h4 className="text-xl font-bold text-[var(--cream)] tracking-tight mb-3">Therapy & Wellness</h4>
-            <p className="text-sm text-[var(--cream-muted)] leading-relaxed font-medium mb-6">
-              Burnout destroys careers. Book 1-on-1 private mental wellness sessions with certified professionals to stay anchored.
-            </p>
-            <Link href="/mental-session" className="inline-flex items-center text-sm font-bold text-blue-400 hover:text-white transition-colors">
-              Book a Session
-            </Link>
-          </motion.div>
-
-          {/* Feature 4: Store & Vault (Spans 2 cols) */}
-          <motion.div variants={fadeIn} className="md:col-span-2 group relative overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-white/[0.02] p-8 md:p-12 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30 flex flex-col md:flex-row md:items-center gap-8 md:gap-12">
-            <div className="flex-1">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--wood)]/10 text-[var(--wood)] ring-1 ring-[var(--wood)]/30">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-              </div>
-              <h4 className="text-2xl font-bold text-[var(--cream)] tracking-tight mb-3">Premium Digital Vault</h4>
-              <p className="text-base text-[var(--cream-muted)] leading-relaxed font-medium mb-6">
-                Direct access to high-end productivity trackers, planners, and verified study material crafted by toppers, stored forever in your personal dashboard.
-              </p>
-              <Link href="/store" className="inline-flex items-center gap-2 text-sm font-bold text-[var(--wood)] hover:text-white transition-colors">
-                Browse Collection <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
-              </Link>
-            </div>
-            
-            <div className="hidden shrink-0 md:flex w-40 h-40 rounded-[2rem] bg-[var(--background)]/80 ring-1 ring-white/10 items-center justify-center relative shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-               <div className="absolute inset-2 border border-dashed border-[var(--wood)]/20 rounded-[1.5rem]" />
-               <svg className="w-16 h-16 text-[var(--wood)]/50 transition-all duration-700 group-hover:scale-110 group-hover:text-[var(--accent)]" viewBox="0 0 24 24" fill="currentColor"><path d="m20.24 12.24-8 8a2.12 2.12 0 0 1-3 0L3.76 14.76a2.12 2.12 0 0 1 0-3l8-8a2.12 2.12 0 0 1 3 0l5.48 5.48a2.12 2.12 0 0 1 0 3Z"/><path d="M14 8h.01"/></svg>
-            </div>
-          </motion.div>
-        
-        </div>
-      </motion.section>
-
-      {/* Slots CTA – only for logged-in students */}
-      {isStudent && (
-        <motion.section
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeIn}
-          id="slots"
-          className="mx-auto mt-32 max-w-5xl overflow-hidden rounded-[3rem] border border-[var(--accent)]/20 bg-gradient-to-br from-[var(--ink)] to-[var(--background)] p-10 shadow-[0_30px_60px_rgba(15,11,7,0.8)] md:p-14 relative"
-        >
-          <div className="absolute right-0 top-0 h-full w-1/2 opacity-5 mix-blend-screen bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
-          <div className="relative flex flex-col gap-8 sm:flex-row sm:items-center sm:justify-between z-10">
-            <div>
-              <h2 className="text-3xl font-extrabold text-[var(--cream)] tracking-tight md:text-4xl">
-                Ready to drop into the zone?
-              </h2>
-              <p className="mt-4 text-lg font-medium text-[var(--cream-muted)]">
-                View the schedule and reserve a seat in our upcoming silent study blocks.
-              </p>
-            </div>
-            <Link
-              href="/study-room"
-              className="inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--accent)] px-10 py-4 text-base font-bold text-[var(--ink)] shadow-[0_10px_30px_rgba(139,115,85,0.3)] transition-all hover:scale-105 hover:bg-[var(--accent-hover)]"
-            >
-              Book Study Slot
-            </Link>
-          </div>
-        </motion.section>
-      )}
-
-      {/* Bento Grid: Rules and Constraints */}
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
-        id="rules"
-        className="mx-auto mt-32 max-w-6xl space-y-12"
-      >
-        <div className="text-center">
-          <motion.h2 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
-            Simple Rules, Unbreakable Vibe
-          </motion.h2>
-          <motion.p variants={fadeIn} className="mt-6 mx-auto max-w-2xl text-lg font-medium text-[var(--cream-muted)] leading-relaxed">
-            We treat our digital focus rooms exactly like a real prestige library. The structure is non-negotiable, ensuring everyone experiences the absolute highest quality deep work.
-          </motion.p>
-        </div>
-
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <BentoRuleCard
-            icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 2 20 20"/><path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/><path d="M5 10v2a7 7 0 0 0 12 5V11"/><path d="M15.02 10.4 14 9V4a2 2 0 1 0-4 0v1.07"/><path d="M14.53 14.53a3 3 0 0 1-5.06-2.11"/></svg>}
-            title="Maintain Absolute Silence"
-            description="All microphones are strictly muted upon entry. Background noise completely shatters the collective focus state of the room."
-            className="lg:col-span-2"
-          />
-          <BentoRuleCard
-            icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="12" cy="12" r="3"/><path d="M3 9h18"/></svg>}
-            title="Cameras Highly Preferred"
-            description="Keeping your camera active simulates genuine library body doubling."
-            className="lg:col-span-1"
-          />
-          <BentoRuleCard
-            icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>}
-            title="Zero Socialization"
-            description="The chat feature is exclusively reserved for urgent administrative announcements."
-            className="lg:col-span-1"
-          />
-          <BentoRuleCard
-            icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>}
-            title="Commit Before Entry"
-            description="Determine your specific task before joining the meet. Lock in your objective, drop into the room, and do not leave until the timer rings. Structure is freedom."
-            className="lg:col-span-4"
-          />
-        </div>
-      </motion.section>
-
-      {/* Testimonials section */}
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={fadeIn}
-        id="testimonials"
-        className="mx-auto mt-40 max-w-4xl relative"
-      >
-        <div className="absolute -inset-20 bg-gradient-to-b from-transparent via-[var(--accent)]/5 to-transparent blur-3xl rounded-full" />
-        
-        <div className="relative rounded-[3rem] border border-[var(--wood)]/20 bg-[var(--ink)]/50 backdrop-blur-2xl p-10 shadow-[0_40px_80px_rgba(15,11,7,0.7)] md:p-16 text-center">
-          <h2 className="text-xs font-extrabold uppercase tracking-[0.3em] text-[var(--accent)] mb-10">
-            Field Reports
-          </h2>
-
-          <div className="min-h-[160px] px-2 md:px-14">
-            <motion.p 
-              key={activeTestimonial}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="text-xl md:text-3xl font-semibold tracking-tight leading-relaxed text-[var(--cream)]"
-            >
-              “{TESTIMONIALS[activeTestimonial].quote}”
-            </motion.p>
-          </div>
-            
-          <motion.p 
-            key={`${activeTestimonial}-name`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="mt-10 text-base font-bold text-[var(--wood)]"
-          >
-            — {TESTIMONIALS[activeTestimonial].name}
-          </motion.p>
-
-          <div className="mt-14 flex items-center justify-center gap-8">
-            <button
-              type="button"
-              onClick={() => setActiveTestimonial((prev) => prev === 0 ? TESTIMONIALS.length - 1 : prev - 1)}
-              className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--wood)]/20 bg-[var(--background)] text-[var(--cream)] shadow-md transition-all hover:scale-110 hover:bg-[var(--ink)] hover:border-[var(--accent)]/50"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            </button>
-            
-            <div className="flex gap-3">
-              {TESTIMONIALS.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setActiveTestimonial(idx)}
-                  className={`h-2.5 rounded-full transition-all duration-500 ${
-                    idx === activeTestimonial ? "w-10 bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" : "w-2.5 bg-[var(--wood)]/30 hover:bg-[var(--wood)]/60"
-                  }`}
-                  aria-label={`Show testimonial ${idx + 1}`}
-                />
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setActiveTestimonial((prev) => prev === TESTIMONIALS.length - 1 ? 0 : prev + 1)}
-              className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--wood)]/20 bg-[var(--background)] text-[var(--cream)] shadow-md transition-all hover:scale-110 hover:bg-[var(--ink)] hover:border-[var(--accent)]/50"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
-          </div>
-        </div>
-      </motion.section>
-
-      {/* NEW SECTION: Public Leaderboard Preview */}
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
-        className="mx-auto mt-40 max-w-5xl relative z-10 px-4"
-      >
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-full w-full max-w-3xl rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none" />
-        <div className="text-center mb-16 relative z-10">
-          <motion.h2 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
-            Hall of Fame
-          </motion.h2>
-          <motion.p variants={fadeIn} className="mt-4 text-lg text-[var(--cream-muted)] font-medium">
-            The most disciplined students in our ecosystem right now.
-          </motion.p>
-        </div>
-        <motion.div variants={fadeIn} className="relative z-10 mx-auto max-w-2xl">
-          <PlantLeaderboard limit={5} />
-        </motion.div>
-      </motion.section>
-
-      {/* NEW SECTION: Recent Blog Posts */}
-      {recentBlogs.length > 0 && (
-        <motion.section
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          variants={staggerContainer}
-          className="mx-auto mt-40 max-w-6xl relative z-10 px-4"
-        >
-          <div className="absolute right-1/4 top-1/2 -translate-y-1/2 h-full w-[500px] rounded-full bg-[var(--accent)]/5 blur-[120px] pointer-events-none" />
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 relative z-10">
-            <div>
-              <motion.h2 variants={fadeIn} className="text-xs font-extrabold uppercase tracking-[0.3em] text-[var(--accent)] mb-4">
-                Latest Insights
-              </motion.h2>
-              <motion.h3 variants={fadeIn} className="text-3xl font-extrabold text-[var(--cream)] md:text-5xl tracking-tight">
-                From The Hub
-              </motion.h3>
-            </div>
-            <motion.div variants={fadeIn} className="mt-6 md:mt-0">
-              <Link 
-                href="/blog" 
-                className="inline-flex items-center gap-2 text-sm font-bold text-[var(--cream)] hover:text-[var(--accent)] transition-colors"
-                aria-label="View all articles"
-              >
-                View all articles <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
-              </Link>
-            </motion.div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3 relative z-10">
-            {recentBlogs.map((blog, i) => (
-              <motion.div variants={fadeIn} key={blog.id} className="group relative flex flex-col justify-between overflow-hidden rounded-[2rem] border border-[var(--wood)]/10 bg-[var(--ink)]/50 p-8 shadow-inner backdrop-blur-xl transition hover:bg-white/[0.05] hover:border-[var(--wood)]/30">
-                <div>
-                  <div className="mb-4">
-                     <span className="inline-flex rounded-full bg-[var(--wood)]/10 px-3 py-1 text-xs font-semibold text-[var(--wood)] ring-1 ring-inset ring-[var(--wood)]/20">
-                       {blog.publishedAt ? new Date(blog.publishedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
-                     </span>
-                  </div>
-                  <h4 className="text-xl font-bold text-[var(--cream)] tracking-tight mb-3 line-clamp-2">
-                    {blog.title}
-                  </h4>
-                  <p className="text-sm text-[var(--cream-muted)] leading-relaxed font-medium line-clamp-3 mb-8">
-                    {blog.excerpt || "Read more about this topic..."}
+              <div className="mt-10 flex flex-col items-center gap-3">
+                <motion.div
+                  key={`${activeTestimonial}-avatar`}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4 }}
+                  className="flex h-14 w-14 items-center justify-center rounded-full text-xl font-extrabold text-white"
+                  style={{
+                    background: activeTestimonial === 0
+                      ? "linear-gradient(135deg, #6366F1, #8B5CF6)"
+                      : activeTestimonial === 1
+                      ? "linear-gradient(135deg, #8B5CF6, #A855F7)"
+                      : "linear-gradient(135deg, #06B6D4, #3B82F6)",
+                  }}
+                >
+                  {TESTIMONIALS[activeTestimonial].initial}
+                </motion.div>
+                <div className="text-center">
+                  <p className="font-bold" style={{ color: "var(--foreground)" }}>
+                    {TESTIMONIALS[activeTestimonial].name}
+                  </p>
+                  <p className="text-sm" style={{ color: "var(--muted-text)" }}>
+                    {TESTIMONIALS[activeTestimonial].role}
                   </p>
                 </div>
-                <Link href={`/blog/${blog.slug}`} className="inline-flex mt-auto items-center text-sm font-bold text-[var(--accent)] hover:text-white transition-colors group-hover:underline">
-                  Read Article
-                </Link>
+              </div>
+
+              {/* Controls */}
+              <div className="mt-10 flex items-center justify-center gap-6">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveTestimonial((p) => (p === 0 ? TESTIMONIALS.length - 1 : p - 1))
+                  }
+                  className="flex h-12 w-12 items-center justify-center rounded-full border transition-all hover:-translate-y-0.5"
+                  style={{ borderColor: "var(--border)", background: "white", color: "var(--foreground)" }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <div className="flex gap-2">
+                  {TESTIMONIALS.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveTestimonial(idx)}
+                      className="h-2.5 rounded-full transition-all duration-500"
+                      style={{
+                        width: idx === activeTestimonial ? "2rem" : "0.625rem",
+                        background: idx === activeTestimonial ? "var(--accent)" : "var(--border)",
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveTestimonial((p) => (p === TESTIMONIALS.length - 1 ? 0 : p + 1))
+                  }
+                  className="flex h-12 w-12 items-center justify-center rounded-full border transition-all hover:-translate-y-0.5"
+                  style={{ borderColor: "var(--border)", background: "white", color: "var(--foreground)" }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════
+          LEADERBOARD
+      ══════════════════════════════════════════════ */}
+      <section className="py-28 bg-white">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={staggerContainer}
+          >
+            <div className="mb-16 text-center">
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-600 mb-5">
+                  🏆 Is Hafte Ke Toppers
+                </span>
               </motion.div>
-            ))}
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
+                style={{ color: "var(--foreground)" }}>
+                Sabse Zyada Padhne Wale
+              </motion.h2>
+              <motion.p variants={fadeIn} className="mt-4 text-lg" style={{ color: "var(--body-text)" }}>
+                Ye students roz aate hain, roz padhte hain. Kya tu bhi inke saath rank karega?
+              </motion.p>
+            </div>
+            <motion.div variants={fadeIn} className="mx-auto max-w-2xl">
+              <PlantLeaderboard limit={5} />
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════
+          BLOG
+      ══════════════════════════════════════════════ */}
+      {recentBlogs.length > 0 && (
+        <section className="relative py-28">
+          <div className="pointer-events-none absolute right-0 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full blur-[100px]"
+            style={{ background: "radial-gradient(circle, rgba(99,102,241,0.10), transparent)" }} />
+
+          <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={staggerContainer}
+            >
+              <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between">
+                <div>
+                  <motion.div variants={fadeIn}>
+                    <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest mb-3"
+                      style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+                      Padhai ke Tips
+                    </span>
+                  </motion.div>
+                  <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-4xl"
+                    style={{ color: "var(--foreground)" }}>
+                    Blog & Resources
+                  </motion.h2>
+                </div>
+                <motion.div variants={fadeIn} className="mt-6 md:mt-0">
+                  <Link href="/blog"
+                    className="inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5"
+                    style={{
+                      borderColor: "var(--border)",
+                      background: "white",
+                      color: "var(--foreground)",
+                      boxShadow: "var(--shadow-sm)",
+                    }}>
+                    View All Articles
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                  </Link>
+                </motion.div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                {recentBlogs.map((blog, i) => (
+                  <motion.div
+                    variants={fadeIn}
+                    key={blog.id}
+                    className="group flex flex-col overflow-hidden rounded-[2rem] border bg-white transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
+                    style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
+                  >
+                    {/* Gradient top bar */}
+                    <div className="h-1.5 w-full" style={{
+                      background: i === 0
+                        ? "linear-gradient(to right, #6366F1, #8B5CF6)"
+                        : i === 1
+                        ? "linear-gradient(to right, #8B5CF6, #06B6D4)"
+                        : "linear-gradient(to right, #06B6D4, #10B981)",
+                    }} />
+                    <div className="flex-1 p-8">
+                      <div className="mb-4">
+                        <span className="inline-flex rounded-full px-3 py-1 text-xs font-bold"
+                          style={{ background: "var(--accent-pale)", color: "var(--accent)" }}>
+                          {blog.publishedAt
+                            ? new Date(blog.publishedAt).toLocaleDateString(undefined, {
+                                month: "short", day: "numeric", year: "numeric",
+                              })
+                            : "Recent"}
+                        </span>
+                      </div>
+                      <h4 className="mb-3 text-xl font-bold line-clamp-2 transition-colors group-hover:text-[var(--accent)]"
+                        style={{ color: "var(--foreground)" }}>
+                        {blog.title}
+                      </h4>
+                      <p className="text-sm leading-relaxed line-clamp-3" style={{ color: "var(--body-text)" }}>
+                        {blog.excerpt || "Read more about this topic..."}
+                      </p>
+                    </div>
+                    <div className="border-t p-5" style={{ borderColor: "var(--border)" }}>
+                      <Link href={`/blog/${blog.slug}`}
+                        className="inline-flex items-center gap-2 text-sm font-bold transition-colors"
+                        style={{ color: "var(--accent)" }}>
+                        Read Article
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                      </Link>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           </div>
-        </motion.section>
+        </section>
       )}
 
-      {/* Dynamic FAQs Section */}
-      <DynamicFaqs />
-    </div>
-  );
-}
-
-type BentoRuleCardProps = {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  className?: string;
-};
-
-function BentoRuleCard({ icon, title, description, className = "" }: BentoRuleCardProps) {
-  return (
-    <div className={`glass-panel p-10 group ${className}`}>
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--accent)]/30 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--background)]/80 text-[var(--accent)] ring-1 ring-inset ring-[var(--wood)]/20 shadow-inner backdrop-blur-sm">
-        <span aria-hidden="true" className="w-6 h-6">{icon}</span>
-      </div>
-      <h3 className="mb-3 text-2xl font-bold text-[var(--cream)] tracking-tight">{title}</h3>
-      <p className="text-base font-medium leading-relaxed text-[var(--cream-muted)]">{description}</p>
+      {/* ══════════════════════════════════════════════
+          FAQs
+      ══════════════════════════════════════════════ */}
+      <DynamicFaqs initialFaqs={initialFaqs} />
     </div>
   );
 }

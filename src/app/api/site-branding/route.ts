@@ -25,7 +25,9 @@ export async function GET() {
       },
       600 // 10 min
     );
-    return NextResponse.json(branding);
+    return NextResponse.json(branding, {
+      headers: { "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=3600" },
+    });
   } catch {
     return NextResponse.json({ logoUrl: null, faviconUrl: null, title: null, tagline: null, headline: null });
   }

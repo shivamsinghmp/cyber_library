@@ -35,18 +35,11 @@ export async function GET() {
     const totalMinutes = totalSessionsAgg._sum.durationMinutes ?? 0;
     const totalHours = Math.floor(totalMinutes / 60);
 
-    return NextResponse.json({
-      totalStudents,
-      totalHours,
-      activeNow,
+    return NextResponse.json({ totalStudents, totalHours, activeNow }, {
+      headers: { "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600" },
     });
   } catch (e) {
     console.error("GET /api/public-stats:", e);
-    // Return safe fallback — never break the homepage
-    return NextResponse.json({
-      totalStudents: 0,
-      totalHours: 0,
-      activeNow: 0,
-    });
+    return NextResponse.json({ totalStudents: 0, totalHours: 0, activeNow: 0 });
   }
 }

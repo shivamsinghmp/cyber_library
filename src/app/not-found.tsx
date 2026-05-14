@@ -4,79 +4,80 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Home, LayoutDashboard, AlertOctagon } from "lucide-react";
+import { Home, LayoutDashboard, Search } from "lucide-react";
 
 export default function NotFound() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // Prevent starting timer until session status is known
     if (status === "loading") return;
-
     if (countdown === 0) {
-      if (status === "authenticated") {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/");
-      }
+      router.replace(status === "authenticated" ? "/dashboard" : "/");
       return;
     }
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => prev - 1);
-    }, 1000);
-
-    return () => clearInterval(timer);
+    const t = setInterval(() => setCountdown(p => p - 1), 1000);
+    return () => clearInterval(t);
   }, [countdown, status, router]);
 
   const destUrl = status === "authenticated" ? "/dashboard" : "/";
   const destName = status === "authenticated" ? "Dashboard" : "Home";
 
   return (
-    <div className="flex min-h-[80vh] flex-col items-center justify-center px-4 text-center">
-      <div className="relative flex flex-col items-center justify-center rounded-3xl border border-white/10 bg-black/40 px-8 py-16 shadow-2xl backdrop-blur-xl sm:px-16">
-        
-        {/* Glowing Background Effect */}
-        <div className="absolute -top-10 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-[var(--accent)]/20 blur-3xl" />
+    <div className="min-h-[100dvh] flex items-center justify-center px-4 bg-[var(--page-bg)]">
+      <div className="w-full max-w-md text-center">
 
-        <AlertOctagon className="h-16 w-16 text-[var(--accent)] drop-shadow-md" strokeWidth={1.5} />
-        
-        <h1 className="mt-6 text-5xl font-bold tracking-tight text-[var(--cream)] md:text-6xl">
-          404
+        {/* Illustration */}
+        <div className="relative flex h-32 w-32 items-center justify-center mx-auto mb-8">
+          <div className="absolute inset-0 rounded-full bg-[var(--cream)] border border-[var(--cream-muted)]" />
+          <div className="absolute inset-4 rounded-full bg-gradient-to-br from-[var(--accent)]/20 to-[var(--cream-muted)]" />
+          <Search className="relative z-10 h-12 w-12 text-[var(--accent)]" strokeWidth={1.5} />
+        </div>
+
+        <p className="section-eyebrow mb-2">404 — Not Found</p>
+        <h1 className="text-4xl font-black text-[var(--foreground)] mb-3 md:text-5xl">
+          Page Missing
         </h1>
-        <h2 className="mt-2 text-xl font-medium text-[var(--cream-muted)]">
-          Page Not Found
-        </h2>
-
-        <p className="mt-6 max-w-sm text-sm leading-relaxed text-[var(--cream-muted)]/80">
-          We couldn&apos;t find the page you&apos;re looking for. It might have been moved or doesn&apos;t exist.
+        <p className="text-base text-[var(--muted-text)] leading-relaxed mb-8 max-w-sm mx-auto">
+          We couldn&apos;t find what you were looking for. It may have been moved or doesn&apos;t exist.
         </p>
 
-        {status !== "loading" && (
-          <div className="mt-8 flex flex-col items-center space-y-4">
-            <div className="flex animate-pulse items-center space-x-2 text-sm font-semibold text-emerald-400">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-              </span>
-              <span>Redirecting to {destName} in {countdown}s...</span>
+        <div className="card p-5 mb-6 text-left">
+          {status !== "loading" && (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[var(--body-text)]">
+                  Redirecting to {destName}
+                </p>
+                <p className="text-xs text-[var(--muted-text)] mt-0.5">in {countdown} seconds...</p>
+              </div>
+              <div className="relative h-10 w-10">
+                <svg className="h-10 w-10 -rotate-90" viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="var(--cream-muted)" strokeWidth="3" />
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="var(--accent)" strokeWidth="3"
+                    strokeDasharray={2 * Math.PI * 16}
+                    strokeDashoffset={2 * Math.PI * 16 * (1 - countdown / 5)}
+                    strokeLinecap="round" className="transition-all duration-1000" />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-[var(--accent)]">
+                  {countdown}
+                </span>
+              </div>
             </div>
-            
-            <Link
-              href={destUrl}
-              className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-2.5 text-sm font-medium text-[var(--cream)] transition-all hover:bg-white/20 hover:text-white"
-            >
-              {status === "authenticated" ? (
-                <LayoutDashboard className="h-4 w-4" />
-              ) : (
-                <Home className="h-4 w-4" />
-              )}
-              Go to {destName} Now
+          )}
+        </div>
+
+        <div className="flex gap-3 justify-center">
+          <Link href="/" className="btn-ghost">
+            <Home className="h-4 w-4" /> Home
+          </Link>
+          {status === "authenticated" && (
+            <Link href="/dashboard" className="btn-primary">
+              <LayoutDashboard className="h-4 w-4" /> Dashboard
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

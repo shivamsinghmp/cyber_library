@@ -10,8 +10,7 @@ const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters").max(72, "Password too long"),
   goal: z.string().min(1, "Study goal is required").max(100),
   whatsappNumber: z.string().min(10, "Valid WhatsApp number is required").max(20),
-  // OTP temporarily disabled for signup
-  otp: z.string().optional(),
+  otp: z.string().length(6, "OTP must be 6 digits"),
 });
 
 export async function POST(request: Request) {
@@ -24,7 +23,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { name, email, password, goal, whatsappNumber } = parsed.data;
+    const { name, email, password, goal, whatsappNumber, otp } = parsed.data;
     const refCode =
       typeof body.ref === "string" && body.ref.trim().length > 0
         ? body.ref.trim()
@@ -50,7 +49,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // OTP verification is temporarily disabled for signup.
+    // Verify SMS OTP
+    const otpRecord = await prisma.whatsAppOTP.findFirst({
+      where: { phoneNumber: whatsappNumber },
+      orderBy: { expiresAt: "desc" },
+    });
+    if (!otpRecord || otpRecord.otp !== otp || !otpRecord.verified || otpRecord.expiresAt < new Date()) {
+      return NextResponse.json(
+        { error: { otp: ["Invalid or expired OTP. Please verify your number first."] } },
+        { status: 400 }
+      );
+    }
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const studentId = await generateStudentId();
@@ -86,6 +95,9 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Cleanup used OTP
+    await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber: whatsappNumber } });
 
     return NextResponse.json(
       { success: true, email },

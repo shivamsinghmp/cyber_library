@@ -19,10 +19,10 @@ const CACHE_TTL = {
   alltime: 600,   // 10 min
 };
 
-/** GET: Global study leaderboard. Query ?period=today|weekly|alltime. Returns top 10 by study hours. */
+/** GET: Global study leaderboard — publicly accessible, no login required.
+ *  Query ?period=today|weekly|alltime. Returns top entries sorted by watch time. */
 export async function GET(request: Request) {
   try {
-    const session = await auth();
     const { searchParams } = new URL(request.url);
     const period = (searchParams.get("period") || "weekly") as "today" | "weekly" | "alltime";
     const now = new Date();
@@ -114,17 +114,20 @@ export async function GET(request: Request) {
       ttl
     );
 
-    const currentUserId = (session?.user as { id?: string })?.id;
-    const myEntry = currentUserId
-      ? (leaderboard as Array<{ userId: string; rank: number; totalHours: number }>).find((e) => e.userId === currentUserId)
-      : null;
+    // Optionally attach current user's rank if they are logged in
+    let myRank: number | null = null, myHours: number | null = null;
+    try {
+      const session = await auth();
+      const currentUserId = (session?.user as { id?: string })?.id;
+      if (currentUserId) {
+        const myEntry = (leaderboard as Array<{ userId: string; rank: number; totalHours: number }>)
+          .find((e) => e.userId === currentUserId);
+        myRank  = myEntry?.rank  ?? null;
+        myHours = myEntry?.totalHours ?? null;
+      }
+    } catch { /* not logged in — skip silently */ }
 
-    return NextResponse.json({
-      leaderboard,
-      period,
-      myRank: myEntry ? myEntry.rank : null,
-      myHours: myEntry ? myEntry.totalHours : null,
-    });
+    return NextResponse.json({ leaderboard, period, myRank, myHours });
   } catch (e) {
     console.error("GET /api/study/leaderboard:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

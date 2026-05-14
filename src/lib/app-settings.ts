@@ -30,6 +30,7 @@ export const APP_SETTING_KEYS = {
   FB_PIXEL_ID:                    { label: "Facebook Pixel ID",                                  secret: false },
   CUSTOM_HEAD_HTML:               { label: "Custom Head HTML (Scripts, tags, etc.)",             secret: false },
   FOOTER_CONFIG_JSON:             { label: "Structured JSON for Footer",                         secret: false },
+  FAST2SMS_API_KEY:               { label: "Fast2SMS API Key (for SMS OTP)",                     secret: true  },
 } as const;
 
 const SECRET_KEYS = new Set(
@@ -86,6 +87,62 @@ export async function getAppSetting(key: keyof typeof APP_SETTING_KEYS): Promise
 export function getAppSettingSync(key: keyof typeof APP_SETTING_KEYS): string | null {
   const v = process.env[key];
   return v != null && v.trim() !== "" ? v.trim() : null;
+}
+
+/**
+ * Batch-load multiple keys in a single DB query.
+ * Falls back to env → in-process cache → DB for each key.
+ * Much cheaper than N separate getAppSetting() calls.
+ */
+export async function batchGetAppSettings(
+  keys: Array<keyof typeof APP_SETTING_KEYS>
+): Promise<Record<string, string | null>> {
+  const result: Record<string, string | null> = {};
+  const dbKeys: Array<keyof typeof APP_SETTING_KEYS> = [];
+
+  for (const key of keys) {
+    const envVal = process.env[key];
+    if (envVal != null && envVal.trim() !== "") {
+      result[key] = envVal.trim();
+      continue;
+    }
+    const cached = cacheGet(key);
+    if (cached !== undefined) {
+      result[key] = cached;
+      continue;
+    }
+    dbKeys.push(key);
+  }
+
+  if (dbKeys.length > 0) {
+    try {
+      const rows = await prisma.appSetting.findMany({
+        where: { key: { in: dbKeys as string[] } },
+        select: { key: true, valueEncrypted: true, iv: true },
+      });
+
+      const found = new Set<string>();
+      for (const row of rows) {
+        const value: string | null = row.valueEncrypted
+          ? (row.iv ? decrypt(row.valueEncrypted, row.iv) : row.valueEncrypted)
+          : null;
+        result[row.key] = value;
+        cacheSet(row.key as keyof typeof APP_SETTING_KEYS, value);
+        found.add(row.key);
+      }
+
+      for (const key of dbKeys) {
+        if (!found.has(key)) {
+          result[key] = null;
+          cacheSet(key, null);
+        }
+      }
+    } catch {
+      for (const key of dbKeys) result[key] = null;
+    }
+  }
+
+  return result;
 }
 
 /** Save setting to DB and invalidate cache. */

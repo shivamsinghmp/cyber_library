@@ -9,51 +9,45 @@ import { z } from "zod";
 import { signIn, getSession } from "next-auth/react";
 import Image from "next/image";
 import { Mail, Lock, ChevronDown, User, Loader2, Eye, EyeOff } from "lucide-react";
-import { motion } from "framer-motion";
 
 const LOGIN_AS_OPTIONS = [
-  { value: "STUDENT", label: "Student" },
-  { value: "ADMIN", label: "Admin" },
-  { value: "EMPLOYEE", label: "Staff" },
+  { value: "STUDENT",    label: "Student" },
+  { value: "ADMIN",      label: "Admin" },
+  { value: "EMPLOYEE",   label: "Staff" },
   { value: "INFLUENCER", label: "Influencer" },
-  { value: "AUTHOR", label: "Author" },
+  { value: "AUTHOR",     label: "Author" },
 ] as const;
 
 const schema = z.object({
-  email: z.string().email("Invalid email"),
-  password: z.string().min(1, "Password is required"),
+  email:    z.string().email("Valid email chahiye"),
+  password: z.string().min(1, "Password daalo"),
 });
-
 type FormData = z.infer<typeof schema>;
 
 function LoginForm() {
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const registered = searchParams.get("registered") === "1";
+  const registered   = searchParams.get("registered") === "1";
+
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [loginAs, setLoginAs] = useState<string>("STUDENT");
+  const [loginAs, setLoginAs]         = useState<string>("STUDENT");
   const [showPassword, setShowPassword] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState("The Cyber Library");
+  const [logoUrl, setLogoUrl]         = useState<string | null>(null);
+  const [siteTitle, setSiteTitle]     = useState("The Cyber Library");
 
   useEffect(() => {
     fetch("/api/site-branding")
-      .then((r) => (r.ok ? r.json() : {}))
+      .then(r => r.ok ? r.json() : {})
       .then((d: { logoUrl?: string | null; title?: string | null }) => {
         if (d.logoUrl) setLogoUrl(d.logoUrl);
-        if (d.title) setSiteTitle(d.title);
-      })
-      .catch(() => {});
+        if (d.title)   setSiteTitle(d.title);
+      }).catch(() => {});
   }, []);
 
-  const logoSrc = logoUrl?.trim() || "/logo.svg";
+  const logoSrc      = logoUrl?.trim() || "/logo.svg";
   const isExternalLogo = logoSrc.startsWith("http");
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
@@ -62,184 +56,247 @@ function LoginForm() {
     setSubmitError(null);
     try {
       const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        loginAsRole: loginAs,
-        redirect: false,
+        email: data.email, password: data.password, loginAsRole: loginAs, redirect: false,
       });
       if (result?.error) {
-        setSubmitError(
-          "Invalid email or password, or this account is not a " +
-            LOGIN_AS_OPTIONS.find((o) => o.value === loginAs)?.label.toLowerCase() +
-            " account. Select the correct role and try again."
-        );
+        setSubmitError("Email ya password galat hai. Dobara check karo.");
         return;
       }
       if (result?.ok) {
         await router.refresh();
-        try {
-          await fetch("/api/auth/record-login", { method: "POST" });
-        } catch {
-          // ignore
-        }
+        try { await fetch("/api/auth/record-login", { method: "POST" }); } catch {}
         const session = await getSession();
-        const role = (session?.user as { role?: string } | undefined)?.role ?? "STUDENT";
-        if (role === "ADMIN") router.push("/admin");
-        else if (role === "EMPLOYEE") router.push("/staff");
+        const role    = (session?.user as { role?: string } | undefined)?.role ?? "STUDENT";
+        if      (role === "ADMIN")      router.push("/admin");
+        else if (role === "EMPLOYEE")   router.push("/staff");
         else if (role === "INFLUENCER") router.push("/affiliate");
-        else if (role === "AUTHOR") router.push("/author");
-        else router.push("/dashboard");
+        else if (role === "AUTHOR")     router.push("/author");
+        else                            router.push("/dashboard");
         return;
       }
-      setSubmitError("Something went wrong. Please try again.");
-    } catch {
-      setSubmitError("Something went wrong. Please try again.");
-    }
+      setSubmitError("Kuch gadbad ho gayi. Dobara try karo.");
+    } catch { setSubmitError("Kuch gadbad ho gayi. Dobara try karo."); }
   }
 
   return (
-    <div className="relative min-h-[100dvh] flex items-center justify-center px-4 pt-32 pb-12 bg-[var(--background)] overflow-hidden">
-      {/* Premium Animated Mesh Background */}
-      <div className="pointer-events-none absolute inset-0 opacity-40 mix-blend-hard-light animate-[mesh] bg-[radial-gradient(circle_at_50%_0%,_var(--accent)_0%,_transparent_60%),radial-gradient(circle_at_80%_80%,_var(--wood)_0%,_transparent_50%),radial-gradient(circle_at_10%_80%,_var(--accent)_0%,_transparent_40%)]" />
+    <div className="min-h-[100dvh] flex items-stretch" style={{ background: "var(--page-bg)" }}>
 
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 30 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} 
-        className="relative z-10 w-full max-w-md glass-panel p-6 md:p-8 shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
-      >
-        <div className="mb-6 flex items-center justify-center flex-col gap-3">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl shadow-inner border border-[var(--wood)]/20 bg-[var(--background)]/50 backdrop-blur-md p-1">
-            {isExternalLogo ? (
-              <img src={logoSrc} alt={siteTitle} className="h-full w-full object-contain rounded-xl" />
-            ) : (
-              <Image src={logoSrc} alt={siteTitle} width={64} height={64} className="object-contain rounded-xl" priority />
-            )}
+      {/* ── LEFT PANEL (desktop only) ── */}
+      <div className="hidden lg:flex lg:w-[42%] flex-col justify-between p-14 relative overflow-hidden"
+        style={{ background: "linear-gradient(145deg, #4338CA 0%, #5B21B6 50%, #1D4ED8 100%)" }}>
+
+        {/* Orbs */}
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full blur-[80px]"
+          style={{ background: "rgba(167,139,250,0.35)" }} />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-64 w-64 rounded-full blur-[80px]"
+          style={{ background: "rgba(99,210,255,0.20)" }} />
+        <div className="pointer-events-none absolute inset-0"
+          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
+
+        {/* Brand */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden bg-white/15 ring-1 ring-white/30">
+            {isExternalLogo
+              ? <img src={logoSrc} alt={siteTitle} className="h-full w-full object-cover" />
+              : <Image src={logoSrc} alt={siteTitle} width={36} height={36} className="object-cover" priority />
+            }
           </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-extrabold tracking-tight text-[var(--cream)] drop-shadow-sm">
-              {siteTitle}
-            </h1>
-            <p className="text-sm font-medium text-[var(--cream-muted)] mt-1 tracking-wide">Enter your credentials to continue</p>
+          <div>
+            <p className="text-sm font-extrabold text-white leading-tight">{siteTitle}</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/60">The Focus Hub</p>
           </div>
         </div>
 
-        {registered && (
-          <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-400 text-center">
-            Account created successfully. You can log in now.
-          </motion.p>
-        )}
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="group">
-            <label className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-[var(--wood)] group-focus-within:text-[var(--accent)] transition-colors">
-              Role
-            </label>
-            <div className="relative">
-              <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wood)] group-focus-within:text-[var(--accent)] transition-colors" />
-              <select
-                value={loginAs}
-                onChange={(e) => setLoginAs(e.target.value)}
-                className="w-full appearance-none rounded-[1.2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/40 backdrop-blur-md py-3 pl-12 pr-8 text-sm font-medium text-[var(--cream)] shadow-inner hover:border-[var(--wood)]/40 focus:border-[var(--accent)]/60 focus:bg-[var(--ink)]/60 focus:outline-none transition-all cursor-pointer"
-              >
-                {LOGIN_AS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value} className="bg-[var(--background)] text-[var(--cream)]">
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none text-[var(--wood)] group-focus-within:text-[var(--accent)] transition-colors" />
-            </div>
-          </div>
-          <div className="group">
-            <label className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-[var(--wood)] group-focus-within:text-[var(--accent)] transition-colors">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wood)] group-focus-within:text-[var(--accent)] transition-colors" />
-              <input
-                {...register("email")}
-                type="email"
-                placeholder="you@example.com"
-                className="w-full rounded-[1.2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/40 backdrop-blur-md py-3 pl-12 pr-4 text-sm font-medium text-[var(--cream)] shadow-inner placeholder:text-[var(--wood)]/40 hover:border-[var(--wood)]/40 focus:border-[var(--accent)]/60 focus:bg-[var(--ink)]/60 focus:outline-none transition-all"
-              />
-            </div>
-            {errors.email && (
-              <p className="mt-2 text-xs font-bold text-red-400 pl-1">{errors.email.message}</p>
-            )}
+        {/* Middle content */}
+        <div className="relative z-10 space-y-8">
+          <div>
+            <h2 className="text-3xl font-extrabold text-white leading-tight mb-3">
+              Wapas aa gaye? <br/>
+              <span style={{ color: "#BAE6FD" }}>Padhai ka wait kar rahi hai.</span>
+            </h2>
+            <p className="text-sm text-white/70 leading-relaxed">
+              Aaj ka session join karo — aur dekho kitne log already padh rahe hain tere saath.
+            </p>
           </div>
 
-          <div className="group">
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-[11px] font-bold uppercase tracking-widest text-[var(--wood)] group-focus-within:text-[var(--accent)] transition-colors">
-                Password
-              </label>
-              <Link
-                href="/forgot-password"
-                className="text-[10px] font-bold uppercase tracking-widest text-[var(--wood)] hover:text-[var(--cream)] transition-colors"
-              >
-                Forgot?
-              </Link>
+          {/* Stats cards */}
+          <div className="space-y-3">
+            {[
+              { emoji: "🔥", label: "Average 7-din ki streak", sub: "consistent students ki" },
+              { emoji: "📚", label: "Roz 500+ ghante ki padhai", sub: "puri community milake" },
+              { emoji: "🏆", label: "India ke top aspirants", sub: "UPSC, JEE, NEET, GATE" },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                <span className="text-2xl">{item.emoji}</span>
+                <div>
+                  <p className="text-sm font-bold text-white">{item.label}</p>
+                  <p className="text-[11px] text-white/55">{item.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom quote */}
+        <div className="relative z-10">
+          <p className="text-xs text-white/40 italic">
+            "Akele padhna mushkil hai — yahan sabke saath aasaan ho jaata hai."
+          </p>
+        </div>
+      </div>
+
+      {/* ── RIGHT PANEL — FORM ── */}
+      <div className="flex-1 flex items-center justify-center px-5 py-12">
+        <div className="w-full max-w-[420px]">
+
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <div className="h-10 w-10 overflow-hidden rounded-xl"
+              style={{ boxShadow: "0 4px 12px rgba(99,102,241,0.25)" }}>
+              {isExternalLogo
+                ? <img src={logoSrc} alt={siteTitle} className="h-full w-full object-cover" />
+                : <Image src={logoSrc} alt={siteTitle} width={40} height={40} className="object-cover" priority />
+              }
             </div>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--wood)] group-focus-within:text-[var(--accent)] transition-colors" />
-              <input
-                {...register("password")}
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
-                className="w-full rounded-[1.2rem] border border-[var(--wood)]/20 bg-[var(--ink)]/40 backdrop-blur-md py-3 pl-12 pr-12 text-sm font-medium text-[var(--cream)] shadow-inner placeholder:text-[var(--wood)]/40 hover:border-[var(--wood)]/40 focus:border-[var(--accent)]/60 focus:bg-[var(--ink)]/60 focus:outline-none transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--wood)] hover:text-[var(--accent)] transition-colors focus:outline-none"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+            <div>
+              <p className="text-sm font-extrabold" style={{ color: "var(--foreground)" }}>{siteTitle}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: "var(--accent)" }}>The Focus Hub</p>
             </div>
-            {errors.password && (
-              <p className="mt-2 text-xs font-bold text-red-400 pl-1">
-                {errors.password.message}
+          </div>
+
+          {/* Heading */}
+          <div className="mb-7">
+            <h1 className="text-2xl font-extrabold" style={{ color: "var(--foreground)" }}>
+              Wapas Aao! 👋
+            </h1>
+            <p className="mt-1 text-sm" style={{ color: "var(--muted-text)" }}>
+              Apna email aur password daalo — session ready hai
+            </p>
+          </div>
+
+          {/* Success banner */}
+          {registered && (
+            <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <span className="text-lg">✅</span>
+              <p className="text-sm font-semibold text-emerald-700">
+                Account ban gaya! Ab login karo.
               </p>
-            )}
-          </div>
-
-          {submitError && (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400 text-center shadow-inner">
-              {submitError}
-            </motion.p>
+            </div>
           )}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="group w-full rounded-full bg-[var(--accent)] py-3.5 mt-2 text-sm font-extrabold uppercase tracking-widest text-[var(--ink)] shadow-[0_4px_16px_rgba(154,130,100,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(154,130,100,0.4)] disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-[0_4px_16px_rgba(154,130,100,0.3)] flex justify-center items-center gap-2"
-          >
-            {isSubmitting ? (
-               <Loader2 className="w-5 h-5 animate-spin" />
-            ) : "Access Library"}
-          </button>
-        </form>
+          {/* Form card */}
+          <div className="rounded-2xl border bg-white p-7"
+            style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-md)" }}>
 
-        <div className="mt-6 text-center border-t border-[var(--wood)]/10 pt-5">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--wood)]">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/signup"
-              className="text-[var(--cream)] hover:text-[var(--accent)] transition-colors ml-1"
-            >
-              Request Access
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+              {/* Role selector */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-extrabold uppercase tracking-widest" style={{ color: "var(--foreground)" }}>
+                  Main kaun hoon
+                </label>
+                <div className="relative">
+                  <User className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--muted-text)" }} />
+                  <select value={loginAs} onChange={e => setLoginAs(e.target.value)}
+                    className="w-full appearance-none rounded-xl border bg-white pl-10 pr-10 py-2.5 text-sm font-semibold outline-none transition focus:ring-2"
+                    style={{
+                      borderColor: "var(--border)",
+                      color: "var(--foreground)",
+                      ["--tw-ring-color" as string]: "rgba(99,102,241,0.25)",
+                    }}>
+                    {LOGIN_AS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--muted-text)" }} />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-extrabold uppercase tracking-widest" style={{ color: "var(--foreground)" }}>
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--muted-text)" }} />
+                  <input {...register("email")} type="email" placeholder="tumhari@email.com"
+                    className="w-full rounded-xl border pl-10 py-2.5 text-sm font-medium outline-none transition focus:ring-2"
+                    style={{ borderColor: "var(--border)", color: "var(--foreground)" }} />
+                </div>
+                {errors.email && <p className="text-xs font-semibold text-red-500">{errors.email.message}</p>}
+              </div>
+
+              {/* Password */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-extrabold uppercase tracking-widest" style={{ color: "var(--foreground)" }}>
+                    Password
+                  </label>
+                  <Link href="/forgot-password"
+                    className="text-[11px] font-bold hover:underline" style={{ color: "var(--accent)" }}>
+                    Bhool gaye?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--muted-text)" }} />
+                  <input {...register("password")} type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border pl-10 pr-10 py-2.5 text-sm font-medium outline-none transition focus:ring-2"
+                    style={{ borderColor: "var(--border)", color: "var(--foreground)" }} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors hover:text-[var(--accent)]"
+                    style={{ color: "var(--muted-text)" }}>
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && <p className="text-xs font-semibold text-red-500">{errors.password.message}</p>}
+              </div>
+
+              {/* Error */}
+              {submitError && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                  <span>❌</span>
+                  <p className="text-sm font-semibold text-red-600">{submitError}</p>
+                </div>
+              )}
+
+              {/* Submit */}
+              <button type="submit" disabled={isSubmitting}
+                className="group relative mt-1 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-3 text-sm font-extrabold text-white transition-all hover:scale-[1.02] disabled:opacity-60"
+                style={{
+                  background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                  boxShadow: "0 6px 20px rgba(99,102,241,0.40)",
+                }}>
+                <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
+                {isSubmitting
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Checking…</>
+                  : "Library Mein Jaao →"
+                }
+              </button>
+            </form>
+          </div>
+
+          {/* Bottom link */}
+          <p className="mt-5 text-center text-sm" style={{ color: "var(--muted-text)" }}>
+            Pehli baar aa rahe ho?{" "}
+            <Link href="/signup" className="font-extrabold hover:underline ml-1" style={{ color: "var(--accent)" }}>
+              Free Account Banao
             </Link>
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--background)] text-[var(--cream-muted)]">Loading…</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--page-bg)" }}>
+        <div className="h-8 w-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--accent)" }} />
+      </div>
+    }>
       <LoginForm />
     </Suspense>
   );

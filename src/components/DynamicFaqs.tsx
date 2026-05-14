@@ -1,37 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
-type Faq = {
-  id: string;
-  question: string;
-  answer: string;
-};
+type Faq = { id: string; question: string; answer: string };
 
-const staggerContainer: any = {
+const staggerContainer = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+  visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
 };
 
-const fadeIn: any = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } },
+const fadeIn = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
 };
 
-export function DynamicFaqs() {
-  const [faqs, setFaqs] = useState<Faq[]>([]);
-  const [loading, setLoading] = useState(true);
+type Props = { initialFaqs?: Faq[] };
 
-  useEffect(() => {
-    fetch("/api/faqs")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setFaqs(Array.isArray(data) ? data : []))
-      .catch(() => setFaqs([]))
-      .finally(() => setLoading(false));
-  }, []);
+export function DynamicFaqs({ initialFaqs = [] }: Props) {
+  // Seeded from server — no client fetch needed
+  const [faqs] = useState<Faq[]>(initialFaqs);
 
-  if (loading || faqs.length === 0) return null;
+  if (faqs.length === 0) return null;
 
   return (
     <motion.section

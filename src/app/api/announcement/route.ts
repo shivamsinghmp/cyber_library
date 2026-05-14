@@ -13,7 +13,9 @@ export async function GET() {
       },
       300 // 5 min
     );
-    return NextResponse.json({ message });
+    return NextResponse.json({ message }, {
+      headers: { "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=3600" },
+    });
   } catch {
     return NextResponse.json({ message: null });
   }

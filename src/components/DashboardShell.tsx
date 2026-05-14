@@ -27,10 +27,10 @@ export async function DashboardShell({
 
   return (
     <SessionProvider>
-      <div className="min-h-screen flex bg-[var(--background)]">
+      <div className="min-h-screen flex bg-[var(--dash-bg)]">
         <RecordLoginOnLoad />
         {isStudent ? <StudentSidebar /> : <RoleBasedSidebar allowedModules={allowedModules} />}
-        <main className="flex-1 overflow-auto px-4 py-8 pt-14 md:pt-8 md:px-6 lg:px-8">
+        <main className="flex-1 overflow-auto px-4 py-6 pt-16 md:pt-6 md:px-6 lg:px-8">
           {children}
         </main>
       </div>

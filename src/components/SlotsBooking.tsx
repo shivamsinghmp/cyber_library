@@ -5,44 +5,64 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useCart } from "@/context/CartContext";
 import toast from "react-hot-toast";
-import { CheckCircle, Clock, Users, ExternalLink, ShieldCheck, Loader2 } from "lucide-react";
+import {
+  Clock, Users, ExternalLink, ShieldCheck,
+  Loader2, CheckCircle, Zap, Lock, BookOpen,
+} from "lucide-react";
 import { motion } from "framer-motion";
 
-type SlotItem = { id: string; roomId: string | null; label: string; time: string; seatsLeft: number; price: number; meetLink: string | null };
+type SlotItem = {
+  id: string;
+  roomId: string | null;
+  label: string;
+  time: string;
+  seatsLeft: number;
+  price: number;
+  meetLink: string | null;
+};
 
 type SlotsBookingProps = {
   hideLoginPrompt?: boolean;
-  /** Filter slots by type: STUDY (default) | MENTORSHIP | MENTAL */
   slotType?: "STUDY" | "MENTORSHIP" | "MENTAL";
   title?: string;
   description?: string;
   emptyMessage?: string;
 };
 
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
+const SLOT_COLORS = [
+  { gradient: "linear-gradient(135deg, #6366F1, #8B5CF6)", glow: "rgba(99,102,241,0.30)", pale: "#EEF2FF", border: "#C7D2FE" },
+  { gradient: "linear-gradient(135deg, #06B6D4, #3B82F6)", glow: "rgba(6,182,212,0.30)",  pale: "#ECFEFF", border: "#A5F3FC" },
+  { gradient: "linear-gradient(135deg, #F59E0B, #EF4444)", glow: "rgba(245,158,11,0.30)",  pale: "#FFFBEB", border: "#FDE68A" },
+  { gradient: "linear-gradient(135deg, #10B981, #06B6D4)", glow: "rgba(16,185,129,0.30)",  pale: "#ECFDF5", border: "#A7F3D0" },
+  { gradient: "linear-gradient(135deg, #8B5CF6, #EC4899)", glow: "rgba(139,92,246,0.30)",  pale: "#F5F3FF", border: "#DDD6FE" },
+  { gradient: "linear-gradient(135deg, #F43F5E, #F59E0B)", glow: "rgba(244,63,94,0.30)",   pale: "#FFF1F2", border: "#FECDD3" },
+];
 
-const itemVariants = {
-  hidden: { opacity: 0, scale: 0.95, y: 30 },
-  show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } },
+const SLOT_EMOJIS = ["🌅", "☀️", "🌆", "🌙", "⭐", "🔥"];
+
+const fadeIn = {
+  hidden:  { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as [number,number,number,number] } },
+};
+const stagger = {
+  hidden:  { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.09 } },
+};
+const cardAnim = {
+  hidden:  { opacity: 0, scale: 0.94, y: 24 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 280, damping: 22 } },
 };
 
 export function SlotsBooking({
   hideLoginPrompt,
   slotType = "STUDY",
-  title = "Study Room",
-  description = "Select your dedicated deep-work shift. every room operates as a silent, camera-on sanctuary engineered for absolute focus and community accountability.",
-  emptyMessage = "No exclusive study rooms are available right now.",
+  title = "Live Study Rooms",
+  description = "Apna slot choose karo aur aaj se padhai shuru karo. Camera on, mic off — pure focus zone.",
+  emptyMessage = "Abhi koi study room available nahi hai. Thodi der baad dobara check karo.",
 }: SlotsBookingProps) {
   const { data: session } = useSession();
   const { addItem, isInCart } = useCart();
-  const [slots, setSlots] = useState<SlotItem[]>([]);
+  const [slots, setSlots]           = useState<SlotItem[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [enrolledSlotIds, setEnrolledSlotIds] = useState<Set<string>>(new Set());
 
@@ -50,11 +70,11 @@ export function SlotsBooking({
     setSlotsLoading(true);
     const url = slotType !== "STUDY" ? `/api/slots?type=${slotType}` : "/api/slots";
     fetch(url, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : []))
+      .then(r => r.ok ? r.json() : [])
       .then((data: { id: string; roomId?: string | null; name: string; timeLabel: string; capacity: number; goal?: string | null; price?: number; meetLink?: string | null }[]) => {
         setSlots(
           Array.isArray(data)
-            ? data.map((s) => ({
+            ? data.map(s => ({
                 id: s.id,
                 roomId: s.roomId ?? null,
                 label: s.name,
@@ -71,180 +91,356 @@ export function SlotsBooking({
   }, [slotType]);
 
   useEffect(() => {
-    if (!session?.user) {
-      setEnrolledSlotIds(new Set());
-      return;
-    }
+    if (!session?.user) { setEnrolledSlotIds(new Set()); return; }
     fetch(`/api/user/subscriptions?_t=${Date.now()}`, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : []))
+      .then(r => r.ok ? r.json() : [])
       .then((data: { studySlotId: string }[]) => {
-        const ids = Array.isArray(data) ? data.map((s) => s.studySlotId) : [];
-        setEnrolledSlotIds(new Set(ids));
+        setEnrolledSlotIds(new Set(Array.isArray(data) ? data.map(s => s.studySlotId) : []));
       })
       .catch(() => setEnrolledSlotIds(new Set()));
   }, [session?.user]);
 
+  const urgencyColor = (seats: number) =>
+    seats === 0 ? "#EF4444" : seats < 5 ? "#F59E0B" : "#10B981";
+
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-32 pb-8 md:pt-40 md:pb-12 relative">
-      {/* Background ambient lighting */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[radial-gradient(ellipse_at_top,_var(--accent)_0%,_transparent_70%)] opacity-[0.04] pointer-events-none" />
+    <div className="relative overflow-hidden" style={{ background: "var(--page-bg)" }}>
 
-      {/* HEADER: CENTER ALIGNED & PREMIUM */}
-      <div className="mb-16 text-center flex flex-col items-center justify-center relative z-10 max-w-3xl mx-auto">
-        <motion.h1 initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="text-4xl md:text-6xl font-black tracking-tight text-white drop-shadow-lg pb-4">
-          {title}
-        </motion.h1>
-        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="h-1 w-20 bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent rounded-full mb-6" />
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="text-[15px] md:text-lg text-[var(--cream-muted)] leading-relaxed font-medium">
-          {description}
-        </motion.p>
-      </div>
+      {/* Ambient orbs */}
+      <div className="pointer-events-none absolute top-0 right-0 h-[500px] w-[500px] rounded-full blur-[140px]"
+        style={{ background: "radial-gradient(circle, rgba(99,102,241,0.10), transparent)" }} />
+      <div className="pointer-events-none absolute bottom-0 left-0 h-[400px] w-[400px] rounded-full blur-[120px]"
+        style={{ background: "radial-gradient(circle, rgba(6,182,212,0.08), transparent)" }} />
+      <div className="pointer-events-none absolute inset-0"
+        style={{ backgroundImage: "radial-gradient(circle, #6366F110 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
 
-      {slotsLoading ? (
-        <div className="flex items-center justify-center py-20">
-           <Loader2 className="w-10 h-10 text-[var(--accent)] animate-spin" />
-        </div>
-      ) : slots.length === 0 ? (
-        <div className="rounded-3xl border border-white/5 bg-black/20 px-6 py-20 text-center shadow-inner max-w-2xl mx-auto">
-           <ShieldCheck className="mx-auto w-12 h-12 text-[var(--cream-muted)]/30 mb-4" />
-           <p className="text-xl font-semibold text-[var(--cream-muted)]">{emptyMessage}</p>
-        </div>
-      ) : (
-        <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 relative z-10">
-          {slots.map((slot) => {
-            const isEnrolled = enrolledSlotIds.has(slot.id);
-            const inCart = isInCart(slot.id);
+      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-10 pb-20">
 
-            return (
-              <motion.div
-                key={slot.id}
-                variants={itemVariants}
-                className={`group relative flex flex-col justify-between rounded-3xl overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out border shadow-2xl hover:-translate-y-2 ${
-                   isEnrolled 
-                   ? 'bg-gradient-to-b from-emerald-950/40 to-black/80 border-emerald-500/20 hover:border-emerald-500/50 hover:shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)]' 
-                   : 'bg-gradient-to-b from-neutral-900/60 to-black/80 border-white/10 hover:border-[var(--accent)]/40 hover:shadow-[0_20px_40px_-10px_rgba(var(--accent-rgb),0.2)]'
-                }`}
-              >
-                {/* Glow Overlay Effect */}
-                {!isEnrolled && <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />}
-                {isEnrolled && <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />}
+        {/* ── HEADER ── */}
+        <motion.div
+          initial="hidden" animate="visible" variants={stagger}
+          className="mb-14 text-center max-w-3xl mx-auto">
 
-                <div className="p-8 relative z-10">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--cream-muted)] mb-1">
-                        {slot.label} Shift
-                      </h2>
-                      <div className="flex items-center gap-2">
-                        <Clock className={`w-4 h-4 ${isEnrolled ? 'text-emerald-400' : 'text-[var(--accent)]'}`} />
-                        <h3 className="text-2xl font-bold text-white tracking-wide">{slot.time}</h3>
+          <motion.div variants={fadeIn} className="mb-4">
+            <span className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-extrabold uppercase tracking-[0.15em]"
+              style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: "var(--accent)" }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--accent)" }} />
+              </span>
+              Sessions Chal Rahi Hain
+            </span>
+          </motion.div>
+
+          <motion.h1 variants={fadeIn}
+            className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl"
+            style={{ color: "var(--foreground)" }}>
+            {title}
+          </motion.h1>
+
+          <motion.p variants={fadeIn} className="mt-4 text-lg leading-relaxed"
+            style={{ color: "var(--body-text)" }}>
+            {description}
+          </motion.p>
+
+          {/* Quick info pills */}
+          <motion.div variants={fadeIn} className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            {[
+              { icon: <Clock className="h-3.5 w-3.5" />, text: "Daily slots available" },
+              { icon: <Users className="h-3.5 w-3.5" />, text: "40+ students per session" },
+              { icon: <Zap className="h-3.5 w-3.5" />,  text: "Instant Meet link" },
+              { icon: <Lock className="h-3.5 w-3.5" />,  text: "Camera on, mic off" },
+            ].map((p, i) => (
+              <span key={i}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold"
+                style={{ borderColor: "var(--border)", background: "white", color: "var(--muted-text)" }}>
+                {p.icon} {p.text}
+              </span>
+            ))}
+          </motion.div>
+        </motion.div>
+
+        {/* ── LOGIN PROMPT (guest) ── */}
+        {!session?.user && !hideLoginPrompt && (
+          <motion.div variants={fadeIn} initial="hidden" animate="visible"
+            className="mb-10 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border px-6 py-4"
+            style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)" }}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl"
+                style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 4px 12px rgba(99,102,241,0.35)" }}>
+                <BookOpen className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-extrabold" style={{ color: "var(--foreground)" }}>
+                  Slot book karne ke liye login karo
+                </p>
+                <p className="text-xs font-semibold" style={{ color: "var(--muted-text)" }}>
+                  Free account mein sabhi features available hain
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 shrink-0">
+              <Link href="/login"
+                className="rounded-full border px-5 py-2 text-xs font-bold transition hover:-translate-y-0.5"
+                style={{ borderColor: "var(--accent-border)", color: "var(--accent)", background: "white" }}>
+                Login Karo
+              </Link>
+              <Link href="/signup"
+                className="rounded-full px-5 py-2 text-xs font-extrabold text-white transition hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 4px 12px rgba(99,102,241,0.35)" }}>
+                Free Join
+              </Link>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── LOADING ── */}
+        {slotsLoading ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-32">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl"
+              style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 24px rgba(99,102,241,0.35)" }}>
+              <Loader2 className="h-8 w-8 animate-spin text-white" />
+            </div>
+            <p className="text-sm font-semibold" style={{ color: "var(--muted-text)" }}>
+              Slots load ho rahe hain…
+            </p>
+          </div>
+
+        /* ── EMPTY ── */
+        ) : slots.length === 0 ? (
+          <div className="mx-auto max-w-md rounded-2xl border bg-white py-16 text-center px-8"
+            style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-md)" }}>
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
+              style={{ background: "var(--accent-pale)", border: "1.5px solid var(--accent-border)" }}>
+              <ShieldCheck className="h-8 w-8" style={{ color: "var(--accent)" }} />
+            </div>
+            <h3 className="text-lg font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
+              Abhi Koi Slot Nahi Hai
+            </h3>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--muted-text)" }}>
+              {emptyMessage}
+            </p>
+          </div>
+
+        /* ── SLOTS GRID ── */
+        ) : (
+          <motion.div
+            variants={stagger} initial="hidden" animate="visible"
+            className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {slots.map((slot, idx) => {
+              const isEnrolled  = enrolledSlotIds.has(slot.id);
+              const inCart      = isInCart(slot.id);
+              const isFull      = slot.seatsLeft === 0;
+              const isUrgent    = slot.seatsLeft > 0 && slot.seatsLeft < 5;
+              const colorSet    = SLOT_COLORS[idx % SLOT_COLORS.length];
+              const emoji       = SLOT_EMOJIS[idx % SLOT_EMOJIS.length];
+
+              return (
+                <motion.div
+                  key={slot.id}
+                  variants={cardAnim}
+                  whileHover={!isFull && !isEnrolled ? { y: -6, transition: { duration: 0.25 } } : {}}
+                  className="group relative flex flex-col overflow-hidden rounded-[1.75rem] border bg-white"
+                  style={{
+                    borderColor: isEnrolled ? "#A7F3D0" : isFull ? "var(--border)" : colorSet.border,
+                    boxShadow: isEnrolled
+                      ? "0 8px 28px rgba(16,185,129,0.18), 0 2px 8px rgba(16,185,129,0.08)"
+                      : "var(--shadow-md)",
+                  }}>
+
+                  {/* ── TOP COLOR STRIPE ── */}
+                  <div className="relative h-1.5 w-full"
+                    style={{ background: isEnrolled ? "linear-gradient(to right, #10B981, #06B6D4)" : colorSet.gradient }} />
+
+                  {/* ── ENROLLED GLOW OVERLAY ── */}
+                  {isEnrolled && (
+                    <div className="pointer-events-none absolute inset-0 rounded-[1.75rem]"
+                      style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.04), transparent)" }} />
+                  )}
+
+                  {/* ── CARD BODY ── */}
+                  <div className="flex flex-1 flex-col p-7">
+
+                    {/* Header row */}
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        {/* Emoji icon */}
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
+                          style={{
+                            background: isEnrolled ? "linear-gradient(135deg, #ECFDF5, #D1FAE5)" : colorSet.pale,
+                            border: `1.5px solid ${isEnrolled ? "#A7F3D0" : colorSet.border}`,
+                          }}>
+                          {isEnrolled ? "✅" : emoji}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-extrabold uppercase tracking-[0.18em]"
+                            style={{ color: isEnrolled ? "#059669" : "var(--muted-text)" }}>
+                            {slot.label} Shift
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Clock className="h-3.5 w-3.5" style={{ color: isEnrolled ? "#10B981" : "var(--accent)" }} />
+                            <span className="text-lg font-extrabold" style={{ color: "var(--foreground)" }}>
+                              {slot.time}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Price badge */}
+                      <div className="shrink-0 rounded-full px-3 py-1 text-xs font-extrabold"
+                        style={slot.price > 0
+                          ? { background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A" }
+                          : { background: "#ECFDF5", color: "#059669", border: "1.5px solid #A7F3D0" }
+                        }>
+                        {slot.price > 0 ? `₹${slot.price}` : "FREE"}
                       </div>
                     </div>
-                    
-                    {/* Price Tag */}
-                    <div className={`px-4 py-1.5 rounded-full backdrop-blur-md border border-white/10 ${isEnrolled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-[var(--accent)]'}`}>
-                       <span className="text-sm font-black tracking-widest">{slot.price > 0 ? `₹${slot.price}` : "FREE"}</span>
-                    </div>
-                  </div>
 
-                  <div className="space-y-4">
-                    {/* Urgency / Inventory */}
-                    {!isEnrolled && (
-                      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <div className={`p-2 rounded-full ${slot.seatsLeft < 10 ? 'bg-red-500/10 text-red-400 animate-pulse' : 'bg-white/5 text-gray-400'}`}>
-                           <Users className="w-4 h-4" />
+                    {/* Status row */}
+                    <div className="mb-6">
+                      {isEnrolled ? (
+                        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+                          <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <p className="text-xs font-extrabold text-emerald-700">
+                            Tumhara slot confirmed hai! 🎉
+                          </p>
                         </div>
-                        <span className={`text-sm font-semibold tracking-wide ${slot.seatsLeft < 10 ? 'text-red-300' : 'text-[var(--cream-muted)]'}`}>
-                          {slot.seatsLeft === 0 ? 'Fully Booked' : `Only ${slot.seatsLeft} seats remaining`}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {/* Enrolled Status Text */}
-                    {isEnrolled && (
-                      <div className="flex items-center gap-3 border-b border-emerald-500/10 pb-4">
-                        <div className="p-2 rounded-full bg-emerald-500/20 text-emerald-400">
-                           <ShieldCheck className="w-4 h-4" />
+                      ) : isFull ? (
+                        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5">
+                          <Users className="h-4 w-4 text-red-400 shrink-0" />
+                          <p className="text-xs font-extrabold text-red-600">Slot full ho gaya</p>
                         </div>
-                        <span className="text-sm font-semibold tracking-wide text-emerald-300">
-                           Subscription Active
-                        </span>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 shrink-0" style={{ color: urgencyColor(slot.seatsLeft) }} />
+                            <p className="text-xs font-bold"
+                              style={{ color: urgencyColor(slot.seatsLeft) }}>
+                              {isUrgent
+                                ? `Sirf ${slot.seatsLeft} seats bachi hain! ⚡`
+                                : `${slot.seatsLeft} seats available`}
+                            </p>
+                          </div>
+                          {isUrgent && (
+                            <span className="rounded-full px-2.5 py-0.5 text-[10px] font-extrabold"
+                              style={{ background: "#FEF3C7", color: "#B45309" }}>
+                              Jaldi!
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Room ID */}
                     {slot.roomId && (
-                      <p className="font-mono text-xs uppercase tracking-widest text-[var(--cream-muted)] opacity-60">
-                        Room ID: {slot.roomId}
+                      <p className="mb-5 text-[10px] font-mono uppercase tracking-widest"
+                        style={{ color: "var(--muted-text)" }}>
+                        Room: {slot.roomId}
                       </p>
                     )}
+
+                    {/* ── CTA BUTTON ── */}
+                    <div className="mt-auto">
+                      {isEnrolled ? (
+                        slot.meetLink ? (
+                          <a href={slot.meetLink} target="_blank" rel="noreferrer"
+                            className="group/btn flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02]"
+                            style={{
+                              background: "linear-gradient(135deg, #10B981, #059669)",
+                              boxShadow: "0 6px 20px rgba(16,185,129,0.40)",
+                            }}>
+                            Library Mein Jao
+                            <ExternalLink className="h-4 w-4 transition-transform group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
+                          </a>
+                        ) : (
+                          <div className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 py-3.5 text-center text-sm font-extrabold text-emerald-700">
+                            ✅ Slot Confirmed — Link Aayega
+                          </div>
+                        )
+                      ) : inCart ? (
+                        <Link href="/checkout?from=cart&redirect=/dashboard/subscription?payment=success"
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl border py-3.5 text-sm font-extrabold transition-all hover:-translate-y-0.5"
+                          style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+                          Cart Mein Hai — Checkout Karo
+                          <CheckCircle className="h-4 w-4" />
+                        </Link>
+                      ) : isFull ? (
+                        <button disabled
+                          className="w-full cursor-not-allowed rounded-2xl border py-3.5 text-sm font-extrabold opacity-50"
+                          style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: "var(--page-bg)" }}>
+                          Full Ho Gaya
+                        </button>
+                      ) : !session?.user ? (
+                        <Link href="/login"
+                          className="group/btn flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02]"
+                          style={{
+                            background: colorSet.gradient,
+                            boxShadow: `0 6px 20px ${colorSet.glow}`,
+                          }}>
+                          Login Karke Book Karo →
+                        </Link>
+                      ) : (
+                        <button type="button"
+                          onClick={() => {
+                            if (enrolledSlotIds.has(slot.id)) {
+                              toast.error("Tum pehle se is slot mein enrolled ho!");
+                              return;
+                            }
+                            addItem({
+                              slotId: slot.id,
+                              name: slot.label,
+                              timeLabel: slot.time,
+                              price: slot.price,
+                              roomId: slot.roomId ?? undefined,
+                            });
+                            toast.success("Slot cart mein add ho gaya! 🎉");
+                          }}
+                          className="group/btn relative w-full overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02] active:scale-95"
+                          style={{
+                            background: colorSet.gradient,
+                            boxShadow: `0 6px 20px ${colorSet.glow}`,
+                          }}>
+                          <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover/btn:translate-x-[100%]" />
+                          <span className="relative">Seat Book Karo →</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
 
-                {/* Card Actions */}
-                <div className="p-6 pt-0 relative z-10 w-full mt-auto">
-                  {isEnrolled ? (
-                    slot.meetLink ? (
-                      <a
-                        href={slot.meetLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="group/btn flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-500 py-4 text-[13px] font-black uppercase tracking-widest text-black transition-all hover:bg-emerald-400 hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
-                      >
-                        Enter Library <ExternalLink className="w-4 h-4 transition-transform group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1" />
-                      </a>
-                    ) : (
-                       <div className="w-full text-center text-xs font-black uppercase tracking-widest text-emerald-500 py-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-                          Verified Pass
-                       </div>
-                    )
-                  ) : inCart ? (
-                    <Link
-                      href="/checkout?from=cart&redirect=/dashboard/subscription?payment=success"
-                      className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-800 text-white font-black uppercase tracking-widest text-[13px] py-4 transition-all hover:bg-gray-700 shadow-lg"
-                    >
-                      Added To Checkout <CheckCircle className="w-4 h-4 text-emerald-400" />
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={slot.seatsLeft === 0}
-                      onClick={() => {
-                        if (enrolledSlotIds.has(slot.id)) {
-                          toast.error("You are already enrolled in this slot!");
-                          return;
-                        }
-                        addItem({
-                          slotId: slot.id,
-                          name: slot.label,
-                          timeLabel: slot.time,
-                          price: slot.price,
-                          roomId: slot.roomId ?? undefined,
-                        });
-                        toast.success("Subscription added to cart!");
-                      }}
-                      className="w-full rounded-2xl bg-white text-black py-4 text-[13px] font-black uppercase tracking-widest transition-all hover:bg-[var(--accent)] hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(var(--accent-rgb),0.4)]"
-                    >
-                      {slot.seatsLeft === 0 ? "Sold Out" : "Secure Your Seat"}
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      )}
-
-      {!hideLoginPrompt && !session?.user && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="mt-16 text-center">
-           <p className="text-sm font-semibold text-[var(--cream-muted)]">
-             Already a member?{" "}
-             <Link href="/login" className="text-[var(--accent)] hover:text-white transition-colors duration-300 ml-1 underline underline-offset-4 decoration-[var(--accent)]/50">
-                Sign In securely
-             </Link>
-           </p>
-        </motion.div>
-      )}
+        {/* ── BOTTOM INFO ── */}
+        {!slotsLoading && slots.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className="mt-12 rounded-2xl border px-6 py-5 flex flex-col sm:flex-row items-center gap-4"
+            style={{ borderColor: "var(--border)", background: "white", boxShadow: "var(--shadow-sm)" }}>
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl text-lg"
+                style={{ background: "var(--accent-pale)", border: "1.5px solid var(--accent-border)" }}>
+                💡
+              </div>
+              <div>
+                <p className="text-sm font-extrabold" style={{ color: "var(--foreground)" }}>
+                  Pehli baar join kar rahe ho?
+                </p>
+                <p className="text-xs font-semibold" style={{ color: "var(--muted-text)" }}>
+                  Slot book karo → Google Meet link milega → Camera on karo, mic off → Padhai shuru!
+                </p>
+              </div>
+            </div>
+            <Link href="/rules"
+              className="shrink-0 rounded-full border px-5 py-2 text-xs font-bold transition hover:-translate-y-0.5"
+              style={{ borderColor: "var(--border)", color: "var(--foreground)", background: "var(--page-bg)" }}>
+              Rules Padho →
+            </Link>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 }

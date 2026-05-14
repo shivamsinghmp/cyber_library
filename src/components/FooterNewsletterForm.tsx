@@ -10,56 +10,44 @@ export function FooterNewsletterForm({ buttonText }: { buttonText: string }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
-
     setLoading(true);
     try {
       const res = await fetch("/api/lead-form/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "NEWSLETTER_FOOTER",
-          fields: { email },
-        }),
+        body: JSON.stringify({ source: "NEWSLETTER_FOOTER", fields: { email } }),
       });
-
-      if (res.ok) {
-        toast.success("Subscribed successfully!");
-        setEmail("");
-      } else {
-        toast.error("Subscription failed. Please try again.");
-      }
-    } catch {
-      toast.error("Something went wrong!");
-    }
+      if (res.ok) { toast.success("Subscribed!"); setEmail(""); }
+      else toast.error("Failed. Try again.");
+    } catch { toast.error("Something went wrong!"); }
     setLoading(false);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 sm:flex sm:max-w-md">
-      <label htmlFor="email-address" className="sr-only">
-        Email address
-      </label>
+    <form onSubmit={handleSubmit} className="mt-5 flex flex-col sm:flex-row gap-3">
+      <label htmlFor="footer-email" className="sr-only">Email address</label>
       <input
+        id="footer-email"
         type="email"
-        name="email"
-        id="email-address"
-        autoComplete="email"
         required
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full min-w-0 appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-base text-[var(--cream)] placeholder-white/30 shadow-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] sm:w-64 sm:text-sm"
-        placeholder="Enter your email"
+        onChange={e => setEmail(e.target.value)}
+        className="min-w-0 flex-1 appearance-none rounded-xl border bg-white px-3 py-2 text-xs font-semibold text-[#0F172A] placeholder-[#94A3B8] outline-none transition focus:ring-2 focus:ring-[#6366F1]/30 focus:border-[#6366F1]"
+        style={{ borderColor: "var(--border)" }}
+        placeholder="your@email.com"
         disabled={loading}
       />
-      <div className="mt-4 sm:flex-shrink-0 sm:mt-0 sm:ml-4">
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex w-full items-center justify-center rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-[var(--ink)] shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50"
-        >
-          {loading ? "..." : buttonText}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={loading}
+        className="shrink-0 rounded-xl px-4 py-2 text-xs font-bold text-white transition-all hover:scale-105 hover:opacity-90 disabled:opacity-50"
+        style={{
+          background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+          boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
+        }}
+      >
+        {loading ? "Sending…" : buttonText}
+      </button>
     </form>
   );
 }

@@ -5,156 +5,190 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, ShoppingCart } from "lucide-react";
+import { LogOut, User, ShoppingCart, X, Menu, ChevronRight, BookOpen, Store, Brain, FileText, Home, Info, Sparkles } from "lucide-react";
 import { useCart } from "@/context/CartContext";
-
 import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/study-room", label: "Study Room" },
-  { href: "/store", label: "Store" },
-  { href: "/mentorship", label: "Mentorship" },
-  { href: "/mental-session", label: "Mental Session" },
-  { href: "/blog", label: "Blog" },
-  { href: "/rules", label: "Rules" },
-  { href: "/about", label: "About" },
-  { href: "/join", label: "Join now" },
-  { href: "/#contact", label: "Contact" },
+  { href: "/",          label: "Home",       icon: Home },
+  { href: "/study-room",label: "Study Room", icon: BookOpen },
+  { href: "/why-join",  label: "Why Join",   icon: Sparkles },
+  { href: "/store",     label: "Store",      icon: Store },
+  { href: "/blog",      label: "Blog",       icon: FileText },
+  { href: "/rules",     label: "Rules",      icon: Brain },
+  { href: "/about",     label: "About",      icon: Info },
 ];
 
-const DEFAULT_TITLE = "The Cyber Library";
+const DEFAULT_TITLE   = "The Cyber Library";
 const DEFAULT_TAGLINE = "The Focus Hub";
 
-export function Navbar() {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-  const { data: session, status } = useSession();
-  const { count: cartCount } = useCart();
-  const [scrolled, setScrolled] = useState(false);
+type NavbarProps = {
+  initialLogoUrl?: string | null;
+  initialTitle?:  string | null;
+  initialTagline?: string | null;
+};
+
+export function Navbar({ initialLogoUrl, initialTitle, initialTagline }: NavbarProps = {}) {
+  const pathname      = usePathname();
+  const [open, setOpen]               = useState(false);
+  const [scrolled, setScrolled]       = useState(false);
   const [hasAddonToken, setHasAddonToken] = useState(false);
+  const { data: session, status }     = useSession();
+  const { count: cartCount }          = useCart();
+
+  const [logoUrl]   = useState<string | null>(initialLogoUrl ?? null);
+  const [siteTitle] = useState(initialTitle?.trim()   || DEFAULT_TITLE);
+  const [tagline]   = useState(initialTagline?.trim() || DEFAULT_TAGLINE);
 
   const isMeetAddonRoute = pathname.startsWith("/meet-addon");
-  const isLoggedIn = !!session?.user || (isMeetAddonRoute && hasAddonToken);
-
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState(DEFAULT_TITLE);
-  const [tagline, setTagline] = useState(DEFAULT_TAGLINE);
+  const isLoggedIn       = !!session?.user || (isMeetAddonRoute && hasAddonToken);
 
   useEffect(() => {
-    // Check for Meet Addon Token (iframe bypass)
     if (typeof window !== "undefined") {
       setHasAddonToken(!!localStorage.getItem("vl_meet_addon_token"));
     }
-
-    fetch("/api/site-branding")
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((d: { logoUrl?: string | null; title?: string | null; tagline?: string | null }) => {
-        if (d.logoUrl) setLogoUrl(d.logoUrl);
-        if (d.title) setSiteTitle(d.title);
-        if (d.tagline) setTagline(d.tagline);
-      })
-      .catch(() => { });
-
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/staff') || pathname.startsWith('/affiliate') || pathname.startsWith('/author') || pathname.startsWith('/meet-addon');
+  /* Close mobile menu on route change */
+  useEffect(() => { setOpen(false); }, [pathname]);
 
-  if (isDashboardRoute) {
-    return null;
-  }
+  const isDashboardRoute =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/admin")     ||
+    pathname.startsWith("/staff")     ||
+    pathname.startsWith("/affiliate") ||
+    pathname.startsWith("/author")    ||
+    pathname.startsWith("/meet-addon");
+
+  if (isDashboardRoute) return null;
 
   let dashboardLink = "/dashboard";
   if (session?.user) {
     const role = (session.user as { role?: string }).role;
-    if (role === "ADMIN") dashboardLink = "/admin";
-    else if (role === "EMPLOYEE") dashboardLink = "/staff";
+    if      (role === "ADMIN")      dashboardLink = "/admin";
+    else if (role === "EMPLOYEE")   dashboardLink = "/staff";
     else if (role === "INFLUENCER") dashboardLink = "/affiliate";
-    else if (role === "AUTHOR") dashboardLink = "/author";
+    else if (role === "AUTHOR")     dashboardLink = "/author";
   }
+  if (pathname.startsWith("/meet-addon")) dashboardLink = "/meet-addon/panel";
 
-  // If we are deep within the Meet Addon space, lock the dashboard link so it doesn't navigate away.
-  if (pathname.startsWith("/meet-addon")) {
-    dashboardLink = "/meet-addon/panel";
-  }
+  const logoSrc      = logoUrl?.trim() || "/logo.png";
+  const isExtLogo    = logoSrc.startsWith("http");
 
-  const logoSrc = logoUrl && logoUrl.trim() ? logoUrl.trim() : "/logo.png";
-  const isExternalLogo = logoSrc.startsWith("http");
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <>
-      <header data-navbar className={`fixed inset-x-4 z-50 mx-auto max-w-6xl rounded-full transition-all duration-500 ease-out ${scrolled
-          ? "top-4 md:top-6 border border-[var(--wood)]/20 bg-[var(--ink)]/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
-          : "top-6 md:top-8 border-transparent bg-transparent"
-        }`}>
-        <nav className="flex items-center justify-between px-5 py-3.5 sm:px-8">
-          {/* Brand */}
-          <Link href="/" className="flex items-center gap-4 group">
-            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl shadow-[0_4px_16px_rgba(139,115,85,0.2)] transition-transform group-hover:scale-105 border border-[var(--wood)]/10">
-              {isExternalLogo ? (
-                <img src={logoSrc} alt={siteTitle} width={44} height={44} className="h-full w-full object-cover" />
+      {/* ── HEADER ── */}
+      <header
+        data-navbar
+        className={`fixed inset-x-3 sm:inset-x-6 z-50 mx-auto max-w-6xl transition-all duration-500 ease-out ${
+          scrolled
+            ? "top-3 rounded-2xl border bg-white/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(15,23,42,0.10)] border-[var(--border)]"
+            : "top-4 rounded-2xl border border-transparent bg-transparent"
+        }`}
+      >
+        {/* Gradient top-line when scrolled */}
+        {scrolled && (
+          <div className="absolute top-0 left-6 right-6 h-[2px] rounded-full"
+            style={{ background: "linear-gradient(to right, #6366F1, #8B5CF6, #06B6D4)" }} />
+        )}
+
+        <nav className="flex items-center justify-between px-4 py-3 sm:px-6">
+
+          {/* ── BRAND ── */}
+          <Link href="/" className="group flex items-center gap-3 shrink-0">
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl transition-transform duration-300 group-hover:scale-105"
+              style={{ boxShadow: "0 4px 12px rgba(99,102,241,0.25)" }}>
+              {isExtLogo ? (
+                <img src={logoSrc} alt={siteTitle} width={36} height={36} className="h-full w-full object-cover" />
               ) : (
-                <Image src={logoSrc} alt={siteTitle} width={44} height={44} className="object-cover" priority />
+                <Image src={logoSrc} alt={siteTitle} width={36} height={36} className="object-cover" priority />
               )}
             </div>
-            <div className="flex flex-col leading-tight hidden sm:flex">
-              <span className="text-[15px] font-extrabold tracking-tight text-[var(--cream)] group-hover:text-[var(--accent)] transition-colors">
+            <div className="hidden sm:flex flex-col leading-tight">
+              <span className="text-sm font-extrabold tracking-tight transition-colors group-hover:text-[var(--accent)]"
+                style={{ color: "var(--foreground)" }}>
                 {siteTitle}
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-[var(--wood)]">
+              <span className="text-[9px] font-extrabold uppercase tracking-[0.22em]"
+                style={{ color: "var(--accent)" }}>
                 {tagline}
               </span>
             </div>
           </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden items-center gap-8 md:flex">
-            <div className="flex items-center gap-7 text-[13px] font-bold tracking-wide">
-              {navLinks.slice(0, 6).map((item) => {
-                const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`transition-colors ${active ? "text-[var(--accent)] drop-shadow-[0_0_8px_rgba(139,115,85,0.4)]" : "text-[var(--cream-muted)] hover:text-[var(--cream)]"
-                      }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-            <div className="h-8 w-px bg-[var(--wood)]/20" />
-            <div className="flex items-center gap-5">
-              <Link
-                href="/cart"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--wood)]/20 bg-[var(--ink)]/50 text-[var(--cream)] transition hover:bg-[var(--ink)] hover:border-[var(--accent)]/40 hover:-translate-y-0.5"
-                aria-label="Cart"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {cartCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-bold text-[var(--ink)] shadow-[0_2px_8px_rgba(139,115,85,0.4)]">
-                    {cartCount > 99 ? "99+" : cartCount}
-                  </span>
-                )}
-              </Link>
+          {/* ── DESKTOP NAV LINKS ── */}
+          <div className="hidden lg:flex items-center gap-1">
+            {navLinks.slice(0, 6).map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`relative px-3.5 py-2 rounded-xl text-[13px] font-bold transition-all duration-200 ${
+                    active
+                      ? "text-[var(--accent)] bg-[var(--accent-pale)]"
+                      : "text-[var(--foreground)] hover:text-[var(--accent)] hover:bg-[var(--accent-pale)]"
+                  }`}
+                  style={{ opacity: active ? 1 : 0.75 }}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="nav-active"
+                      className="absolute inset-0 rounded-xl"
+                      style={{ background: "var(--accent-pale)" }}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+                    />
+                  )}
+                  <span className="relative z-10">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* ── RIGHT ACTIONS ── */}
+          <div className="flex items-center gap-2">
+
+            {/* Cart */}
+            <Link
+              href="/cart"
+              aria-label="Cart"
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5 hover:border-[var(--accent-border)] hover:text-[var(--accent)]"
+              style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: scrolled ? "white" : "rgba(255,255,255,0.8)" }}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {cartCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full text-[9px] font-extrabold text-white px-1"
+                  style={{ background: "var(--accent)", boxShadow: "0 2px 6px rgba(99,102,241,0.5)" }}>
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Auth — desktop */}
+            <div className="hidden md:flex items-center gap-2">
               {status === "loading" ? (
-                <span className="inline-flex h-11 w-28 animate-pulse rounded-full bg-[var(--wood)]/10" />
+                <div className="h-9 w-24 animate-pulse rounded-xl" style={{ background: "var(--accent-pale)" }} />
               ) : isLoggedIn ? (
                 <>
                   <Link
                     href={dashboardLink}
-                    className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10 text-[var(--accent)] transition hover:bg-[var(--accent)]/20 shadow-inner"
+                    className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border transition-all hover:-translate-y-0.5"
+                    style={{
+                      borderColor: "var(--accent-border)",
+                      background: "var(--accent-pale)",
+                      color: "var(--accent)",
+                    }}
                   >
                     {session?.user?.image ? (
-                      <Image src={session.user.image as string} alt="" width={44} height={44} className="h-full w-full object-cover" />
+                      <Image src={session.user.image as string} alt="" width={36} height={36} className="h-full w-full object-cover" />
                     ) : (
-                      <User className="h-5 w-5" />
+                      <User className="h-4 w-4" />
                     )}
                   </Link>
                   <button
@@ -165,102 +199,196 @@ export function Navbar() {
                       if (hasAddonToken) window.location.reload();
                       signOut({ callbackUrl: "/" });
                     }}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--wood)]/20 px-6 py-2.5 text-xs font-bold tracking-wide text-[var(--wood)] transition hover:bg-[var(--ink)]/60 hover:text-[var(--cream)]"
+                    className="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 hover:border-red-300 hover:text-red-500 hover:bg-red-50"
+                    style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: "white" }}
                   >
-                    <LogOut className="h-4 w-4" />
+                    <LogOut className="h-3.5 w-3.5" />
                     Logout
                   </button>
                 </>
               ) : !isMeetAddonRoute ? (
-                <div className="flex gap-3">
-                  <Link href="/login" className="inline-flex items-center justify-center rounded-full border border-[var(--wood)]/30 px-6 py-2.5 text-xs font-bold tracking-wide text-[var(--cream)] transition hover:bg-[var(--ink)]/80 hover:border-[var(--accent)] hover:shadow-[0_0_15px_rgba(154,130,100,0.2)]">
+                <>
+                  <Link
+                    href="/login"
+                    className="rounded-xl px-4 py-2 text-xs font-bold transition-all hover:-translate-y-0.5"
+                    style={{ color: "var(--accent)", border: "1.5px solid var(--accent-border)", background: "var(--accent-pale)" }}
+                  >
                     Log in
                   </Link>
-                  <Link href="/signup" className="inline-flex items-center justify-center rounded-full bg-[var(--accent)] px-7 py-2.5 text-xs font-extrabold tracking-wide text-[var(--ink)] shadow-[0_4px_16px_rgba(154,130,100,0.3)] transition hover:bg-[var(--accent-hover)] hover:scale-105 hover:shadow-[0_8px_25px_rgba(154,130,100,0.5)]">
-                    Request Access
+                  <Link
+                    href="/signup"
+                    className="group relative overflow-hidden flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-extrabold text-white transition-all hover:scale-105"
+                    style={{
+                      background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                      boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
+                    }}
+                  >
+                    <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
+                    Get Started
+                    <ChevronRight className="h-3.5 w-3.5" />
                   </Link>
-                </div>
+                </>
               ) : null}
             </div>
-          </div>
 
-          {/* Mobile controls */}
-          <div className="flex items-center gap-4 md:hidden">
-            <Link href="/cart" className="relative text-[var(--cream)] hover:text-[var(--accent)] transition">
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-bold text-[var(--ink)]">
-                  {cartCount}
-                </span>
-              )}
-            </Link>
+            {/* Mobile hamburger */}
             <button
               type="button"
               onClick={() => setOpen(!open)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--wood)]/20 bg-[var(--ink)]/50 text-[var(--cream)] transition active:scale-95"
+              className="flex lg:hidden h-9 w-9 items-center justify-center rounded-xl border transition-all active:scale-95"
+              style={{
+                borderColor: "var(--border)",
+                background: scrolled ? "white" : "rgba(255,255,255,0.8)",
+                color: "var(--foreground)",
+              }}
+              aria-label="Toggle menu"
             >
-              <div className="space-y-1.5">
-                <span className={`block h-[2px] w-5 transform rounded bg-[var(--cream)] transition ${open ? "rotate-45 translate-y-2" : ""}`} />
-                <span className={`block h-[2px] w-5 rounded bg-[var(--cream)] transition ${open ? "opacity-0" : ""}`} />
-                <span className={`block h-[2px] w-5 transform rounded bg-[var(--cream)] transition ${open ? "-rotate-45 -translate-y-2" : ""}`} />
-              </div>
+              <AnimatePresence mode="wait" initial={false}>
+                {open ? (
+                  <motion.div key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                    <X className="h-4 w-4" />
+                  </motion.div>
+                ) : (
+                  <motion.div key="menu" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                    <Menu className="h-4 w-4" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </button>
           </div>
         </nav>
       </header>
 
-      {/* Mobile menu (Framer Motion) */}
+      {/* Spacer */}
+      <div className="h-20 md:h-24" aria-hidden="true" />
+
+      {/* ── MOBILE DRAWER ── */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-x-4 top-28 z-40 md:hidden overflow-hidden rounded-[2.5rem] border border-[var(--wood)]/20 bg-[var(--background)]/95 backdrop-blur-3xl shadow-[0_20px_60px_rgba(15,11,7,0.9)] p-6"
-          >
-            <div className="flex flex-col gap-3">
-              {navLinks.map((item) => {
-                const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className={`rounded-2xl px-6 py-4 text-sm font-bold tracking-wide transition ${active ? "bg-[var(--accent)]/15 text-[var(--accent)]" : "text-[var(--cream-muted)] hover:bg-[var(--ink)] hover:text-[var(--cream)]"
-                      }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-              <div className="my-3 h-px bg-[var(--wood)]/10" />
-              {isLoggedIn ? (
-                <>
-                  <Link href={dashboardLink} onClick={() => setOpen(false)} className="rounded-2xl border border-[var(--wood)]/20 bg-[var(--ink)]/50 px-6 py-4 text-sm font-bold tracking-wide text-[var(--cream)] text-center">
-                    Dashboard
-                  </Link>
-                  <button onClick={() => {
-                    setOpen(false);
-                    localStorage.removeItem("vl_meet_addon_token");
-                    if (hasAddonToken) window.location.reload();
-                    signOut({ callbackUrl: "/" });
-                  }} className="rounded-2xl border border-red-500/20 bg-red-500/10 px-6 py-4 text-sm font-bold tracking-wide text-red-400 text-center">
-                    Logout Immediately
-                  </button>
-                </>
-              ) : !isMeetAddonRoute ? (
-                <div className="flex flex-col gap-3">
-                  <Link href="/login" onClick={() => setOpen(false)} className="rounded-2xl border border-[var(--wood)]/20 bg-[var(--ink)]/50 px-6 py-4 text-center text-sm font-bold tracking-wide text-[var(--cream)]">
-                    Log in Securely
-                  </Link>
-                  <Link href="/signup" onClick={() => setOpen(false)} className="rounded-2xl bg-[var(--accent)] px-6 py-4 text-center text-sm font-extrabold tracking-wide text-[var(--ink)] shadow-[0_4px_16px_rgba(139,115,85,0.4)]">
-                    Request Access
-                  </Link>
-                </div>
-              ) : null}
-            </div>
-          </motion.div>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-30 lg:hidden"
+              style={{ background: "rgba(15,23,42,0.25)", backdropFilter: "blur(2px)" }}
+              onClick={() => setOpen(false)}
+            />
+
+            {/* Drawer panel */}
+            <motion.div
+              key="drawer"
+              initial={{ opacity: 0, y: -12, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -12, scale: 0.97 }}
+              transition={{ type: "spring", bounce: 0.18, duration: 0.4 }}
+              className="fixed inset-x-3 top-[4.5rem] z-40 lg:hidden overflow-hidden rounded-2xl border"
+              style={{
+                borderColor: "var(--border)",
+                background: "rgba(255,255,255,0.98)",
+                backdropFilter: "blur(20px)",
+                boxShadow: "0 24px 60px rgba(15,23,42,0.15), 0 8px 20px rgba(99,102,241,0.08)",
+              }}
+            >
+              {/* Gradient top strip */}
+              <div className="h-[3px] w-full"
+                style={{ background: "linear-gradient(to right, #6366F1, #8B5CF6, #06B6D4)" }} />
+
+              <div className="p-4 space-y-1">
+                {navLinks.map((item, i) => {
+                  const active = isActive(item.href);
+                  const Icon   = item.icon;
+                  return (
+                    <motion.div
+                      key={item.href}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                    >
+                      <Link
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                          active
+                            ? "bg-[var(--accent-pale)] text-[var(--accent)]"
+                            : "text-[var(--foreground)] hover:bg-[var(--page-bg)] hover:text-[var(--accent)]"
+                        }`}
+                      >
+                        <span className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                          active ? "bg-[var(--accent)] text-white" : "bg-[var(--page-bg)] text-[var(--muted-text)]"
+                        }`}
+                          style={active ? { boxShadow: "0 3px 8px rgba(99,102,241,0.35)" } : {}}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        {item.label}
+                        {active && <ChevronRight className="ml-auto h-4 w-4 opacity-50" />}
+                      </Link>
+                    </motion.div>
+                  );
+                })}
+
+                {/* Divider */}
+                <div className="my-2 h-px" style={{ background: "var(--border)" }} />
+
+                {/* Auth section */}
+                {isLoggedIn ? (
+                  <div className="space-y-2 pt-1">
+                    <Link
+                      href={dashboardLink}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all"
+                      style={{
+                        background: "var(--accent-pale)",
+                        color: "var(--accent)",
+                        border: "1.5px solid var(--accent-border)",
+                      }}
+                    >
+                      <User className="h-4 w-4" />
+                      Go to Dashboard
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        localStorage.removeItem("vl_meet_addon_token");
+                        if (hasAddonToken) window.location.reload();
+                        signOut({ callbackUrl: "/" });
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-100"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </button>
+                  </div>
+                ) : !isMeetAddonRoute ? (
+                  <div className="flex flex-col gap-2 pt-1">
+                    <Link
+                      href="/login"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold transition-all"
+                      style={{ borderColor: "var(--accent-border)", color: "var(--accent)", background: "var(--accent-pale)" }}
+                    >
+                      Log in Securely
+                    </Link>
+                    <Link
+                      href="/signup"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-extrabold text-white transition-all hover:opacity-90"
+                      style={{
+                        background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+                        boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
+                      }}
+                    >
+                      Get Started Free
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                ) : null}
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>

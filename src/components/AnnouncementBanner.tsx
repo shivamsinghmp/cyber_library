@@ -1,20 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Megaphone, X } from "lucide-react";
 
-export function AnnouncementBanner() {
-  const [message, setMessage] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+type Props = { initialMessage?: string | null };
 
-  useEffect(() => {
-    fetch("/api/announcement")
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data: { message?: string | null }) => {
-        setMessage(data.message ?? null);
-      })
-      .catch(() => {});
-  }, []);
+export function AnnouncementBanner({ initialMessage }: Props = {}) {
+  // Initialised from server — no client fetch needed
+  const [message] = useState<string | null>(initialMessage ?? null);
+  const [dismissed, setDismissed] = useState(false);
 
   if (!message || dismissed) return null;
 
