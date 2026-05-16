@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppText } from "@/lib/whatsapp";
+import { encrypt } from "@/lib/encrypt";
+
+function encryptMsg(plain: string) {
+  try { const { encrypted, iv } = encrypt(plain); return { content: encrypted, contentIv: iv }; }
+  catch { return { content: plain, contentIv: "" }; }
+}
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
@@ -21,12 +27,10 @@ export async function GET(request: Request) {
     if (slotId) {
       const subs = await prisma.roomSubscription.findMany({
         where: { studySlotId: slotId, user: { deletedAt: null } },
-        include: {
+        select: {
           user: {
             select: {
-              id: true,
-              name: true,
-              email: true,
+              id: true, name: true, email: true,
               profile: { select: { fullName: true, whatsappNumber: true, phone: true } },
             },
           },
@@ -93,12 +97,10 @@ async function getRecipients(slotId: string | undefined) {
   if (slotId) {
     const subs = await prisma.roomSubscription.findMany({
       where: { studySlotId: slotId, user: { deletedAt: null } },
-      include: {
+      select: {
         user: {
           select: {
-            id: true,
-            name: true,
-            email: true,
+            id: true, name: true, email: true,
             profile: { select: { fullName: true, whatsappNumber: true, phone: true } },
           },
         },
@@ -180,17 +182,20 @@ export async function POST(request: Request) {
 
       await Promise.all(
         batch.map(async (r) => {
-          const ok = await sendWhatsAppText(r.phoneNumber, message);
+          const wamid = await sendWhatsAppText(r.phoneNumber, message);
+          const enc = encryptMsg(message);
           await prisma.whatsAppMessage.create({
             data: {
+              wamid:      wamid ?? undefined,
               phoneNumber: r.phoneNumber,
-              content: message,
-              direction: "OUTBOUND",
-              status: ok ? "SENT" : "FAILED",
-              userId: r.userId,
+              content:    enc.content,
+              contentIv:  enc.contentIv,
+              direction:  "OUTBOUND",
+              status:     wamid ? "SENT" : "FAILED",
+              userId:     r.userId,
             },
           });
-          if (ok) sent++;
+          if (wamid) sent++;
           else failed++;
         })
       );

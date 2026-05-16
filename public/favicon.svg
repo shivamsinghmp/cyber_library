@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#3730A3"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+    <linearGradient id="pL" x1="12" y1="14" x2="30" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C7D2FE" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="pR" x1="34" y1="14" x2="52" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#EDE9FE" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#A78BFA" stop-opacity="0.65"/>
+    </linearGradient>
+    <linearGradient id="spine" x1="0" y1="12" x2="0" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#22D3EE"/>
+      <stop offset="50%"  stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <filter id="glow" x="-100%" y="-20%" width="300%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow" x="-10%" y="-5%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#1E1B4B" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- Book pages -->
+  <g filter="url(#shadow)">
+    <path d="M 13 18 C 13 16 15 14.5 17 15 L 30 15.5 L 30 49 L 17 48.5 C 15 48 13 47 13 45 Z" fill="url(#pL)"/>
+    <path d="M 51 18 C 51 16 49 14.5 47 15 L 34 15.5 L 34 49 L 47 48.5 C 49 48 51 47 51 45 Z" fill="url(#pR)"/>
+  </g>
+
+  <!-- Spine -->
+  <rect x="29" y="13" width="6" height="38" rx="3" fill="url(#spine)" filter="url(#glow)"/>
+
+  <!-- 4-point sparkle top-right -->
+  <path d="M 51 9 L 52.2 12.8 L 56 14 L 52.2 15.2 L 51 19 L 49.8 15.2 L 46 14 L 49.8 12.8 Z" fill="#22D3EE"/>
+
+  <!-- Ground shadow -->
+  <ellipse cx="32" cy="51" rx="13" ry="1.5" fill="#1E1B4B" opacity="0.18"/>
+</svg>

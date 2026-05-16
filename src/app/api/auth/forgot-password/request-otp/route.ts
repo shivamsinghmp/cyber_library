@@ -2,13 +2,26 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createOtp } from "@/lib/otp";
 import { sendOtpEmail } from "@/lib/email";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rl = rateLimit(`forgot_otp_ip:${ip}`, 5, 300); // 5 per 5 min per IP
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many attempts. 5 minute baad try karo." }, { status: 429 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    // Per-email rate limit (prevent targeted spam)
+    const rl2 = rateLimit(`forgot_otp_email:${email}`, 3, 600); // 3 per 10 min per email
+    if (!rl2.success) {
+      return NextResponse.json({ error: "Too many requests for this email." }, { status: 429 });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sanitizeCustomCss } from "@/lib/sanitize-html";
+import DOMPurify from "isomorphic-dompurify";
 import { z } from "zod";
 
 async function getMyAuthorId(): Promise<string | null> {
@@ -90,7 +91,7 @@ export async function PUT(
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.title !== undefined) updateData.title = data.title;
     if (data.excerpt !== undefined) updateData.excerpt = data.excerpt?.trim() || null;
-    if (data.body !== undefined) updateData.body = data.body;
+    if (data.body !== undefined) updateData.body = DOMPurify.sanitize(data.body);
     if (data.metaTitle !== undefined) updateData.metaTitle = data.metaTitle?.trim() || null;
     if (data.metaDescription !== undefined) updateData.metaDescription = data.metaDescription?.trim() || null;
     if (data.customCss !== undefined) updateData.customCss = data.customCss ? sanitizeCustomCss(data.customCss) : null;

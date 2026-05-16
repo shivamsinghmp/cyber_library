@@ -64,21 +64,20 @@ export async function GET(request: Request) {
       skip,
     });
 
-    const result: typeof students = [];
-    for (const s of students) {
-      if (s.studentId) {
-        result.push(s);
-        continue;
-      }
-      const newId = await generateStudentId();
-      await prisma.user.update({
-        where: { id: s.id },
-        data: { studentId: newId },
-      });
-      result.push({ ...s, studentId: newId });
+    // Generate IDs for students missing one — parallel, not sequential
+    const missing = students.filter(s => !s.studentId);
+    if (missing.length > 0) {
+      const ids = await Promise.all(missing.map(() => generateStudentId()));
+      await Promise.all(
+        missing.map((s, i) =>
+          prisma.user.update({ where: { id: s.id }, data: { studentId: ids[i] } })
+        )
+      );
+      const idMap = Object.fromEntries(missing.map((s, i) => [s.id, ids[i]]));
+      return NextResponse.json(students.map(s => s.studentId ? s : { ...s, studentId: idMap[s.id] }));
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json(students);
   } catch (e) {
     console.error("GET /api/admin/students:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

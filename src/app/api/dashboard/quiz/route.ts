@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireModule } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const userId = (session.user as { id?: string }).id;
-    if (!userId) return NextResponse.json({ error: "User not found" }, { status: 401 });
+    const authResult = await requireModule("quiz");
+    if (authResult.error) return authResult.error;
+    const userId = authResult.user.id;
 
     const searchParams = req.nextUrl.searchParams;
     const range = (searchParams.get("range") ?? "week").toLowerCase();

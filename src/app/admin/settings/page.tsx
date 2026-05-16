@@ -1,136 +1,142 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useState } from "react";
 import {
-  Settings,
-  ChevronLeft,
-  MessageCircle,
-  Calendar,
-  Lock,
-  Mail,
-  Save,
-  ImageIcon,
+  Settings, ChevronLeft, Copy, Check,
+  MessageCircle, Calendar, Lock, Globe,
+  BarChart2, ImageIcon, Bell, Mail,
 } from "lucide-react";
-import toast from "react-hot-toast";
 
-type KeyMeta = { label: string; secret: boolean; value: string | null; hasValue: boolean };
-type SettingsMap = Record<string, KeyMeta>;
+type EnvGroup = {
+  title: string;
+  icon: React.ReactNode;
+  vars: { key: string; example: string; note?: string; secret?: boolean }[];
+};
 
-const SECTIONS: { title: string; keys: string[]; icon: React.ReactNode }[] = [
+const ENV_GROUPS: EnvGroup[] = [
   {
-    title: "WhatsApp",
-    keys: ["WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_GROUP_LINK"],
-    icon: <MessageCircle className="h-5 w-5" />,
+    title: "Core (always required)",
+    icon: <Lock className="h-4 w-4" />,
+    vars: [
+      { key: "DATABASE_URL",     example: "postgresql://user:pass@localhost:5432/cyber", secret: true },
+      { key: "AUTH_SECRET",      example: "min-32-char-random-string",                  secret: true },
+      { key: "ENCRYPTION_KEY",   example: "min-16-char-key-for-DB-secrets",             secret: true },
+    ],
+  },
+  {
+    title: "WhatsApp (Meta Business API)",
+    icon: <MessageCircle className="h-4 w-4" />,
+    vars: [
+      { key: "WHATSAPP_PHONE_NUMBER_ID", example: "1073759989161284" },
+      { key: "WHATSAPP_ACCESS_TOKEN",    example: "EAAxxxxx...",        secret: true },
+      { key: "WHATSAPP_GROUP_LINK",      example: "https://chat.whatsapp.com/xxx" },
+    ],
   },
   {
     title: "Google Calendar",
-    keys: ["GOOGLE_SERVICE_ACCOUNT_EMAIL", "GOOGLE_PRIVATE_KEY", "GOOGLE_CALENDAR_ID"],
-    icon: <Calendar className="h-5 w-5" />,
+    icon: <Calendar className="h-4 w-4" />,
+    vars: [
+      { key: "GOOGLE_SERVICE_ACCOUNT_EMAIL", example: "myapp@myproject.iam.gserviceaccount.com" },
+      { key: "GOOGLE_PRIVATE_KEY",           example: "-----BEGIN PRIVATE KEY-----\\n...", secret: true },
+      { key: "GOOGLE_CALENDAR_ID",           example: "primary or xxx@group.calendar.google.com" },
+    ],
   },
   {
-    title: "Cron",
-    keys: ["CRON_SECRET"],
-    icon: <Lock className="h-5 w-5" />,
+    title: "Google OAuth",
+    icon: <Globe className="h-4 w-4" />,
+    vars: [
+      { key: "AUTH_GOOGLE_ID",     example: "123456789-xxx.apps.googleusercontent.com" },
+      { key: "AUTH_GOOGLE_SECRET", example: "GOCSPX-xxx",  secret: true },
+      { key: "NEXTAUTH_URL",       example: "https://yourdomain.com", note: "Production URL only" },
+    ],
   },
   {
-    title: "Auth (Google OAuth & URL)",
-    keys: ["AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET", "NEXTAUTH_URL"],
-    icon: <Mail className="h-5 w-5" />,
+    title: "Razorpay & Payments",
+    icon: <Lock className="h-4 w-4" />,
+    vars: [
+      { key: "RAZORPAY_KEY_ID",     example: "rzp_live_xxx" },
+      { key: "RAZORPAY_KEY_SECRET", example: "xxx",          secret: true },
+    ],
+  },
+  {
+    title: "Email (SMTP / Resend)",
+    icon: <Mail className="h-4 w-4" />,
+    vars: [
+      { key: "RESEND_API_KEY",  example: "re_xxx",                  secret: true },
+      { key: "RESEND_FROM",     example: "no-reply@cyberlib.in" },
+      { key: "SMTP_HOST",       example: "smtp.gmail.com",          note: "Optional — if using SMTP" },
+      { key: "SMTP_PORT",       example: "587" },
+      { key: "SMTP_USER",       example: "you@gmail.com" },
+      { key: "SMTP_PASS",       example: "app-password",            secret: true },
+      { key: "SMTP_FROM",       example: "CyberLib <you@gmail.com>" },
+    ],
+  },
+  {
+    title: "SMS (Fast2SMS)",
+    icon: <MessageCircle className="h-4 w-4" />,
+    vars: [
+      { key: "FAST2SMS_API_KEY", example: "xxx", secret: true },
+    ],
+  },
+  {
+    title: "Cron Jobs",
+    icon: <Lock className="h-4 w-4" />,
+    vars: [
+      { key: "CRON_SECRET", example: "random-secret-for-cron-auth", secret: true },
+    ],
   },
   {
     title: "Announcement & Support",
-    keys: ["ANNOUNCEMENT", "SUPPORT_WHATSAPP_NUMBER", "SUPPORT_EMAIL"],
-    icon: <MessageCircle className="h-5 w-5" />,
+    icon: <Bell className="h-4 w-4" />,
+    vars: [
+      { key: "ANNOUNCEMENT",           example: "🚀 New feature launched! Check it out." },
+      { key: "SUPPORT_WHATSAPP_NUMBER", example: "919876543210" },
+      { key: "SUPPORT_EMAIL",           example: "support@cyberlib.in" },
+    ],
   },
   {
     title: "Site / Branding",
-    keys: ["SITE_LOGO_URL", "SITE_FAVICON_URL", "SITE_TITLE", "SITE_TAGLINE", "SITE_HEADLINE"],
-    icon: <ImageIcon className="h-5 w-5" />,
+    icon: <ImageIcon className="h-4 w-4" />,
+    vars: [
+      { key: "SITE_TITLE",       example: "The Cyber Library" },
+      { key: "SITE_TAGLINE",     example: "Live 24/7 Focus Hub & Study Rooms" },
+      { key: "SITE_HEADLINE",    example: "Study Smarter. Together." },
+      { key: "SITE_LOGO_URL",    example: "https://cdn.example.com/logo.svg", note: "Leave empty for /logo.svg" },
+      { key: "SITE_FAVICON_URL", example: "https://cdn.example.com/favicon.ico" },
+    ],
   },
   {
     title: "Integrations & Tracking",
-    keys: ["GOOGLE_ANALYTICS_ID", "GOOGLE_TAG_MANAGER_ID", "GOOGLE_ADSENSE_ID", "FB_PIXEL_ID", "CUSTOM_HEAD_HTML"],
-    icon: <Settings className="h-5 w-5" />,
+    icon: <BarChart2 className="h-4 w-4" />,
+    vars: [
+      { key: "GOOGLE_ANALYTICS_ID",   example: "G-XXXXXXXXXX" },
+      { key: "GOOGLE_TAG_MANAGER_ID", example: "GTM-XXXXXXX" },
+      { key: "GOOGLE_ADSENSE_ID",     example: "pub-XXXXXXXXXXXXXXXX" },
+      { key: "FB_PIXEL_ID",           example: "1234567890" },
+      { key: "CUSTOM_HEAD_HTML",      example: "<script>...</script>", note: "Custom scripts in <head>" },
+    ],
   },
 ];
 
+function buildEnvExample(): string {
+  return ENV_GROUPS.map((g) =>
+    `# ── ${g.title} ──\n` +
+    g.vars.map((v) => `${v.key}=${v.secret ? `"${v.example}"` : v.example}`).join("\n")
+  ).join("\n\n");
+}
+
 export default function AdminSettingsPage() {
-  const [data, setData] = useState<SettingsMap>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [dirty, setDirty] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/admin/settings", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((map: SettingsMap) => setData(map))
-      .catch(() => setData({}))
-      .finally(() => setLoading(false));
-  }, []);
-
-  function getValue(key: string): string {
-    if (dirty[key] !== undefined) return dirty[key];
-    const meta = data[key];
-    if (meta?.secret) return "";
-    return meta?.value ?? "";
-  }
-
-  function setValue(key: string, value: string) {
-    setDirty((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function saveKey(key: string) {
-    const meta = data[key];
-    const raw = getValue(key).trim();
-    if (meta?.secret && meta.hasValue && !raw) {
-      toast.success("Left blank — existing value kept.");
-      return;
-    }
-    setSaving(key);
-    try {
-      const value = raw || null;
-      const res = await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, value: value || null }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json.error ?? "Save failed");
-        setSaving(null);
-        return;
-      }
-      toast.success("Saved. Secrets are stored encrypted in DB.");
-      setDirty((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
-      setData((prev) => ({
-        ...prev,
-        [key]: {
-          ...prev[key],
-          value: value ?? null,
-          hasValue: !!value,
-        },
-      }));
-    } catch {
-      toast.error("Save failed");
-    }
-    setSaving(null);
-  }
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-        <p className="text-[var(--cream-muted)]">Loading settings…</p>
-      </div>
-    );
+  function copyTemplate() {
+    navigator.clipboard.writeText(buildEnvExample());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <div>
         <Link
           href="/admin"
@@ -144,71 +150,71 @@ export default function AdminSettingsPage() {
           Settings
         </h1>
         <p className="mt-1 text-sm text-[var(--cream-muted)]">
-          Saari API keys, secrets, WhatsApp, Google Calendar — sab database mein save hota hai. .env ki zaroorat sirf DATABASE_URL aur AUTH_SECRET / ENCRYPTION_KEY ki hai.
+          Saari settings ab <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-900">.env</code> se padhi jaati hain. Koi bhi value change karne ke liye <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-900">.env</code> update karein aur server restart karein.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-[var(--cream)]">
-        <p className="font-medium">Razorpay & SMTP</p>
-        <p className="mt-1 text-[var(--cream-muted)]">
-          Razorpay API keys aur SMTP (email) yahan se set karein:{" "}
-          <Link href="/admin/razorpay" className="text-[var(--accent)] hover:underline">
+      {/* Info banner */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
+        <p className="font-semibold text-amber-900">Razorpay & SMTP</p>
+        <p className="mt-0.5 text-amber-800">
+          Razorpay aur SMTP keys bhi .env mein rakho. Preview/test ke liye:{" "}
+          <Link href="/admin/razorpay" className="font-semibold underline hover:text-amber-900">
             Razorpay / SMTP page
           </Link>
         </p>
       </div>
 
-      {SECTIONS.map((section) => (
-        <div
-          key={section.title}
-          className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-6"
-        >
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--cream)]">
-            {section.icon}
-            {section.title}
-          </h2>
-          <div className="space-y-4">
-            {section.keys.map((key) => {
-              const meta = data[key];
-              if (!meta) return null;
-              const isSecret = meta.secret;
-              const value = getValue(key);
-              const hasValue = meta.hasValue;
-              return (
-                <div key={key} className="space-y-1.5">
-                  <label className="block text-xs font-medium text-[var(--cream-muted)]">
-                    {meta.label}
-                    {hasValue && isSecret && (
-                      <span className="ml-2 text-emerald-400">(set • masked)</span>
-                    )}
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type={isSecret ? "password" : "text"}
-                      value={value}
-                      onChange={(e) => setValue(key, e.target.value)}
-                      placeholder={isSecret ? (hasValue ? "•••••••• (leave blank to keep)" : "Enter secret") : "Value"}
-                      className="flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => saveKey(key)}
-                      disabled={saving === key}
-                      className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] hover:opacity-90 disabled:opacity-50"
-                    >
-                      <Save className="h-4 w-4" />
-                      {saving === key ? "Saving…" : "Save"}
-                    </button>
-                  </div>
+      {/* Copy .env template */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">.env Template</h2>
+          <button
+            onClick={copyTemplate}
+            className="flex items-center gap-1.5 rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? "Copied!" : "Copy all"}
+          </button>
+        </div>
+        <pre className="overflow-x-auto rounded-xl bg-gray-950 p-4 text-[11px] leading-relaxed text-gray-300 font-mono max-h-60">
+          {buildEnvExample()}
+        </pre>
+      </div>
+
+      {/* Groups */}
+      {ENV_GROUPS.map((group) => (
+        <div key={group.title} className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--background)] px-5 py-3">
+            <span className="text-[var(--accent)]">{group.icon}</span>
+            <h2 className="text-sm font-bold text-[var(--foreground)]">{group.title}</h2>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {group.vars.map((v) => (
+              <div key={v.key} className="flex items-start gap-4 px-5 py-3">
+                <code className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 font-mono text-xs text-gray-900 mt-0.5">
+                  {v.key}
+                </code>
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-xs text-[var(--cream-muted)] truncate">
+                    {v.secret ? <span className="text-amber-600">secret — encrypt karo, .env mein rakho</span> : v.example}
+                  </p>
+                  {v.note && <p className="mt-0.5 text-[10px] text-[var(--cream-muted)] opacity-70">{v.note}</p>}
                 </div>
-              );
-            })}
+                {v.secret && (
+                  <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wide">
+                    secret
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       ))}
 
-      <p className="text-xs text-[var(--cream-muted)]">
-        ENCRYPTION_KEY ya AUTH_SECRET .env mein hona chahiye (min 16 chars) taaki secrets encrypt ho kar DB mein save hon. Pehle .env mein ye set karein, phir yahan se baaki sab.
+      <p className="text-center text-xs text-[var(--cream-muted)] pb-4">
+        .env mein set karne ke baad <code className="rounded bg-gray-100 px-1 font-mono">npm run dev</code> / server restart zaroori hai.
+        Values env se na milein to DB fallback hota hai (purana behavior).
       </p>
     </div>
   );

@@ -7,8 +7,9 @@ import toast from "react-hot-toast";
 import {
   Square, Timer, BookOpen, Flame, CalendarCheck,
   Zap, Trophy, ChevronRight, Play, Star, Target,
-  TrendingUp, Clock, CheckCheck,
+  TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight,
 } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -178,21 +179,20 @@ export function DashboardContent({ userName }: { userName: string }) {
 
   useEffect(() => { fetchStats(); const id = setInterval(fetchStats, 30_000); return () => clearInterval(id); }, [fetchStats]);
 
+  // Active session — initial + poll every 5s; always trust server response
   useEffect(() => {
-    fetch("/api/study/session", { credentials: "include" })
-      .then(r => r.ok ? r.json() : {})
-      .then((d: { activeSession?: { id: string; startedAt: string } | null }) => setActiveSession(d.activeSession ?? null))
-      .catch(() => {});
-    const id = setInterval(() => {
+    const poll = () =>
       fetch("/api/study/session", { credentials: "include" })
         .then(r => r.ok ? r.json() : {})
-        .then((d: { activeSession?: { id: string; startedAt: string } | null }) => {
-          setActiveSession(prev => (!prev && d.activeSession) ? d.activeSession : (prev && !d.activeSession) ? null : prev);
-        }).catch(() => {});
-    }, 5000);
+        .then((d: { activeSession?: { id: string; startedAt: string } | null }) =>
+          setActiveSession(d.activeSession ?? null))
+        .catch(() => {});
+    poll();
+    const id = setInterval(poll, 5000);
     return () => clearInterval(id);
   }, []);
 
+  // Session timer
   useEffect(() => {
     if (!activeSession?.startedAt) return;
     const started = new Date(activeSession.startedAt).getTime();
@@ -200,49 +200,58 @@ export function DashboardContent({ userName }: { userName: string }) {
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
   }, [activeSession?.id, activeSession?.startedAt]);
 
-  useEffect(() => {
-    fetch("/api/slots", { credentials: "include" }).then(r => r.ok ? r.json() : []).then((d: StudyRoomItem[]) => setStudyRooms(Array.isArray(d) ? d : [])).catch(() => {});
-    fetch("/api/user/subscriptions", { credentials: "include" }).then(r => r.ok ? r.json() : []).then((d: SubscribedRoom[]) => setSubscribedRooms(Array.isArray(d) ? d : [])).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/dashboard/leaderboard", { credentials: "include" })
-      .then(r => r.ok ? r.json() : { leaderboard: [] })
-      .then((d: { leaderboard?: LeaderboardEntry[] }) => setLeaderboard(Array.isArray(d.leaderboard) ? d.leaderboard : []))
-      .catch(() => {}).finally(() => setLeaderboardLoading(false));
-  }, []);
-
+  // Parallel initial data fetch — all independent requests fired at once
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    fetch(`/api/dashboard/todo?range=today`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : [])
-      .then((d: TodoItem[]) => setTodos(Array.isArray(d) ? d.filter(t => t.taskDate === today) : []))
-      .catch(() => {}).finally(() => setTodosLoading(false));
-  }, []);
+    const month = today.slice(0, 7);
+    const weekFrom = (() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().slice(0, 10); })();
 
-  useEffect(() => {
-    fetch("/api/dashboard/meet-addon", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then((d: { gamification?: GamificationData } | null) => { if (d?.gamification) setGamification(d.gamification); })
-      .catch(() => {});
-  }, []);
+    Promise.allSettled([
+      fetch("/api/slots", { credentials: "include" }).then(r => r.ok ? r.json() : []),
+      fetch("/api/user/subscriptions", { credentials: "include" }).then(r => r.ok ? r.json() : []),
+      fetch("/api/dashboard/leaderboard", { credentials: "include" }).then(r => r.ok ? r.json() : { leaderboard: [] }),
+      fetch(`/api/dashboard/todo?range=today`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
+      fetch("/api/dashboard/meet-addon", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+      fetch(`/api/study/streak-calendar?month=${month}`).then(r => r.ok ? r.json() : { studiedDates: [] }),
+      fetch(`/api/dashboard/charts?from=${weekFrom}&to=${today}`, { credentials: "include" }).then(r => r.ok ? r.json() : null),
+    ]).then(([slots, subs, lb, todos, addon, calendar, charts]) => {
+      if (slots.status === "fulfilled") setStudyRooms(Array.isArray(slots.value) ? slots.value : []);
+      if (subs.status === "fulfilled")  setSubscribedRooms(Array.isArray(subs.value) ? subs.value : []);
 
-  useEffect(() => {
-    const m = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-    fetch(`/api/study/streak-calendar?month=${m}`).then(r => r.json())
-      .then((d: { studiedDates?: string[] }) => setStudiedDates(new Set(d.studiedDates ?? []))).catch(() => {});
-  }, []);
+      if (lb.status === "fulfilled") {
+        const data = lb.value as { leaderboard?: LeaderboardEntry[] };
+        setLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : []);
+      }
+      setLeaderboardLoading(false);
 
-  useEffect(() => {
-    const now = new Date();
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const week = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now); d.setDate(now.getDate() - (6 - i));
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      return { label: i === 6 ? "Today" : days[d.getDay()], date: key, isToday: i === 6 };
+      if (todos.status === "fulfilled") {
+        const items = todos.value as TodoItem[];
+        setTodos(Array.isArray(items) ? items.filter(t => t.taskDate === today) : []);
+      }
+      setTodosLoading(false);
+
+      if (addon.status === "fulfilled") {
+        const d = addon.value as { gamification?: GamificationData } | null;
+        if (d?.gamification) setGamification(d.gamification);
+      }
+
+      if (calendar.status === "fulfilled") {
+        const d = calendar.value as { studiedDates?: string[] };
+        setStudiedDates(new Set(d.studiedDates ?? []));
+      }
+
+      // Real weekly hours from charts API — no Math.random()
+      if (charts.status === "fulfilled" && charts.value?.studyData) {
+        const sd = charts.value.studyData as { date: string; rawDate: string; hours: number }[];
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        setWeeklyHours(sd.map((item, i) => ({
+          label: i === sd.length - 1 ? "Today" : dayNames[new Date(item.rawDate).getDay()],
+          hours: item.hours,
+          isToday: i === sd.length - 1,
+        })));
+      }
     });
-    setWeeklyHours(week.map(w => ({ label: w.label, hours: studiedDates.has(w.date) ? 1.5 + Math.random() * 2 : 0, isToday: w.isToday })));
-  }, [studiedDates]);
+  }, []);
 
   async function handleStartStudy(meetLink: string) {
     window.open(meetLink, "_blank", "noopener,noreferrer");
@@ -276,6 +285,8 @@ export function DashboardContent({ userName }: { userName: string }) {
       }
     } catch {}
   }
+
+  const subscription = useSubscription();
 
   const liveHoursToday = (stats?.hoursToday ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
   const liveTotalHours = (stats?.totalStudyHours ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
@@ -339,6 +350,84 @@ export function DashboardContent({ userName }: { userName: string }) {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* ── Subscription Status Card ───────────────────────────────── */}
+      {!subscription.loading && (() => {
+        if (!subscription.active) {
+          return (
+            <motion.div variants={anim.container} initial="hidden" animate="show">
+              <motion.div variants={anim.item}
+                className="card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-amber-200 bg-amber-50/60"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-amber-800">No Active Subscription</p>
+                    <p className="text-xs text-amber-700">Subscribe to unlock all features — study rooms, analytics & more.</p>
+                  </div>
+                </div>
+                <Link
+                  href="/pricing"
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg,#f97316,#ef4444)" }}
+                >
+                  View Plans <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </motion.div>
+            </motion.div>
+          );
+        }
+
+        const end = new Date(subscription.endDate!);
+        const daysLeft = Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
+        const isExpiringSoon = daysLeft <= 7;
+        const planLabel = subscription.planType === "MONTHLY" ? "Monthly" : "Yearly";
+
+        return (
+          <motion.div variants={anim.container} initial="hidden" animate="show">
+            <motion.div variants={anim.item}
+              className={`card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
+                isExpiringSoon ? "border-orange-200 bg-orange-50/60" : "border-indigo-200/60 bg-indigo-50/40"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: isExpiringSoon ? "linear-gradient(135deg,#f97316,#ef4444)" : "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+                >
+                  <Crown className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-bold text-[var(--foreground)]">
+                    {planLabel} Plan Active
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white"
+                      style={{ background: isExpiringSoon ? "linear-gradient(135deg,#f97316,#ef4444)" : "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+                    >
+                      {isExpiringSoon ? `Expires in ${daysLeft}d` : "ACTIVE"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-[var(--muted-text)]">
+                    Valid till {end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    {" · "}{daysLeft} day{daysLeft !== 1 ? "s" : ""} remaining
+                  </p>
+                </div>
+              </div>
+              {isExpiringSoon && (
+                <Link
+                  href="/pricing"
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg,#f97316,#ef4444)" }}
+                >
+                  Renew Now <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
+            </motion.div>
+          </motion.div>
+        );
+      })()}
 
       {/* ── Row 1: Timer + Stats + Coins ───────────────────────────── */}
       <motion.div variants={anim.container} initial="hidden" animate="show"

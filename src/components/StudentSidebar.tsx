@@ -5,54 +5,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import {
-  LayoutDashboard, Flame, BookOpen, Settings, LogOut,
-  Menu, X, UserCircle, Receipt, Gift, ClipboardList,
-  Package, HelpCircle, Video, UserPlus, CheckCircle,
-  MessageSquare, Trophy, Sparkles, Coins,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, X, Coins } from "lucide-react";
 import { calculateCompletion, type ProfileForCompletion } from "@/lib/profileCompletion";
+import { STUDENT_MODULES, filterEnabledModules } from "@/lib/student-modules";
 
 type Profile = ProfileForCompletion & {
   currentStreak?: number;
   longestStreak?: number;
 };
 
-const navSections = [
-  {
-    label: "Main",
-    items: [
-      { href: "/dashboard",             label: "Dashboard",   icon: LayoutDashboard },
-      { href: "/dashboard/tasks",       label: "Tasks",       icon: CheckCircle },
-      { href: "/dashboard/streaks",     label: "Streaks",     icon: Flame },
-      { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
-      { href: "/dashboard/quiz",        label: "Quiz",        icon: HelpCircle },
-    ],
-  },
-  {
-    label: "Study",
-    items: [
-      { href: "/dashboard/studymate",    label: "StudyMate AI", icon: Sparkles },
-      { href: "/dashboard/subscription", label: "Study Room",   icon: BookOpen },
-      { href: "/dashboard/meet-addon",   label: "Meet Add-on",  icon: Video },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
-      { href: "/dashboard/rewards",      label: "My Rewards",   icon: Gift },
-      { href: "/dashboard/downloads",    label: "My Products",  icon: Package },
-      { href: "/dashboard/transactions", label: "Transactions", icon: Receipt },
-      { href: "/dashboard/refer",        label: "Refer & Earn", icon: UserPlus },
-      { href: "/dashboard/student-form", label: "Profile Form", icon: ClipboardList },
-      { href: "/dashboard/feedback",     label: "Feedback",     icon: MessageSquare },
-      { href: "/dashboard/profile",      label: "Profile",      icon: UserCircle },
-      { href: "/dashboard/settings",     label: "Settings",     icon: Settings },
-    ],
-  },
-];
-
-export function StudentSidebar() {
+export function StudentSidebar({ disabledModules = [] }: { disabledModules?: string[] }) {
   const pathname = usePathname();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +60,13 @@ export function StudentSidebar() {
   const avatarUrl = profile?.profilePicUrl?.trim() || null;
   const initials = displayName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "S";
 
+  const enabledModules = filterEnabledModules(STUDENT_MODULES, disabledModules);
+  const sections = ["Main", "Study", "Account"] as const;
+  const navSections = sections.map(label => ({
+    label,
+    items: enabledModules.filter(m => m.section === label),
+  })).filter(s => s.items.length > 0);
+
   const SidebarBody = () => (
     <div className="flex flex-1 flex-col min-h-0">
       {/* Profile section */}
@@ -119,10 +88,10 @@ export function StudentSidebar() {
             <p className="text-sm font-bold text-[var(--foreground)] truncate">{displayName}</p>
             <p className="text-[10px] text-[var(--muted-text)] truncate">{displayGoal}</p>
             {totalCoins !== null && (
-              <div className="flex items-center gap-1 mt-0.5">
+              <Link href="/dashboard/wallet" onClick={() => setDrawerOpen(false)} className="flex items-center gap-1 mt-0.5 hover:opacity-80 transition-opacity">
                 <Coins className="h-3 w-3 text-amber-500" />
                 <span className="text-[10px] font-bold text-amber-600">{totalCoins.toLocaleString("en-IN")} coins</span>
-              </div>
+              </Link>
             )}
           </div>
         </div>
@@ -144,15 +113,30 @@ export function StudentSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2 px-2">
+        {/* Dashboard — always visible */}
+        {(() => {
+          const isActive = pathname === "/dashboard";
+          return (
+            <Link href="/dashboard" onClick={() => setDrawerOpen(false)}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 mb-1 ${
+                isActive
+                  ? "bg-[var(--accent)]/10 text-[var(--accent)] font-semibold border border-[var(--accent)]/20"
+                  : "text-[var(--body-text)] hover:bg-[var(--cream)] hover:text-[var(--accent)]"
+              }`}>
+              <LayoutDashboard className={`h-4 w-4 shrink-0 ${isActive ? "text-[var(--accent)]" : "text-[var(--muted-text)]"}`} />
+              <span>Dashboard</span>
+              {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />}
+            </Link>
+          );
+        })()}
+
         {navSections.map((section) => (
           <div key={section.label} className="mb-1">
             <p className="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent)]/60">
               {section.label}
             </p>
             {section.items.map((item) => {
-              const isActive = item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname === item.href || pathname.startsWith(item.href + "/");
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               const Icon = item.icon;
               return (
                 <Link
@@ -250,11 +234,11 @@ export function StudentSidebar() {
         {/* Header */}
         <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-[var(--cream-muted)]">
           <div className="flex items-center gap-2.5">
-            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-xl border border-[var(--cream-muted)]">
+            <div className="relative h-10 w-10 shrink-0">
               {(logoUrl?.trim() && logoUrl.startsWith("http")) ? (
-                <img src={logoUrl} alt={siteTitle} className="h-full w-full object-cover" />
+                <img src={logoUrl} alt={siteTitle} className="h-10 w-10 object-contain rounded-xl" />
               ) : (
-                <Image src={logoUrl?.trim() || "/logo.svg"} alt={siteTitle} width={32} height={32} className="object-cover" />
+                <Image src={logoUrl?.trim() || "/logo.svg"} alt={siteTitle} width={40} height={40} className="object-contain" />
               )}
             </div>
             <span className="text-sm font-bold text-[var(--foreground)] truncate">{siteTitle}</span>

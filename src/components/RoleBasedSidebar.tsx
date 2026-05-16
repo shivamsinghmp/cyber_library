@@ -4,34 +4,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
-  Briefcase,
-  GraduationCap,
-  Link2,
   Home,
   LogOut,
-  Calendar,
-  UserCircle,
   Users,
   Tag,
   FileText,
-  CreditCard,
   Receipt,
-  Trash2,
   Gift,
   Download,
-  UserPlus,
   Settings,
   MessageCircle,
   ClipboardList,
   Activity,
   ShoppingBag,
-  PenLine,
   Plus,
-  ImageIcon,
-  Video,
   MessageSquare,
   Trophy,
   HelpCircle,
@@ -39,15 +28,14 @@ import {
   ChevronRight,
   Database,
   BarChart,
-  MonitorPlay
+  MonitorPlay,
+  UserCircle,
+  Calendar,
+  Link2,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-type NavItem = {
-  href: string;
-  label: string;
-};
-
+type NavItem = { href: string; label: string };
 type NavNode = {
   href?: string;
   label: string;
@@ -86,6 +74,7 @@ const roleNav: Record<string, NavNode[]> = {
       icon: Users,
       subItems: [
         { href: "/admin/students", label: "Student Management" },
+        { href: "/admin/student-modules", label: "Student Modules" },
         { href: "/admin/staff", label: "Staff Management" },
         { href: "/admin/profile-fields", label: "Profile Fields" },
         { href: "/admin/authors", label: "Authors" },
@@ -98,7 +87,9 @@ const roleNav: Record<string, NavNode[]> = {
       icon: Receipt,
       subItems: [
         { href: "/admin/transactions", label: "Transactions" },
+        { href: "/admin/subscriptions", label: "Subscriptions" },
         { href: "/admin/products", label: "Digital Store" },
+        { href: "/admin/pricing", label: "Pricing Page" },
         { href: "/admin/coupons", label: "Coupons" },
         { href: "/admin/rewards", label: "Reward Program" },
         { href: "/admin/razorpay", label: "Razorpay API" },
@@ -139,7 +130,7 @@ const roleNav: Record<string, NavNode[]> = {
   ],
   STUDENT: [
     { href: "/", label: "Home", icon: Home },
-    { href: "/dashboard", label: "My Dashboard", icon: GraduationCap },
+    { href: "/dashboard", label: "My Dashboard", icon: Trophy },
     { href: "/study-room", label: "Study Room", icon: Calendar },
     { href: "/dashboard/leaderboard", label: "Leaderboard", icon: Trophy },
   ],
@@ -160,17 +151,14 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const role = (session?.user as { role?: string })?.role ?? "STUDENT";
-  
+
   let links = roleNav[role] ?? roleNav.STUDENT;
-  
+
   if (role === "EMPLOYEE") {
-    // If they are an employee, they get the ADMIN layout but heavily filtered
-    links = roleNav["ADMIN"].filter(node => {
+    links = roleNav["ADMIN"].filter((node) => {
       if (!node.moduleId) return true;
       return hasModuleAccess(role, allowedModules, node.moduleId as AdminModuleIds);
     });
-    
-    // Add generic fast links for employees
     links.unshift({ href: "/staff", label: "Staff Portal", icon: LayoutDashboard });
   }
 
@@ -180,11 +168,8 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [siteTitle, setSiteTitle] = useState("The Cyber Library");
-  
-  // Track expanded categories in a set-like object or array
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
 
-  // Auto-expand category if child is active
   useEffect(() => {
     fetch("/api/site-branding")
       .then((r) => (r.ok ? r.json() : {}))
@@ -194,21 +179,22 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
       })
       .catch(() => {});
   }, []);
-  
-  // Auto-expand category if child matches active route
+
   useEffect(() => {
     links.forEach((node) => {
       if (node.subItems) {
-        const isActive = node.subItems.some(sub => pathname === sub.href || pathname.startsWith(sub.href + "/"));
+        const isActive = node.subItems.some(
+          (sub) => pathname === sub.href || pathname.startsWith(sub.href + "/")
+        );
         if (isActive) {
-          setExpandedCats(prev => ({ ...prev, [node.label]: true }));
+          setExpandedCats((prev) => ({ ...prev, [node.label]: true }));
         }
       }
     });
   }, [pathname, links]);
 
   const toggleCategory = (label: string) => {
-    setExpandedCats(prev => ({ ...prev, [label]: !prev[label] }));
+    setExpandedCats((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
   const logoSrc = logoUrl?.trim() || "/logo.svg";
@@ -216,14 +202,14 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
 
   if (status === "loading") {
     return (
-      <aside className="flex w-56 shrink-0 flex-col border-r border-white/10 bg-black/20">
-        <div className="flex h-14 items-center gap-2 border-b border-white/10 px-4">
-          <div className="h-8 w-8 animate-pulse rounded-xl bg-white/10" />
-          <div className="h-4 w-32 animate-pulse rounded bg-white/10" />
+      <aside className="flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white md:w-64">
+        <div className="flex h-14 items-center gap-2 border-b border-gray-100 px-4">
+          <div className="h-8 w-8 animate-pulse rounded-xl bg-gray-200" />
+          <div className="h-4 w-32 animate-pulse rounded bg-gray-200" />
         </div>
         <div className="flex-1 space-y-1 p-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 animate-pulse rounded-lg bg-white/5" />
+            <div key={i} className="h-10 animate-pulse rounded-lg bg-gray-100" />
           ))}
         </div>
       </aside>
@@ -231,54 +217,62 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
   }
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-white/10 bg-black/20 md:w-64">
-      <div className="flex h-14 items-center gap-2 border-b border-white/10 px-4">
-        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+    <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white shadow-sm md:w-64">
+      {/* Logo */}
+      <div className="flex h-14 items-center gap-2.5 border-b border-gray-100 px-4">
+        <div className="relative h-10 w-10 shrink-0">
           {isExternalLogo ? (
-            <img src={logoSrc} alt={siteTitle} width={36} height={36} className="h-9 w-9 object-cover" />
+            <img src={logoSrc} alt={siteTitle} className="h-10 w-10 object-contain" />
           ) : (
-            <Image src={logoSrc} alt={siteTitle} width={36} height={36} className="object-cover" />
+            <Image src={logoSrc} alt={siteTitle} width={40} height={40} className="object-contain" />
           )}
         </div>
-        <span className="font-semibold text-[var(--cream)]">{siteTitle}</span>
+        <span className="truncate text-sm font-bold text-gray-900">{siteTitle}</span>
       </div>
-      <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
         {links.map((node) => {
           const Icon = node.icon;
-          
+
           if (node.subItems) {
             const isExpanded = expandedCats[node.label];
-            const hasActiveChild = node.subItems.some((sub) => pathname === sub.href || pathname.startsWith(sub.href + "/"));
-            
+            const hasActiveChild = node.subItems.some(
+              (sub) => pathname === sub.href || pathname.startsWith(sub.href + "/")
+            );
+
             return (
-              <div key={node.label} className="mb-2">
+              <div key={node.label} className="mb-1">
                 <button
                   onClick={() => toggleCategory(node.label)}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                    hasActiveChild 
-                      ? "text-[var(--cream)]"
-                      : "text-[var(--cream-muted)] hover:bg-white/5 hover:text-[var(--cream)]"
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-wider transition ${
+                    hasActiveChild
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`h-4 w-4 shrink-0 ${hasActiveChild ? "text-[var(--accent)]" : ""}`} />
-                    {node.label}
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${hasActiveChild ? "text-indigo-600" : ""}`} />
+                    <span>{node.label}</span>
                   </div>
-                  {isExpanded ? <ChevronDown className="h-4 w-4 opacity-50" /> : <ChevronRight className="h-4 w-4 opacity-50" />}
+                  {isExpanded
+                    ? <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                    : <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                  }
                 </button>
-                
+
                 {isExpanded && (
-                  <div className="mt-1 ml-4 border-l border-white/10 pl-2 space-y-0.5">
+                  <div className="mt-0.5 ml-3 border-l-2 border-gray-100 pl-2.5 space-y-0.5">
                     {node.subItems.map((sub) => {
                       const active = pathname === sub.href || pathname.startsWith(sub.href + "/");
                       return (
                         <Link
                           key={sub.href}
                           href={sub.href}
-                          className={`block rounded-lg px-3 py-2 text-sm transition ${
+                          className={`flex items-center rounded-lg px-2.5 py-1.5 text-sm transition ${
                             active
-                              ? "bg-[var(--accent)]/10 text-[var(--accent)] font-semibold"
-                              : "text-[var(--cream-muted)] hover:text-[var(--cream)] hover:bg-white/5"
+                              ? "bg-indigo-600 text-white font-semibold"
+                              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                           }`}
                         >
                           {sub.label}
@@ -291,20 +285,19 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
             );
           }
 
-          // Flat link (for non-admins typically)
           const active =
             node.href === "/"
               ? pathname === "/"
               : pathname === node.href || (node.href && pathname.startsWith(node.href + "/"));
-              
+
           return (
             <Link
               key={node.href || node.label}
               href={node.href!}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                 active
-                  ? "bg-[var(--accent)]/20 text-[var(--cream)]"
-                  : "text-[var(--cream-muted)] hover:bg-white/5 hover:text-[var(--cream)]"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -313,18 +306,29 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
           );
         })}
       </nav>
-      <div className="border-t border-white/10 p-3">
+
+      {/* User + Logout */}
+      <div className="border-t border-gray-100 p-3">
+        {session?.user?.name && (
+          <div className="mb-2 flex items-center gap-2.5 rounded-xl bg-gray-50 px-3 py-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+              {(session.user.name || session.user.email || "?")[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-gray-800">{session.user.name}</p>
+              <p className="truncate text-[10px] text-gray-500">{role}</p>
+            </div>
+          </div>
+        )}
         <button
           type="button"
           onClick={async () => {
-              try {
-                await fetch("/api/auth/record-logout", { method: "POST" });
-              } catch {
-                // ignore
-              }
-              signOut({ callbackUrl: "/" });
-            }}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--cream-muted)] transition hover:bg-white/5 hover:text-[var(--cream)]"
+            try {
+              await fetch("/api/auth/record-logout", { method: "POST" });
+            } catch {}
+            signOut({ callbackUrl: "/" });
+          }}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-red-50 hover:text-red-600"
         >
           <LogOut className="h-4 w-4 shrink-0" />
           Log out

@@ -21,6 +21,7 @@ const updateSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   excerpt: z.string().max(2000).nullable().optional(),
   body: z.string().min(1).optional(),
+  coverImage: z.string().max(1000).nullable().optional(),
   metaTitle: z.string().max(100).nullable().optional(),
   metaDescription: z.string().max(500).nullable().optional(),
   publishedAt: z.string().datetime().nullable().optional(),
@@ -90,7 +91,8 @@ export async function PUT(
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.title !== undefined) updateData.title = data.title;
     if (data.excerpt !== undefined) updateData.excerpt = data.excerpt?.trim() || null;
-    if (data.body !== undefined) updateData.body = DOMPurify.sanitize(data.body); // SANITIZED!
+    if (data.body !== undefined) updateData.body = DOMPurify.sanitize(data.body);
+    if (data.coverImage !== undefined) updateData.coverImage = data.coverImage?.trim() || null;
     if (data.metaTitle !== undefined) updateData.metaTitle = data.metaTitle?.trim() || null;
     if (data.metaDescription !== undefined) updateData.metaDescription = data.metaDescription?.trim() || null;
     if (data.publishedAt !== undefined) updateData.publishedAt = data.publishedAt ? new Date(data.publishedAt) : null;

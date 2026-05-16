@@ -1,59 +1,30 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Mail, Loader2, RefreshCw, CheckCircle } from "lucide-react";
 
 function VerifyEmailContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialEmail = searchParams.get("email") || "";
+  const email = searchParams.get("email") || "";
 
-  const [email, setEmail] = useState(initialEmail);
-  const [code, setCode] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
 
-  async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setMessage(null);
-    if (!email || !code) {
-      setError("Email and OTP are required.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/auth/verify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || "Could not verify. Check the code and try again.");
-        return;
-      }
-      setMessage("Email verified. You can now log in.");
-      const t = setTimeout(() => { router.push("/login?verified=1"); }, 800);
-      return () => clearTimeout(t);
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   async function handleResend() {
-    setError(null);
-    setMessage(null);
-    if (!email) {
-      setError("Enter your email to resend code.");
-      return;
-    }
+    if (!email || cooldown > 0) return;
     setResending(true);
+    setResendError(null);
+    setResendSuccess(false);
     try {
       const res = await fetch("/api/auth/verify-email/resend", {
         method: "POST",
@@ -62,85 +33,95 @@ function VerifyEmailContent() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Could not resend code.");
+        setResendError(data.error || "Link nahi bheja ja saka. Dobara try karo.");
         return;
       }
-      setMessage("A new verification code has been sent to your email.");
+      setResendSuccess(true);
+      setCooldown(60);
     } catch {
-      setError("Could not resend code. Try again.");
+      setResendError("Kuch gadbad ho gayi. Dobara try karo.");
     } finally {
       setResending(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[var(--background)]">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-black/30 p-6 shadow-xl">
-        <h1 className="text-lg font-semibold text-[var(--cream)] mb-2">
-          Verify your email
-        </h1>
-        <p className="text-xs text-[var(--cream-muted)] mb-6">
-          We&apos;ve sent a 6-digit code to your email. Enter it below to activate your
-          The Cyber Library account.
-        </p>
+    <div className="min-h-[100dvh] flex items-center justify-center px-5 py-12"
+      style={{ background: "var(--page-bg)" }}>
+      <div className="w-full max-w-[420px]">
 
-        <form onSubmit={handleVerify} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/40 py-2.5 px-3 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">
-              OTP code
-            </label>
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-              className="w-full tracking-[0.35em] text-center rounded-xl border border-white/10 bg-black/40 py-2.5 px-3 text-sm font-mono text-[var(--cream)] focus:border-[var(--accent)]/70 focus:outline-none"
-              placeholder="123456"
-            />
-            <p className="mt-1 text-[10px] text-[var(--cream-muted)]">
-              Code expires in about 10 minutes.
-            </p>
+        {/* Card */}
+        <div className="rounded-2xl border bg-white p-8 text-center"
+          style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-md)" }}>
+
+          {/* Icon */}
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
+            style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 24px rgba(99,102,241,0.35)" }}>
+            <Mail className="h-8 w-8 text-white" />
           </div>
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          {message && !error && <p className="text-xs text-emerald-300">{message}</p>}
+          <h1 className="text-xl font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
+            Email check karo!
+          </h1>
+
+          <p className="text-sm mb-1" style={{ color: "var(--muted-text)" }}>
+            Tumhare email pe verification link bheja gaya hai:
+          </p>
+          <p className="text-sm font-bold mb-6 break-all" style={{ color: "var(--foreground)" }}>
+            {email || "tumhari email"}
+          </p>
+
+          <div className="rounded-xl border px-4 py-3 mb-6 text-left space-y-1.5"
+            style={{ borderColor: "var(--border)", background: "var(--page-bg)" }}>
+            {[
+              "Email inbox kholo",
+              '"The Cyber Library" ka email dhundho',
+              '"Verify Email Address" button pe click karo',
+            ].map((step, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white"
+                  style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
+                  {i + 1}
+                </span>
+                <p className="text-xs font-medium" style={{ color: "var(--muted-text)" }}>{step}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Resend */}
+          {resendSuccess ? (
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 mb-4">
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              <p className="text-sm font-semibold text-emerald-700">
+                Naya link bhej diya! Inbox check karo.
+              </p>
+            </div>
+          ) : resendError ? (
+            <p className="text-xs font-semibold text-red-500 mb-3">{resendError}</p>
+          ) : null}
 
           <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-xl bg-[var(--accent)] py-2.5 text-sm font-semibold text-[var(--ink)] shadow-lg transition hover:bg-[var(--accent-hover)] disabled:opacity-60"
-          >
-            {submitting ? "Verifying…" : "Verify email"}
+            onClick={handleResend}
+            disabled={resending || cooldown > 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-bold transition-all hover:bg-gray-50 disabled:opacity-50"
+            style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
+            {resending
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Bhej rahe hain…</>
+              : cooldown > 0
+              ? <><RefreshCw className="h-4 w-4" /> Resend ({cooldown}s)</>
+              : <><RefreshCw className="h-4 w-4" /> Link dobara bhejo</>
+            }
           </button>
-        </form>
 
-        <button
-          type="button"
-          onClick={handleResend}
-          disabled={resending}
-          className="mt-4 w-full rounded-xl border border-white/10 py-2.5 text-center text-xs font-medium text-[var(--cream)] hover:bg-white/5 disabled:opacity-60"
-        >
-          {resending ? "Resending…" : "Resend code"}
-        </button>
+          <p className="mt-4 text-[11px]" style={{ color: "var(--muted-text)" }}>
+            Spam folder bhi check karo. Link 24 ghante valid rahega.
+          </p>
+        </div>
 
-        <p className="mt-5 text-center text-xs text-[var(--cream-muted)]">
-          Already verified?{" "}
-          <Link
-            href="/login"
-            className="text-[var(--accent)] underline-offset-2 hover:underline"
-          >
-            Log in
+        <p className="mt-5 text-center text-sm" style={{ color: "var(--muted-text)" }}>
+          Pehle se account verify hai?{" "}
+          <Link href="/login" className="font-extrabold hover:underline" style={{ color: "var(--accent)" }}>
+            Login Karo
           </Link>
         </p>
       </div>
@@ -150,15 +131,12 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--background)] text-[var(--cream-muted)]">
-          Loading…
-        </div>
-      }
-    >
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--page-bg)" }}>
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--accent)" }} />
+      </div>
+    }>
       <VerifyEmailContent />
     </Suspense>
   );
 }
-

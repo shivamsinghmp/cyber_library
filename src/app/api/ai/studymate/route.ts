@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireUser } from "@/lib/api-helpers";
+import { requireModule } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { z } from "zod";
@@ -152,13 +152,20 @@ async function logUsage(userId: string, paid: boolean) {
 // ─── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
-    const auth = await requireUser();
+    const auth = await requireModule("studymate");
     if (auth.error) return auth.error;
     const userId = auth.user.id;
 
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     const { messages, imageBase64, mediaType } = parsed.data;
+
+    // Per-minute burst protection (prevents rapid API key exhaustion)
+    const { rateLimit } = await import("@/lib/rate-limit");
+    const rl = rateLimit(`ai_burst:${userId}`, 5, 60); // 5 per minute per user
+    if (!rl.success) {
+      return NextResponse.json({ error: "Thoda ruko — ek minute mein 5 se zyada messages nahi." }, { status: 429 });
+    }
 
     // Quota + coins check
     const [todayCount, coins] = await Promise.all([getTodayCount(userId), getCoins(userId)]);
@@ -182,41 +189,58 @@ export async function POST(request: Request) {
     const profile = await getProfile(userId);
     const system = buildSystemPrompt(profile);
 
-    // Build Claude messages (with optional image on last user msg)
-    const claudeMessages = messages.map((m, i) => {
+    // Build Gemini contents (user/model roles, optional image on last user msg)
+    const geminiContents = messages.map((m, i) => {
+      const role = m.role === "assistant" ? "model" : "user";
       if (imageBase64 && i === messages.length - 1 && m.role === "user") {
         return {
-          role: m.role,
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType ?? "image/jpeg", data: imageBase64 } },
-            { type: "text", text: m.content || "Yeh question solve karo aur shortcut bhi batao" },
+          role,
+          parts: [
+            { inline_data: { mime_type: mediaType ?? "image/jpeg", data: imageBase64 } },
+            { text: m.content || "Yeh question solve karo aur shortcut bhi batao" },
           ],
         };
       }
-      return { role: m.role, content: m.content };
+      return { role, parts: [{ text: m.content }] };
     });
 
-    // Claude API call (30s timeout — Anthropic can be slow on long responses)
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "AI not configured" }, { status: 503 });
+    }
+
+    // Gemini API call (30s timeout)
     const aiController = new AbortController();
     const aiTimer = setTimeout(() => aiController.abort(), 30_000);
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      signal: aiController.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1024, system, messages: claudeMessages }),
-    }).finally(() => clearTimeout(aiTimer));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        signal: aiController.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: geminiContents,
+          generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+        }),
+      }
+    ).finally(() => clearTimeout(aiTimer));
 
     if (!res.ok) {
-      console.error("Claude API error:", await res.text());
-      return NextResponse.json({ error: "AI service unavailable" }, { status: 502 });
+      const errBody = await res.text();
+      console.error("Gemini API error:", res.status, errBody);
+      let userMsg = "AI service unavailable. Thodi der baad try karo.";
+      if (res.status === 400) userMsg = "AI request invalid. Dobara try karo.";
+      if (res.status === 429) userMsg = "AI quota limit ho gayi. Thodi der baad try karo.";
+      if (res.status === 403) userMsg = "AI API key invalid hai. Admin se contact karo.";
+      return NextResponse.json({ error: userMsg }, { status: 502 });
     }
 
     const data = await res.json();
-    const reply = data.content.filter((c: {type:string}) => c.type === "text").map((c: {text:string}) => c.text).join("");
+    const reply: string = data.candidates?.[0]?.content?.parts
+      ?.filter((p: { text?: string }) => p.text)
+      ?.map((p: { text: string }) => p.text)
+      ?.join("") ?? "Kuch error aa gaya, dobara try karo.";
 
     await logUsage(userId, paid);
 
@@ -238,7 +262,7 @@ export async function POST(request: Request) {
 // ─── GET — fetch initial stats ────────────────────────────────────────────────
 export async function GET() {
   try {
-    const auth = await requireUser();
+    const auth = await requireModule("studymate");
     if (auth.error) return auth.error;
     const userId = auth.user.id;
 

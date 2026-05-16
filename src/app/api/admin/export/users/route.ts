@@ -13,21 +13,11 @@ export async function GET() {
     const users = await prisma.user.findMany({
       where: { deletedAt: null },
       select: {
-        id: true,
-        studentId: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        profile: {
-          select: {
-            fullName: true,
-            phone: true,
-            whatsappNumber: true,
-          },
-        },
+        id: true, studentId: true, name: true, email: true, role: true, createdAt: true,
+        profile: { select: { fullName: true, phone: true, whatsappNumber: true } },
       },
       orderBy: { createdAt: "desc" },
+      take: 100_000, // safeguard; chunked CSV export if needed beyond this
     });
 
     const rows = users.map((u) => ({

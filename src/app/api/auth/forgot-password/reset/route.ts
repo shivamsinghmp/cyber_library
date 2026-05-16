@@ -2,13 +2,28 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { verifyOtp } from "@/lib/otp";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rl = rateLimit(`pwd_reset_ip:${ip}`, 10, 900); // 10 per 15 min per IP
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many attempts. Thodi der baad try karo." }, { status: 429 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const code = typeof body.code === "string" ? body.code.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";
+
+    // Per-email OTP brute-force protection
+    if (email) {
+      const rl2 = rateLimit(`pwd_reset_email:${email}`, 5, 900); // 5 per 15 min per email
+      if (!rl2.success) {
+        return NextResponse.json({ error: "Too many reset attempts for this account." }, { status: 429 });
+      }
+    }
 
     if (!email || !code || !password) {
       return NextResponse.json(

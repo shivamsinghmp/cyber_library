@@ -1,208 +1,427 @@
-import nodemailer from "nodemailer";
+/**
+ * Email via Resend API only.
+ * RESEND_API_KEY and RESEND_FROM must be set in .env.
+ * Every sent email is logged to EmailLog with resendId for webhook tracking.
+ */
+
+import { Resend } from "resend";
 import { prisma } from "./prisma";
-import { decrypt } from "./encrypt";
+import { getAppSetting } from "./app-settings";
 
 type OtpContext = "verify" | "reset";
 
-// Transporter Cache: account ID -> Transporter
-const transporters = new Map<string, nodemailer.Transporter>();
+// ─── Resend client ─────────────────────────────────────────────────────────────
 
-/**
- * Load Mailer based on purpose.
- * If multiple exist, take the first active one.
- * Supported purposes: "OTP", "SUPPORT", "GENERAL"
- */
-async function getMailerForPurpose(purposeOrAccountId: string, isAccountId: boolean = false) {
-  try {
-    const account = await prisma.emailAccount.findFirst({
-      where: isAccountId ? { id: purposeOrAccountId, isActive: true } : { purpose: purposeOrAccountId, isActive: true },
-      orderBy: { createdAt: "desc" },
-    });
+async function getResendClient(): Promise<Resend | null> {
+  const apiKey = process.env.RESEND_API_KEY?.trim() || (await getAppSetting("RESEND_API_KEY"));
+  if (!apiKey) return null;
+  return new Resend(apiKey);
+}
 
-    if (account) {
-      if (!transporters.has(account.id)) {
-        const pass = decrypt(account.passwordEncrypted, account.iv);
-        const host = (account as typeof account & { smtpHost?: string }).smtpHost || "smtp.gmail.com";
-        const port = (account as typeof account & { smtpPort?: number }).smtpPort ?? 2525;
-        const secure = port === 465;
-        const transporter = nodemailer.createTransport({
-          host,
-          port,
-          secure,
-          auth: {
-            user: account.email,
-            pass: pass,
-          },
-          xMailer: false,
-        });
-        transporters.set(account.id, transporter);
-      }
-      return { 
-        transporter: transporters.get(account.id)!, 
-        from: `"${account.senderName}" <${account.email}>` 
-      };
-    }
-  } catch (e) {
-    console.error(`Failed to load DB EmailAccount for purpose ${purposeOrAccountId}:`, e);
+async function getFromAddress(): Promise<string> {
+  return (
+    process.env.RESEND_FROM?.trim() ||
+    (await getAppSetting("RESEND_FROM")) ||
+    "The Cyber Library <no-reply@cyberlib.in>"
+  );
+}
+
+// ─── Core send + log ───────────────────────────────────────────────────────────
+
+async function sendAndLog({
+  to,
+  toName,
+  subject,
+  html,
+  text,
+  purpose,
+}: {
+  to: string;
+  toName?: string | null;
+  subject: string;
+  html: string;
+  text?: string;
+  purpose: string;
+}): Promise<boolean> {
+  const resend = await getResendClient();
+  const from = await getFromAddress();
+
+  if (!resend) {
+    console.warn("[Email] RESEND_API_KEY not set — email not sent.");
+    await prisma.emailLog.create({
+      data: { toEmail: to, toName: toName ?? null, subject, purpose, status: "FAILED", errorMessage: "RESEND_API_KEY not configured" },
+    }).catch(() => {});
+    return false;
   }
 
-  // Fallback to legacy SMTP Setting or Env Vars
-  let host = process.env.SMTP_HOST;
-  let user = process.env.SMTP_USER;
-  let pass = process.env.SMTP_PASS;
-  let port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 2525;
-  let from = process.env.SMTP_FROM || "The Cyber Library <no-reply@virtuallibrary.com>";
+  try {
+    const { data, error } = await resend.emails.send({ from, to, subject, html, text: text ?? "" });
+
+    if (error || !data?.id) {
+      const msg = error ? JSON.stringify(error) : "No ID returned";
+      console.error("[Email] Resend error:", msg);
+      await prisma.emailLog.create({
+        data: { toEmail: to, toName: toName ?? null, subject, purpose, status: "FAILED", errorMessage: msg },
+      }).catch(() => {});
+      return false;
+    }
+
+    await prisma.emailLog.create({
+      data: { resendId: data.id, toEmail: to, toName: toName ?? null, subject, purpose, status: "SENT" },
+    }).catch(() => {});
+
+    return true;
+  } catch (e) {
+    const msg = (e as Error)?.message ?? "Unknown error";
+    console.error("[Email] Send failed:", msg);
+    await prisma.emailLog.create({
+      data: { toEmail: to, toName: toName ?? null, subject, purpose, status: "FAILED", errorMessage: msg },
+    }).catch(() => {});
+    return false;
+  }
+}
+
+// ─── Template helpers ──────────────────────────────────────────────────────────
+
+function applyVars(template: string, vars: Record<string, string>): string {
+  return Object.entries(vars).reduce(
+    (str, [key, val]) => str.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), val),
+    template
+  );
+}
+
+async function getDefaultSignature(): Promise<string> {
+  try {
+    const sig = await prisma.emailSignature.findFirst({ where: { isDefault: true } });
+    return sig?.html ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function defaultOtpHtml(code: string, name: string | null | undefined, context: OtpContext): string {
+  const headline = context === "verify" ? "Verify Your Email" : "Reset Your Password";
+  const greeting = name ? `Hi ${name},` : "Hi,";
+  const subtext  = context === "verify"
+    ? "Use the OTP below to verify your email and complete signup."
+    : "Use this OTP to reset your password. Do not share it with anyone.";
+  return `
+<div style="font-family:Inter,sans-serif;padding:32px;background:#f4f4f5;">
+  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e4e4e7;padding:36px;">
+    <p style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6366f1;margin:0 0 12px;">The Cyber Library</p>
+    <h1 style="font-size:22px;font-weight:800;color:#09090b;margin:0 0 8px;">${headline}</h1>
+    <p style="color:#52525b;font-size:14px;margin:0 0 28px;">${greeting}<br/>${subtext}</p>
+    <div style="background:#f4f4f5;border-radius:12px;padding:20px;text-align:center;margin-bottom:28px;">
+      <span style="font-size:36px;font-weight:900;letter-spacing:8px;color:#09090b;font-family:monospace;">${code}</span>
+      <p style="font-size:12px;color:#71717a;margin:10px 0 0;">Expires in 10 minutes</p>
+    </div>
+    <p style="font-size:12px;color:#a1a1aa;margin:0;">If you didn't request this, ignore this email.</p>
+  </div>
+</div>`;
+}
+
+function defaultVerifyHtml(verifyUrl: string, name: string | null | undefined): string {
+  const greeting = name ? `Hi ${name},` : "Hi,";
+  return `
+<div style="font-family:Inter,sans-serif;padding:32px;background:#f4f4f5;">
+  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e4e4e7;padding:36px;">
+    <p style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6366f1;margin:0 0 12px;">The Cyber Library</p>
+    <h1 style="font-size:22px;font-weight:800;color:#09090b;margin:0 0 8px;">Verify Your Email</h1>
+    <p style="color:#52525b;font-size:14px;margin:0 0 28px;">${greeting}<br/>Click the button below to verify your email address.</p>
+    <a href="${verifyUrl}" style="display:inline-block;background:#6366f1;color:#fff;font-weight:700;font-size:14px;padding:14px 28px;border-radius:12px;text-decoration:none;">Verify Email →</a>
+    <p style="font-size:12px;color:#a1a1aa;margin:24px 0 8px;">This link expires in 24 hours.</p>
+    <p style="font-size:11px;color:#d4d4d8;word-break:break-all;">Or copy: ${verifyUrl}</p>
+  </div>
+</div>`;
+}
+
+// ─── OTP Email ─────────────────────────────────────────────────────────────────
+
+export async function sendOtpEmail(
+  to: string,
+  code: string,
+  context: OtpContext,
+  name?: string | null
+) {
+  const templatePurpose = context === "verify" ? "OTP_VERIFY" : "OTP_RESET";
+  const defaultSubject  = context === "verify"
+    ? "Verify your The Cyber Library account"
+    : "Your password reset OTP — The Cyber Library";
+
+  let subject = defaultSubject;
+  let html    = "";
 
   try {
-    const oldRow = await prisma.smtpSetting.findFirst({ orderBy: { updatedAt: "desc" } });
-    if (oldRow?.host && oldRow?.user && oldRow?.passEncrypted && oldRow?.iv) {
-      host = oldRow.host;
-      user = oldRow.user;
-      pass = decrypt(oldRow.passEncrypted, oldRow.iv);
-      port = oldRow.port ?? port;
-      from = oldRow.from || from;
+    const tpl = await prisma.emailTemplate.findUnique({ where: { purpose: templatePurpose } });
+    if (tpl) {
+      subject = tpl.subject;
+      html    = applyVars(tpl.bodyHtml, { code, name: name ?? "there" });
     }
   } catch {}
 
-  if (host && user && pass) {
-    const fallbackId = "fallback";
-    if (!transporters.has(fallbackId)) {
-      transporters.set(fallbackId, nodemailer.createTransport({
-        host, port, secure: port === 465, auth: { user, pass }
-      }));
-    }
-    return { transporter: transporters.get(fallbackId)!, from };
-  }
+  if (!html) html = defaultOtpHtml(code, name, context);
 
-  return null;
+  const sig = await getDefaultSignature();
+  if (sig) html += sig;
+
+  return sendAndLog({ to, toName: name, subject, html, text: `Your OTP: ${code} (expires in 10 min)`, purpose: "OTP" });
 }
 
-export async function sendOtpEmail(to: string, code: string, context: OtpContext) {
-  const mailer = await getMailerForPurpose("OTP");
-  if (!mailer) {
-    console.warn("[The Cyber Library] Email account not configured. Email not sent.");
-    return;
-  }
+// ─── Email Verification (magic link) ──────────────────────────────────────────
 
-  const templatePurpose = context === "verify" ? "OTP_VERIFY" : "OTP_RESET";
-  let subject = context === "verify" ? "Verify your The Cyber Library account" : "The Cyber Library password reset OTP";
-  let html = "";
-  let text = "";
+export async function sendMagicLinkEmail(to: string, verifyUrl: string, name?: string | null) {
+  let subject = "Verify your The Cyber Library account";
+  let html    = "";
 
   try {
-    const template = await prisma.emailTemplate.findUnique({ where: { purpose: templatePurpose } });
-    if (template) {
-      subject = template.subject;
-      html = template.bodyHtml.replace(/\{\{code\}\}/g, code);
-      text = `Your OTP: ${code}`;
+    const tpl = await prisma.emailTemplate.findUnique({ where: { purpose: "MAGIC_LINK_VERIFY" } });
+    if (tpl) {
+      subject = tpl.subject;
+      html    = applyVars(tpl.bodyHtml, { name: name ?? "there", verify_url: verifyUrl });
     }
-  } catch (e) {
-    console.error("Failed to load email template", e);
-  }
+  } catch {}
 
-  // Hardcoded Fallback if no template in DB
-  if (!html) {
-    const headline = context === "verify" ? "Verify your email" : "Reset your password";
-    html = `
-      <div style="font-family: sans-serif; padding: 24px; background:#0b0b0d;">
-        <div style="max-width:480px;margin:0 auto;background:#030308;border-radius:16px;border:1px solid rgba(255,255,255,0.06);padding:24px;">
-          <h1 style="color:#f5f2ea;">${headline}</h1>
-          <div style="margin:20px 0;padding:16px;background:rgba(216,180,120,0.08);text-align:center;">
-            <div style="font-size:28px;font-weight:700;color:#f5f2ea;letter-spacing:4px;">${code}</div>
-          </div>
-          <p style="color:#c3bfb3;">This code will expire in 10 minutes.</p>
+  if (!html) html = defaultVerifyHtml(verifyUrl, name);
+
+  const sig = await getDefaultSignature();
+  if (sig) html += sig;
+
+  return sendAndLog({ to, toName: name, subject, html, text: `Verify your email: ${verifyUrl}`, purpose: "MAGIC_LINK" });
+}
+
+// ─── Purchase Receipt ──────────────────────────────────────────────────────────
+
+type ReceiptItem = { name: string; price: number };
+
+export async function sendPurchaseReceipt({
+  to,
+  customerName,
+  transactionId,
+  items,
+  totalAmount,
+  paymentId,
+  planType,
+  membershipStart,
+  membershipEnd,
+}: {
+  to: string;
+  customerName?: string | null;
+  transactionId: string;
+  items: ReceiptItem[];
+  totalAmount: number;
+  paymentId?: string | null;
+  planType?: "MONTHLY" | "YEARLY" | null;
+  membershipStart?: Date | null;
+  membershipEnd?: Date | null;
+}) {
+  const siteUrl    = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberlib.in";
+  const logoUrl    = `${siteUrl}/logo.svg`;
+  const receiptUrl = `${siteUrl}/dashboard/receipt/${transactionId}`;
+  const isSubscription = !!planType;
+
+  const firstName = customerName?.split(" ")[0] ?? "Student";
+  const date      = new Date().toLocaleString("en-IN", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  const fmtDate = (d: Date) =>
+    d.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+
+  const subject = isSubscription
+    ? `🎉 Welcome to Premium — The Cyber Library`
+    : `Payment Confirmed — The Cyber Library`;
+
+  const rows = items
+    .map(
+      (i) => `
+      <tr>
+        <td style="padding:12px 16px;border-bottom:1px solid #ede9fe;color:#374151;font-size:14px;">${i.name}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #ede9fe;text-align:right;color:#111827;font-weight:700;font-size:14px;">₹${i.price.toLocaleString("en-IN")}</td>
+      </tr>`
+    )
+    .join("");
+
+  const subscriptionBadge = isSubscription
+    ? `<div style="text-align:center;margin-bottom:24px;">
+        <span style="display:inline-block;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;padding:6px 18px;border-radius:100px;">
+          ✦ PREMIUM MEMBER ✦
+        </span>
+       </div>`
+    : "";
+
+  const membershipBlock = isSubscription && membershipStart && membershipEnd
+    ? `<div style="margin:20px 0;background:linear-gradient(135deg,#ede9fe,#ddd6fe);border-radius:12px;padding:20px 24px;">
+        <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;">Membership Details</p>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="font-size:13px;color:#4c1d95;padding:4px 0;">Plan</td>
+            <td style="font-size:13px;font-weight:700;color:#1e1b4b;text-align:right;">${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#4c1d95;padding:4px 0;">Start Date</td>
+            <td style="font-size:13px;font-weight:700;color:#1e1b4b;text-align:right;">${fmtDate(membershipStart)}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#4c1d95;padding:4px 0;">Valid Until</td>
+            <td style="font-size:13px;font-weight:700;color:#1e1b4b;text-align:right;">${fmtDate(membershipEnd)}</td>
+          </tr>
+        </table>
+       </div>`
+    : "";
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f5f3ff;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:560px;margin:32px auto;padding:0 16px 48px;">
+
+    <!-- Header with gradient -->
+    <div style="background:linear-gradient(135deg,#1e1b4b 0%,#3730a3 60%,#4c1d95 100%);border-radius:20px 20px 0 0;padding:32px 36px 28px;text-align:center;">
+      <img src="${logoUrl}" alt="The Cyber Library" width="64" height="64" style="border-radius:16px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;" />
+      <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#a5b4fc;">THE CYBER LIBRARY</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#6366f1;letter-spacing:3px;opacity:0.7;">LEARN · GROW · CONNECT</p>
+    </div>
+
+    <!-- White card body -->
+    <div style="background:#ffffff;padding:36px 36px 28px;border-left:1px solid #e0d7ff;border-right:1px solid #e0d7ff;">
+
+      <!-- Hero check -->
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="width:56px;height:56px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;">
+          <span style="font-size:26px;line-height:1;">✓</span>
         </div>
+        <h1 style="margin:0 0 6px;font-size:22px;font-weight:800;color:#111827;">
+          ${isSubscription ? "Welcome to Premium! 🎉" : "Payment Confirmed ✓"}
+        </h1>
+        <p style="margin:0;color:#6b7280;font-size:14px;">
+          ${isSubscription
+            ? `${firstName}, you're now a Premium Member of The Cyber Library.`
+            : `Hi ${firstName}, your payment was successful.`}
+        </p>
       </div>
-    `;
-    text = `Your OTP is ${code}. It expires in 10 minutes.`;
-  }
 
-  try {
-    await mailer.transporter.sendMail({
-      from: mailer.from,
-      to,
-      subject,
-      text,
-      html,
-    });
-    await prisma.emailLog.create({
-      data: {
-        toEmail: to,
-        subject,
-        purpose: "OTP",
-        status: "SUCCESS",
-        senderEmail: mailer.from
-      }
-    });
-  } catch (err: any) {
-    console.error("OTP email error", err);
-    await prisma.emailLog.create({
-      data: {
-        toEmail: to,
-        subject,
-        purpose: "OTP",
-        status: "FAILED",
-        errorMessage: err?.message || String(err),
-        senderEmail: mailer.from
-      }
-    });
-  }
+      ${subscriptionBadge}
+      ${membershipBlock}
+
+      <!-- Items table -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:4px;">
+        <thead>
+          <tr style="background:#f5f3ff;">
+            <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;border-radius:8px 0 0 8px;">Description</th>
+            <th style="padding:10px 16px;text-align:right;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#7c3aed;border-radius:0 8px 8px 0;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr style="background:#f5f3ff;">
+            <td style="padding:14px 16px;font-weight:800;font-size:15px;color:#111827;border-radius:8px 0 0 8px;">Total Paid</td>
+            <td style="padding:14px 16px;text-align:right;font-size:20px;font-weight:900;color:#6366f1;border-radius:0 8px 8px 0;">₹${totalAmount.toLocaleString("en-IN")}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <!-- Transaction details -->
+      <div style="margin:24px 0;background:#fafafa;border:1px solid #e5e7eb;border-radius:12px;padding:16px 20px;">
+        <p style="margin:0 0 10px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9ca3af;">Transaction Details</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr>
+            <td style="color:#6b7280;padding:3px 0;">Transaction ID</td>
+            <td style="font-family:monospace;font-size:12px;font-weight:600;color:#111827;text-align:right;">${transactionId}</td>
+          </tr>
+          ${paymentId ? `<tr><td style="color:#6b7280;padding:3px 0;">Payment ID</td><td style="font-family:monospace;font-size:12px;font-weight:600;color:#111827;text-align:right;">${paymentId}</td></tr>` : ""}
+          <tr>
+            <td style="color:#6b7280;padding:3px 0;">Date & Time</td>
+            <td style="font-weight:600;color:#111827;text-align:right;">${date}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280;padding:3px 0;">Email</td>
+            <td style="font-weight:600;color:#111827;text-align:right;">${to}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- View receipt button -->
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${receiptUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:12px;">
+          View & Download Receipt →
+        </a>
+      </div>
+
+      ${isSubscription ? `
+      <!-- What's included -->
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+        <p style="margin:0 0 10px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">What You Get</p>
+        <ul style="margin:0;padding:0 0 0 16px;font-size:13px;color:#166534;line-height:1.9;">
+          <li>Unlimited access to all study rooms</li>
+          <li>StudyMate AI — unlimited messages</li>
+          <li>Live Google Meet sessions with auto-admit</li>
+          <li>Leaderboard, streaks & coin rewards</li>
+          <li>Priority support</li>
+        </ul>
+      </div>` : ""}
+
+      <!-- Support -->
+      <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
+        Questions? Reach us at <a href="mailto:support@cyberlib.in" style="color:#6366f1;text-decoration:none;">support@cyberlib.in</a>
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#1e1b4b;border-radius:0 0 20px 20px;padding:20px 36px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:11px;color:#6366f1;letter-spacing:2px;text-transform:uppercase;">The Cyber Library</p>
+      <p style="margin:0;font-size:11px;color:#4c4477;">© ${new Date().getFullYear()} cyberlib.in — All rights reserved</p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+  const text = `${isSubscription ? "Welcome to Premium! — The Cyber Library" : "Payment Confirmed — The Cyber Library"}\n\nHi ${firstName},\n\nTotal: ₹${totalAmount}\nTransaction: ${transactionId}\nDate: ${date}\n\nView receipt: ${receiptUrl}\n\nSupport: support@cyberlib.in`;
+
+  return sendAndLog({ to, toName: customerName, subject, html, text, purpose: "RECEIPT" });
 }
 
-/** General purpose email sender (can be used for Support tickets or Contact Form replies) */
+// ─── General / custom send ─────────────────────────────────────────────────────
+
 export async function sendEmail({
   to,
+  toName,
   subject,
   html,
   text,
   purpose = "GENERAL",
-  accountId
 }: {
   to: string;
+  toName?: string | null;
   subject: string;
   html: string;
   text?: string;
   purpose?: string;
-  accountId?: string;
-}) {
-  const mailer = await getMailerForPurpose(accountId || purpose, !!accountId);
-  if (!mailer) {
-    console.warn(`[Email] No configuration found for ${accountId ? 'account '+accountId : 'purpose '+purpose}`);
-    return false;
-  }
-
-  try {
-    await mailer.transporter.sendMail({
-      from: mailer.from,
-      to,
-      subject,
-      text: text || "Please open this email in an HTML compatible client.",
-      html,
-    });
-    await prisma.emailLog.create({
-      data: {
-        toEmail: to,
-        subject,
-        purpose,
-        status: "SUCCESS",
-        senderEmail: mailer.from
-      }
-    });
-    return true;
-  } catch (e: any) {
-    console.error("Send grid failed", e);
-    await prisma.emailLog.create({
-      data: {
-        toEmail: to,
-        subject,
-        purpose,
-        status: "FAILED",
-        errorMessage: e?.message || String(e),
-        senderEmail: mailer.from
-      }
-    });
-    return false;
-  }
+}): Promise<boolean> {
+  return sendAndLog({ to, toName, subject, html, text, purpose });
 }
 
+// ─── Bulk send ─────────────────────────────────────────────────────────────────
 
+export async function sendBulkEmail({
+  recipients,
+  subject,
+  html,
+  purpose = "BULK",
+}: {
+  recipients: { email: string; name?: string | null }[];
+  subject: string;
+  html: string;
+  purpose?: string;
+}): Promise<{ sent: number; failed: number }> {
+  let sent = 0;
+  let failed = 0;
+
+  for (const r of recipients) {
+    const personalizedHtml = applyVars(html, { name: r.name ?? "there", email: r.email });
+    const ok = await sendAndLog({ to: r.email, toName: r.name, subject, html: personalizedHtml, purpose });
+    ok ? sent++ : failed++;
+    // Small delay to avoid Resend rate limits
+    await new Promise((res) => setTimeout(res, 100));
+  }
+
+  return { sent, failed };
+}

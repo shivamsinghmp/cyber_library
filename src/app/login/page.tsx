@@ -28,8 +28,12 @@ function LoginForm() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const registered   = searchParams.get("registered") === "1";
+  const verified     = searchParams.get("verified") === "1";
 
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendingLink, setResendingLink] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
   const [loginAs, setLoginAs]         = useState<string>("STUDENT");
   const [showPassword, setShowPassword] = useState(false);
   const [logoUrl, setLogoUrl]         = useState<string | null>(null);
@@ -52,13 +56,37 @@ function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
+  async function handleResendLink(email: string) {
+    setResendingLink(true);
+    try {
+      await fetch("/api/auth/verify-email/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setResendDone(true);
+    } catch {}
+    finally { setResendingLink(false); }
+  }
+
   async function onSubmit(data: FormData) {
     setSubmitError(null);
+    setUnverifiedEmail(null);
+    setResendDone(false);
     try {
       const result = await signIn("credentials", {
         email: data.email, password: data.password, loginAsRole: loginAs, redirect: false,
       });
       if (result?.error) {
+        // Check if failure is due to unverified email
+        try {
+          const statusRes = await fetch(`/api/auth/check-email-status?email=${encodeURIComponent(data.email)}`);
+          const status = await statusRes.json();
+          if (status.exists && !status.verified) {
+            setUnverifiedEmail(data.email);
+            return;
+          }
+        } catch {}
         setSubmitError("Email ya password galat hai. Dobara check karo.");
         return;
       }
@@ -175,8 +203,16 @@ function LoginForm() {
             </p>
           </div>
 
-          {/* Success banner */}
-          {registered && (
+          {/* Success banners */}
+          {verified && (
+            <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <span className="text-lg">✅</span>
+              <p className="text-sm font-semibold text-emerald-700">
+                Email verify ho gaya! Ab login karo.
+              </p>
+            </div>
+          )}
+          {!verified && registered && (
             <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
               <span className="text-lg">✅</span>
               <p className="text-sm font-semibold text-emerald-700">
@@ -253,8 +289,30 @@ function LoginForm() {
                 {errors.password && <p className="text-xs font-semibold text-red-500">{errors.password.message}</p>}
               </div>
 
-              {/* Error */}
-              {submitError && (
+              {/* Unverified email error */}
+              {unverifiedEmail && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-2">
+                  <p className="text-sm font-semibold text-amber-700">
+                    Email verify nahi hua hai. Pehle verify karo.
+                  </p>
+                  {resendDone ? (
+                    <p className="text-xs font-medium text-emerald-600">
+                      ✅ Naya link bhej diya! Inbox check karo.
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleResendLink(unverifiedEmail)}
+                      disabled={resendingLink}
+                      className="text-xs font-bold underline text-amber-700 disabled:opacity-50">
+                      {resendingLink ? "Bhej rahe hain…" : "Verification link dobara bhejo →"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Generic error */}
+              {submitError && !unverifiedEmail && (
                 <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
                   <span>❌</span>
                   <p className="text-sm font-semibold text-red-600">{submitError}</p>

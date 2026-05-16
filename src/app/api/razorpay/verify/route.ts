@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     // Proceed to fulfill the order securely.
     const transaction = await fulfillOrder({
       userId,
-      type: type as "CART" | "PRODUCT" | "REWARD",
+      type: type as "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION",
       ids: ids as string[],
       amountRupees: amount, // Extracted from client but authenticated via the successful checkout of the generated order ID
       paymentGatewayId: razorpay_payment_id,

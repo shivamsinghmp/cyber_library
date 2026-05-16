@@ -3,353 +3,216 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  CreditCard,
-  ExternalLink,
-  CheckCircle,
-  AlertCircle,
-  Lock,
-  EyeOff,
-  Mail,
+  CreditCard, ExternalLink, CheckCircle, AlertCircle,
+  Mail, Copy, Check, ChevronLeft,
 } from "lucide-react";
-import toast from "react-hot-toast";
+
+type RazorpayStatus = { configured: boolean };
+type SmtpStatus = { host: string | null; port: number | null; user: string | null; from: string | null; hasPass: boolean };
+
+function CopyBlock({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="relative group">
+      <pre className="overflow-x-auto rounded-xl bg-gray-950 p-4 text-[11px] leading-relaxed text-gray-300 font-mono">
+        {code}
+      </pre>
+      <button
+        onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+        className="absolute right-3 top-3 flex items-center gap-1 rounded-lg bg-gray-800 px-2 py-1 text-[10px] font-semibold text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-700"
+      >
+        {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
 
 export default function AdminRazorpayPage() {
-  const [configured, setConfigured] = useState<boolean | null>(null);
-  const [keyId, setKeyId] = useState("");
-  const [hasSecret, setHasSecret] = useState(false);
-  const [keySecret, setKeySecret] = useState("");
+  const [rzpStatus, setRzpStatus] = useState<RazorpayStatus | null>(null);
+  const [smtpStatus, setSmtpStatus] = useState<SmtpStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  // SMTP state
-  const [smtpHost, setSmtpHost] = useState("");
-  const [smtpPort, setSmtpPort] = useState<string>("");
-  const [smtpUser, setSmtpUser] = useState("");
-  const [smtpFrom, setSmtpFrom] = useState("");
-  const [smtpPass, setSmtpPass] = useState("");
-  const [smtpHasPass, setSmtpHasPass] = useState(false);
-  const [smtpSaving, setSmtpSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/razorpay/status", { credentials: "include" })
-        .then((res) => (res.ok ? res.json() : {}))
-        .then((data: { configured?: boolean }) =>
-          setConfigured(data.configured === true)
-        )
-      .catch((e) => console.error("Fetch error:", e)),
-      fetch("/api/admin/razorpay/settings", { credentials: "include" })
-        .then((res) => (res.ok ? res.json() : {}))
-        .then((data: { keyId?: string | null; hasSecret?: boolean }) => {
-          setHasSecret(data.hasSecret === true);
-        })
-      .catch((e) => console.error("Fetch error:", e)),
+        .then((r) => r.ok ? r.json() : null)
+        .catch(() => null),
       fetch("/api/admin/smtp/settings", { credentials: "include" })
-        .then((res) => (res.ok ? res.json() : {}))
-        .then(
-          (data: {
-            host?: string | null;
-            port?: number | null;
-            user?: string | null;
-            hasPass?: boolean;
-            from?: string | null;
-          }) => {
-            if (data.host) setSmtpHost(data.host);
-            if (data.port) setSmtpPort(String(data.port));
-            if (data.user) setSmtpUser(data.user);
-            if (data.from) setSmtpFrom(data.from);
-            setSmtpHasPass(data.hasPass === true);
-          }
-        ),
-    ])
-      .catch(() => {})
-      .finally(() => setLoading(false));
+        .then((r) => r.ok ? r.json() : null)
+        .catch(() => null),
+    ]).then(([rzp, smtp]) => {
+      setRzpStatus(rzp);
+      setSmtpStatus(smtp);
+    }).finally(() => setLoading(false));
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin/razorpay/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          keyId: keyId.trim() || undefined,
-          keySecret: keySecret ? keySecret.trim() : undefined,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to save");
-        setSaving(false);
-        return;
-      }
-      toast.success("Settings saved securely. Key Secret is stored encrypted.");
-      setKeySecret("");
-      setHasSecret(true);
-      setConfigured(!!(keyId.trim() && (keySecret.trim() || hasSecret)));
-    } catch {
-      toast.error("Something went wrong");
-    }
-    setSaving(false);
-  }
-
-  async function handleSaveSmtp(e: React.FormEvent) {
-    e.preventDefault();
-    setSmtpSaving(true);
-    try {
-      const portNum = smtpPort ? Number(smtpPort) : undefined;
-      const res = await fetch("/api/admin/smtp/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          host: smtpHost.trim() || undefined,
-          port: Number.isFinite(portNum as number) ? portNum : undefined,
-          user: smtpUser.trim() || undefined,
-          from: smtpFrom.trim() || undefined,
-          pass: smtpPass ? smtpPass.trim() : undefined,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to save SMTP settings");
-        setSmtpSaving(false);
-        return;
-      }
-      toast.success("SMTP settings saved securely.");
-      setSmtpPass("");
-      setSmtpHasPass(true);
-    } catch {
-      toast.error("Something went wrong");
-    }
-    setSmtpSaving(false);
-  }
+  const rzpConfigured = rzpStatus?.configured === true;
+  const smtpConfigured = !!(smtpStatus?.host && smtpStatus?.user);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-8 px-4 py-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
-          Razorpay API Integration
+        <Link href="/admin" className="inline-flex items-center gap-1 text-sm font-medium text-[var(--cream-muted)] hover:text-[var(--accent)]">
+          <ChevronLeft className="h-4 w-4" /> Back to Admin
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold text-[var(--cream)] flex items-center gap-2">
+          <CreditCard className="h-7 w-7 text-[var(--accent)]" />
+          Razorpay & SMTP
         </h1>
         <p className="mt-1 text-sm text-[var(--cream-muted)]">
-          Enter your API keys below. The Key Secret is encrypted before storage and never shown again.
+          Yeh keys ab <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-900">.env</code> mein set hoti hain. Neeche wale variables apni <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-900">.env</code> file mein add karein.
         </p>
       </div>
 
-      {/* Status */}
-      <div
-        className={`flex items-center gap-3 rounded-2xl border p-4 ${
-          loading
-            ? "border-white/10 bg-black/20"
-            : configured
-              ? "border-emerald-500/30 bg-emerald-500/10"
-              : "border-amber-500/30 bg-amber-500/10"
-        }`}
-      >
+      {/* ── Razorpay Status ── */}
+      <div className={`flex items-center gap-3 rounded-2xl border p-4 ${
+        loading ? "border-gray-200 bg-gray-50"
+        : rzpConfigured ? "border-emerald-300 bg-emerald-50"
+        : "border-amber-300 bg-amber-50"
+      }`}>
         {loading ? (
-          <span className="text-sm text-[var(--cream-muted)]">Loading…</span>
-        ) : configured ? (
+          <span className="text-sm text-[var(--cream-muted)]">Checking…</span>
+        ) : rzpConfigured ? (
           <>
-            <CheckCircle className="h-5 w-5 shrink-0 text-emerald-400" />
+            <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
             <div>
-              <p className="font-medium text-[var(--cream)]">Razorpay is configured</p>
-              <p className="text-xs text-[var(--cream-muted)]">
-                Keys are set. Checkout can use Razorpay. Key Secret is stored encrypted.
-              </p>
+              <p className="font-semibold text-gray-900">Razorpay configured ✓</p>
+              <p className="text-xs text-[var(--cream-muted)]">Keys set hain — checkout payments kaam karenge.</p>
             </div>
           </>
         ) : (
           <>
-            <AlertCircle className="h-5 w-5 shrink-0 text-amber-400" />
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
             <div>
-              <p className="font-medium text-[var(--cream)]">Razorpay not configured</p>
+              <p className="font-semibold text-gray-900">Razorpay not configured</p>
               <p className="text-xs text-[var(--cream-muted)]">
-                Enter Key ID and Key Secret below. They are stored securely.
+                <code className="font-mono text-xs">RAZORPAY_KEY_ID</code> aur <code className="font-mono text-xs">RAZORPAY_KEY_SECRET</code> .env mein add karein.
               </p>
             </div>
           </>
         )}
       </div>
 
-      {/* Razorpay API keys */}
-      <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-white/10 bg-black/25 p-6">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--cream)]">
-          <Lock className="h-4 w-4 text-emerald-500/80" />
-          API keys (stored securely)
-        </h2>
-
-        <div>
-          <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--cream-muted)]">
-            <CreditCard className="h-3.5 w-3.5" />
-            Key ID
-          </label>
-          <input
-            type="text"
-            value={keyId}
-            onChange={(e) => setKeyId(e.target.value)}
-            placeholder="rzp_test_... or rzp_live_..."
-            className="admin-input"
-            autoComplete="off"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--cream-muted)]">
-            <EyeOff className="h-3.5 w-3.5" />
-            Key Secret
-          </label>
-          <input
-            type="password"
-            value={keySecret}
-            onChange={(e) => setKeySecret(e.target.value)}
-            placeholder={hasSecret ? "Leave blank to keep current secret" : "Enter your Key Secret"}
-            className="admin-input"
-            autoComplete="new-password"
-          />
-          <p className="mt-1 text-[10px] text-[var(--cream-muted)]">
-            Stored encrypted. Never displayed after saving. Leave blank to keep existing.
-          </p>
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={saving || (!keyId.trim() && !keySecret.trim())}
-            className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save securely"}
-          </button>
-        </div>
-      </form>
-
-      {/* SMTP settings */}
-      <form
-        onSubmit={handleSaveSmtp}
-        className="space-y-6 rounded-2xl border border-white/10 bg-black/25 p-6"
-      >
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--cream)]">
-          <Mail className="h-4 w-4 text-emerald-500/80" />
-          Email / SMTP (OTP & notifications)
-        </h2>
-
-        <p className="text-xs text-[var(--cream-muted)]">
-          Configure SMTP to send OTPs and other emails. Password is stored encrypted and never shown again.
-        </p>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
-              SMTP host (SMTP_HOST)
-            </label>
-            <input
-              type="text"
-              value={smtpHost}
-              onChange={(e) => setSmtpHost(e.target.value)}
-              placeholder="smtp.example.com"
-              className="admin-input"
-              autoComplete="off"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
-              SMTP port (SMTP_PORT)
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={65535}
-              value={smtpPort}
-              onChange={(e) => setSmtpPort(e.target.value)}
-              placeholder="587"
-              className="admin-input"
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
-              SMTP user (SMTP_USER)
-            </label>
-            <input
-              type="text"
-              value={smtpUser}
-              onChange={(e) => setSmtpUser(e.target.value)}
-              placeholder="your_smtp_user"
-              className="admin-input"
-              autoComplete="off"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
-              From email (SMTP_FROM)
-            </label>
-            <input
-              type="text"
-              value={smtpFrom}
-              onChange={(e) => setSmtpFrom(e.target.value)}
-              placeholder='The Cyber Library <no-reply@virtuallibrary.com>'
-              className="admin-input"
-              autoComplete="off"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
-            SMTP password (SMTP_PASS)
-          </label>
-          <input
-            type="password"
-            value={smtpPass}
-            onChange={(e) => setSmtpPass(e.target.value)}
-            placeholder={
-              smtpHasPass
-                ? "Leave blank to keep current password"
-                : "Enter your SMTP password"
-            }
-            className="admin-input"
-            autoComplete="new-password"
-          />
-          <p className="mt-1 text-[10px] text-[var(--cream-muted)]">
-            Stored encrypted using ENCRYPTION_KEY / AUTH_SECRET. Never displayed again after save.
-          </p>
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={smtpSaving || (!smtpHost.trim() && !smtpUser.trim() && !smtpPass.trim())}
-            className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50"
-          >
-            {smtpSaving ? "Saving…" : "Save SMTP settings"}
-          </button>
-        </div>
-      </form>
-
-      {/* Help */}
-      <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-2">
-        <p className="text-xs font-medium text-[var(--cream-muted)]">
-          Get keys from{" "}
+      {/* ── Razorpay .env ── */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)] px-5 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--foreground)]">
+            <CreditCard className="h-4 w-4 text-[var(--accent)]" />
+            Razorpay API Keys
+          </h2>
           <a
             href="https://dashboard.razorpay.com/app/keys"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[var(--accent)] hover:underline"
+            className="flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline"
           >
-            Razorpay Dashboard → API Keys
-            <ExternalLink className="h-3 w-3" />
+            Get keys <ExternalLink className="h-3 w-3" />
           </a>
-        </p>
-        <p className="text-[10px] text-[var(--cream-muted)]">
-          Add <code className="rounded bg-white/10 px-1">ENCRYPTION_KEY</code> to .env (min 16 chars) for secret encryption. If unset, AUTH_SECRET is used.
-        </p>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
+            {[
+              { key: "RAZORPAY_KEY_ID",     example: "rzp_live_xxxxxxxxxxxxxxxx",     secret: false, note: "rzp_test_... for test mode" },
+              { key: "RAZORPAY_KEY_SECRET",  example: "your_key_secret_here",          secret: true,  note: "Never share — stored in .env only" },
+            ].map((v) => (
+              <div key={v.key} className="flex items-start gap-3 px-4 py-3">
+                <code className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 font-mono text-xs text-gray-900 mt-0.5">{v.key}</code>
+                <div className="flex-1 min-w-0">
+                  {v.secret
+                    ? <p className="text-xs text-amber-600 font-medium">secret — .env mein rakho</p>
+                    : <p className="font-mono text-xs text-[var(--cream-muted)]">{v.example}</p>
+                  }
+                  {v.note && <p className="mt-0.5 text-[10px] text-[var(--cream-muted)] opacity-70">{v.note}</p>}
+                </div>
+                {v.secret && <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wide">secret</span>}
+              </div>
+            ))}
+          </div>
+          <CopyBlock code={`RAZORPAY_KEY_ID=rzp_live_xxxxxxxxxxxxxxxx\nRAZORPAY_KEY_SECRET="your_key_secret_here"`} />
+        </div>
       </div>
 
-      <p className="text-center text-sm text-[var(--cream-muted)]">
-        <Link href="/admin" className="text-[var(--accent)] hover:underline">
-          ← Back to Admin
-        </Link>
+      {/* ── SMTP Status ── */}
+      <div className={`flex items-center gap-3 rounded-2xl border p-4 ${
+        loading ? "border-gray-200 bg-gray-50"
+        : smtpConfigured ? "border-emerald-300 bg-emerald-50"
+        : "border-amber-300 bg-amber-50"
+      }`}>
+        {loading ? (
+          <span className="text-sm text-[var(--cream-muted)]">Checking…</span>
+        ) : smtpConfigured ? (
+          <>
+            <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
+            <div>
+              <p className="font-semibold text-gray-900">SMTP configured ✓</p>
+              <p className="text-xs text-[var(--cream-muted)]">
+                Host: <code className="font-mono text-xs">{smtpStatus?.host}</code> · User: <code className="font-mono text-xs">{smtpStatus?.user}</code> · From: <code className="font-mono text-xs">{smtpStatus?.from}</code>
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="font-semibold text-gray-900">SMTP not configured</p>
+              <p className="text-xs text-[var(--cream-muted)]">OTP aur email notifications kaam nahi karenge.</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── SMTP .env ── */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden">
+        <div className="border-b border-[var(--border)] bg-[var(--background)] px-5 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--foreground)]">
+            <Mail className="h-4 w-4 text-[var(--accent)]" />
+            Email / SMTP
+          </h2>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
+            {[
+              { key: "SMTP_HOST", example: "smtp.resend.com",              secret: false },
+              { key: "SMTP_PORT", example: "587",                           secret: false, note: "465 for SSL, 587 for TLS" },
+              { key: "SMTP_USER", example: "resend",                        secret: false, note: "Resend ke liye 'resend'" },
+              { key: "SMTP_FROM", example: "admin@cyberlib.in",             secret: false, note: "Ya: CyberLib <no-reply@cyberlib.in>" },
+              { key: "SMTP_PASS", example: "re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx", secret: true,  note: "Resend API key ya Gmail app password" },
+            ].map((v) => (
+              <div key={v.key} className="flex items-start gap-3 px-4 py-3">
+                <code className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 font-mono text-xs text-gray-900 mt-0.5">{v.key}</code>
+                <div className="flex-1 min-w-0">
+                  {v.secret
+                    ? <p className="text-xs text-amber-600 font-medium">secret — .env mein rakho</p>
+                    : <p className="font-mono text-xs text-[var(--cream-muted)]">{v.example}</p>
+                  }
+                  {v.note && <p className="mt-0.5 text-[10px] text-[var(--cream-muted)] opacity-70">{v.note}</p>}
+                </div>
+                {v.secret && <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wide">secret</span>}
+              </div>
+            ))}
+          </div>
+
+          {/* Resend example */}
+          <div>
+            <p className="mb-2 text-xs font-semibold text-[var(--cream-muted)] uppercase tracking-wider">Resend ke saath (.env example):</p>
+            <CopyBlock code={`SMTP_HOST=smtp.resend.com\nSMTP_PORT=587\nSMTP_USER=resend\nSMTP_FROM=admin@cyberlib.in\nSMTP_PASS="re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"`} />
+          </div>
+
+          {/* Gmail example */}
+          <div>
+            <p className="mb-2 text-xs font-semibold text-[var(--cream-muted)] uppercase tracking-wider">Gmail App Password ke saath:</p>
+            <CopyBlock code={`SMTP_HOST=smtp.gmail.com\nSMTP_PORT=587\nSMTP_USER=you@gmail.com\nSMTP_FROM=you@gmail.com\nSMTP_PASS="xxxx xxxx xxxx xxxx"`} />
+          </div>
+
+          <p className="text-[10px] text-[var(--cream-muted)]">
+            Gmail use karne ke liye: Google Account → Security → 2FA on → App Passwords → Generate.
+          </p>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-[var(--cream-muted)] pb-2">
+        .env update karne ke baad <code className="rounded bg-gray-100 px-1 font-mono">npm run dev</code> / server restart karein.
       </p>
     </div>
   );

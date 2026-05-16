@@ -31,6 +31,9 @@ export const APP_SETTING_KEYS = {
   CUSTOM_HEAD_HTML:               { label: "Custom Head HTML (Scripts, tags, etc.)",             secret: false },
   FOOTER_CONFIG_JSON:             { label: "Structured JSON for Footer",                         secret: false },
   FAST2SMS_API_KEY:               { label: "Fast2SMS API Key (for SMS OTP)",                     secret: true  },
+  PRICING_DATA:                   { label: "Pricing page data (JSON)",                            secret: false },
+  RESEND_API_KEY:                 { label: "Resend API Key (for transactional emails)",           secret: true  },
+  RESEND_FROM:                    { label: "Resend sender address (e.g. no-reply@cyberlib.in)",   secret: false },
 } as const;
 
 const SECRET_KEYS = new Set(

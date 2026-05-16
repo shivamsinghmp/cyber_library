@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -84,7 +84,7 @@ export default function AdminVirtualLibraryPage() {
           <ChevronLeft className="h-4 w-4" />
           Back to Admin
         </Link>
-        <h1 className="mt-2 flex items-center gap-2 text-2xl font-bold text-[var(--cream)]">
+        <h1 className="mt-2 flex items-center gap-2 text-2xl font-bold text-gray-900">
           <ImageIcon className="h-7 w-7 text-[var(--accent)]" />
           Edit The Cyber Library
         </h1>
@@ -95,10 +95,10 @@ export default function AdminVirtualLibraryPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl border border-white/10 bg-black/20 p-6 space-y-5"
+        className="rounded-2xl border border-gray-200 bg-gray-50 p-6 space-y-5"
       >
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
+          <label className="mb-1.5 block text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">
             {LABELS.SITE_LOGO_URL}
           </label>
           <input
@@ -112,7 +112,7 @@ export default function AdminVirtualLibraryPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
+          <label className="mb-1.5 block text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">
             {LABELS.FOOTER_TEXT}
           </label>
           <textarea
@@ -120,13 +120,13 @@ export default function AdminVirtualLibraryPage() {
             onChange={(e) => setValue("FOOTER_TEXT", e.target.value)}
             placeholder="© 2026 The Cyber Library – The Focus Hub."
             rows={2}
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none resize-none"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-gray-300 focus:border-indigo-400 focus:outline-none resize-none"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Shown at the very bottom of all public pages.</p>
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
+          <label className="mb-1.5 block text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">
             {LABELS.SITE_FAVICON_URL}
           </label>
           <input
@@ -140,7 +140,7 @@ export default function AdminVirtualLibraryPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
+          <label className="mb-1.5 block text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">
             {LABELS.SITE_TITLE}
           </label>
           <input
@@ -154,7 +154,7 @@ export default function AdminVirtualLibraryPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
+          <label className="mb-1.5 block text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">
             {LABELS.SITE_TAGLINE}
           </label>
           <input
@@ -168,7 +168,7 @@ export default function AdminVirtualLibraryPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-[var(--cream-muted)]">
+          <label className="mb-1.5 block text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">
             {LABELS.SITE_HEADLINE}
           </label>
           <textarea
@@ -176,7 +176,7 @@ export default function AdminVirtualLibraryPage() {
             onChange={(e) => setValue("SITE_HEADLINE", e.target.value)}
             placeholder="Transform Your Study Habits with Live Body Doubling."
             rows={3}
-            className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/50 focus:border-[var(--accent)]/70 focus:outline-none resize-none"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-gray-300 focus:border-indigo-400 focus:outline-none resize-none"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Big hero text on the homepage</p>
         </div>
@@ -192,7 +192,7 @@ export default function AdminVirtualLibraryPage() {
           </button>
           <Link
             href="/admin"
-            className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-[var(--cream)] hover:bg-white/5"
+            className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
           >
             Cancel
           </Link>

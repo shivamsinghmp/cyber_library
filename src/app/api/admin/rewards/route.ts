@@ -1,17 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
-
-const createSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  amount: z.number().int().min(0),
-  enrollmentAmount: z.number().int().min(0).optional().default(0),
-  type: z.enum(["STREAK", "REFERRAL", "CONTEST", "OTHER"]).default("OTHER"),
-  isActive: z.boolean().default(true),
-});
+import { rewardSchema } from "@/lib/schemas";
 
 /** GET: List all rewards (admin) */
 export async function GET() {
@@ -37,7 +27,7 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const body = await request.json();
-    const parsed = createSchema.safeParse(body);
+    const parsed = rewardSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid data" }, { status: 400 });
     }

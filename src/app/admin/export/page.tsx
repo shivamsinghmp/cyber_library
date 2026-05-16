@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { Download, FileSpreadsheet } from "lucide-react";
@@ -85,13 +85,13 @@ export default function AdminExportPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-6">
+      <div className="rounded-2xl border border-gray-200 bg-white p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent)]/20">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100">
             <FileSpreadsheet className="h-6 w-6 text-[var(--accent)]" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-[var(--cream)]">
+            <h2 className="text-lg font-semibold text-gray-900">
               Export to CSV
             </h2>
             <p className="text-xs text-[var(--cream-muted)]">

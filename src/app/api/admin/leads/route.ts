@@ -12,16 +12,11 @@ export async function GET() {
 
     const leads = await prisma.leadSubmission.findMany({
       orderBy: { createdAt: "desc" },
+      select: { id: true, data: true, source: true, createdAt: true },
+      take: 2000,
     });
 
-    return NextResponse.json(
-      leads.map((l) => ({
-        id: l.id,
-        data: l.data,
-        source: l.source,
-        createdAt: l.createdAt,
-      }))
-    );
+    return NextResponse.json(leads);
   } catch (e) {
     console.error("GET /api/admin/leads:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

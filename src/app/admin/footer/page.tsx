@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -80,7 +80,7 @@ export default function FooterSettingsPage() {
         const val = data?.FOOTER_CONFIG_JSON?.value;
         if (val) {
           try {
-            const parsed = JSON.parse(val);
+            setConfig(JSON.parse(val));
           } catch (e) {
             console.error("Invalid FOOTER_CONFIG_JSON", e);
           }
@@ -178,9 +178,9 @@ export default function FooterSettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-[var(--cream)]">Columns & Links</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Columns & Links</h2>
               <button onClick={addColumn} className="text-xs flex items-center gap-1 text-[var(--accent)] hover:opacity-80">
                 <Plus className="h-3 w-3" /> Add Column
               </button>
@@ -188,9 +188,9 @@ export default function FooterSettingsPage() {
             
             <div className="space-y-4">
               {config.columns.map((col, colIndex) => (
-                <div key={colIndex} className="rounded-xl border border-white/5 bg-white/5 overflow-hidden">
-                  <div className="flex items-center gap-2 p-3 bg-white/5 border-b border-white/5">
-                    <GripVertical className="h-4 w-4 text-white/20" />
+                <div key={colIndex} className="rounded-xl border border-gray-100 bg-gray-50 overflow-hidden">
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 border-b border-gray-100">
+                    <GripVertical className="h-4 w-4 text-gray-300" />
                     <input 
                       value={col.title}
                       onChange={e => {
@@ -198,7 +198,7 @@ export default function FooterSettingsPage() {
                         newCols[colIndex].title = e.target.value;
                         setConfig(prev => ({...prev, columns: newCols}));
                       }}
-                      className="bg-transparent border-none text-sm font-semibold text-[var(--cream)] outline-none flex-1 placeholder:text-white/30"
+                      className="bg-transparent border-none text-sm font-semibold text-[var(--cream)] outline-none flex-1 placeholder:text-gray-400"
                       placeholder="Column Title"
                     />
                     <button onClick={() => removeColumn(colIndex)} className="text-red-400 hover:bg-red-400/10 p-1.5 rounded-lg">
@@ -213,15 +213,15 @@ export default function FooterSettingsPage() {
                           value={link.label}
                           onChange={e => updateLink(colIndex, linkIndex, 'label', e.target.value)}
                           placeholder="Label (e.g. Home)"
-                          className="flex-1 min-w-0 rounded-lg bg-black/30 border border-white/10 px-2 py-1.5 text-xs text-[var(--cream)]"
+                          className="flex-1 min-w-0 rounded-lg bg-white border border-gray-200 px-2 py-1.5 text-xs text-gray-900"
                         />
                         <input 
                           value={link.url}
                           onChange={e => updateLink(colIndex, linkIndex, 'url', e.target.value)}
                           placeholder="URL (e.g. /home)"
-                          className="flex-1 min-w-0 rounded-lg bg-black/30 border border-white/10 px-2 py-1.5 text-xs text-[var(--cream)]"
+                          className="flex-1 min-w-0 rounded-lg bg-white border border-gray-200 px-2 py-1.5 text-xs text-gray-900"
                         />
-                        <button onClick={() => removeLink(colIndex, linkIndex)} className="text-white/40 hover:text-red-400 p-1">
+                        <button onClick={() => removeLink(colIndex, linkIndex)} className="text-gray-400 hover:text-red-500 p-1">
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
@@ -240,15 +240,15 @@ export default function FooterSettingsPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
-            <h2 className="text-lg font-semibold text-[var(--cream)]">Newsletter Box</h2>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Newsletter Box</h2>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-[var(--cream-muted)] block mb-1">Title</label>
                 <input 
                   value={config.newsletter.title}
                   onChange={e => setConfig(prev => ({ ...prev, newsletter: { ...prev.newsletter, title: e.target.value } }))}
-                  className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]"
+                  className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
               <div>
@@ -256,7 +256,7 @@ export default function FooterSettingsPage() {
                 <textarea 
                   value={config.newsletter.description}
                   onChange={e => setConfig(prev => ({ ...prev, newsletter: { ...prev.newsletter, description: e.target.value } }))}
-                  className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 text-sm text-[var(--cream)] resize-none"
+                  className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-sm text-[var(--cream)] resize-none"
                   rows={2}
                 />
               </div>
@@ -265,14 +265,14 @@ export default function FooterSettingsPage() {
                 <input 
                   value={config.newsletter.buttonText}
                   onChange={e => setConfig(prev => ({ ...prev, newsletter: { ...prev.newsletter, buttonText: e.target.value } }))}
-                  className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]"
+                  className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-5 space-y-4">
-            <h2 className="text-lg font-semibold text-[var(--cream)]">Social & Copyright</h2>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Social & Copyright</h2>
             
             <div className="space-y-3">
               <div>
@@ -280,7 +280,7 @@ export default function FooterSettingsPage() {
                 <input 
                   value={config.copyright}
                   onChange={e => setConfig(prev => ({ ...prev, copyright: e.target.value }))}
-                  className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2 text-sm text-[var(--cream)]"
+                  className="w-full rounded-xl bg-white border border-gray-200 px-3 py-2 text-sm text-gray-900"
                 />
               </div>
               
@@ -293,7 +293,7 @@ export default function FooterSettingsPage() {
                       value={soc.url}
                       onChange={e => updateSocial(i, e.target.value)}
                       placeholder={`https://${soc.platform}.com/yourpage`}
-                      className="flex-1 rounded-lg bg-black/30 border border-white/10 px-2 py-1.5 text-xs text-[var(--cream)]"
+                      className="flex-1 rounded-lg bg-white border border-gray-200 px-2 py-1.5 text-xs text-gray-900"
                     />
                   </div>
                 ))}

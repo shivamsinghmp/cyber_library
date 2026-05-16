@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Eye, MessageSquare } from "lucide-react";
-import dynamic from "next/dynamic";
-import "react-quill-new/dist/quill.snow.css";
-
-const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
-import { Modal } from "@/components/Modal";
+import {
+  Plus, Pencil, Trash2, Eye, MessageSquare,
+  Globe, FileText, ChevronLeft, Search,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 type BlogPostRow = {
@@ -15,9 +13,7 @@ type BlogPostRow = {
   slug: string;
   title: string;
   excerpt: string | null;
-  body: string;
-  metaTitle: string | null;
-  metaDescription: string | null;
+  coverImage: string | null;
   publishedAt: string | null;
   views: number;
   _count: { comments: number };
@@ -25,375 +21,204 @@ type BlogPostRow = {
   updatedAt: string;
 };
 
-function toDateOnly(d: string | Date | null): string {
-  if (!d) return "";
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toISOString().slice(0, 16);
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export default function AdminBlogPage() {
   const [posts, setPosts] = useState<BlogPostRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editPost, setEditPost] = useState<BlogPostRow | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [formSlug, setFormSlug] = useState("");
-  const [formTitle, setFormTitle] = useState("");
-  const [formExcerpt, setFormExcerpt] = useState("");
-  const [formBody, setFormBody] = useState("");
-  const [formMetaTitle, setFormMetaTitle] = useState("");
-  const [formMetaDescription, setFormMetaDescription] = useState("");
-  const [formPublishedAt, setFormPublishedAt] = useState("");
+  const [search, setSearch] = useState("");
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/blog");
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(data);
-      }
-    } catch {
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch("/api/admin/blog", { credentials: "include" });
+      if (res.ok) setPosts(await res.json());
+    } catch { setPosts([]); }
+    finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
-  function openCreate() {
-    setFormSlug("");
-    setFormTitle("");
-    setFormExcerpt("");
-    setFormBody("");
-    setFormMetaTitle("");
-    setFormMetaDescription("");
-    setFormPublishedAt("");
-    setCreateOpen(true);
-  }
-
-  function openEdit(p: BlogPostRow) {
-    setEditPost(p);
-    setFormSlug(p.slug);
-    setFormTitle(p.title);
-    setFormExcerpt(p.excerpt ?? "");
-    setFormBody(p.body);
-    setFormMetaTitle(p.metaTitle ?? "");
-    setFormMetaDescription(p.metaDescription ?? "");
-    setFormPublishedAt(p.publishedAt ? toDateOnly(p.publishedAt) : "");
-    setCreateOpen(false);
-  }
-
-  function closeModals() {
-    setCreateOpen(false);
-    setEditPost(null);
-  }
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!formSlug.trim() || !formTitle.trim() || !formBody.trim()) {
-      toast.error("Slug, title and body are required");
-      return;
-    }
-    setSaving(true);
+  async function handleDelete(id: string, title: string) {
+    if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    setDeleting(id);
     try {
-      const res = await fetch("/api/admin/blog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug: formSlug.trim().toLowerCase().replace(/\s+/g, "-"),
-          title: formTitle.trim(),
-          excerpt: formExcerpt.trim() || null,
-          body: formBody.trim(),
-          metaTitle: formMetaTitle.trim() || null,
-          metaDescription: formMetaDescription.trim() || null,
-          publishedAt: formPublishedAt ? new Date(formPublishedAt).toISOString() : null,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to create post");
-        setSaving(false);
-        return;
-      }
-      toast.success("Post created");
-      closeModals();
-      fetchPosts();
-    } catch {
-      toast.error("Something went wrong");
-    }
-    setSaving(false);
+      const res = await fetch(`/api/admin/blog/${id}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) { toast.success("Post deleted"); setPosts((p) => p.filter((x) => x.id !== id)); }
+      else toast.error("Delete failed");
+    } catch { toast.error("Delete failed"); }
+    setDeleting(null);
   }
 
-  async function handleUpdate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editPost) return;
-    if (!formSlug.trim() || !formTitle.trim() || !formBody.trim()) {
-      toast.error("Slug, title and body are required");
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/admin/blog/${editPost.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug: formSlug.trim().toLowerCase().replace(/\s+/g, "-"),
-          title: formTitle.trim(),
-          excerpt: formExcerpt.trim() || null,
-          body: formBody.trim(),
-          metaTitle: formMetaTitle.trim() || null,
-          metaDescription: formMetaDescription.trim() || null,
-          publishedAt: formPublishedAt ? new Date(formPublishedAt).toISOString() : null,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to update");
-        setSaving(false);
-        return;
-      }
-      toast.success("Post updated");
-      closeModals();
-      fetchPosts();
-    } catch {
-      toast.error("Something went wrong");
-    }
-    setSaving(false);
-  }
-
-  async function handleDelete(p: BlogPostRow) {
-    if (!confirm(`Delete post "${p.title}"?`)) return;
-    try {
-      const res = await fetch(`/api/admin/blog/${p.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        toast.error("Failed to delete");
-        return;
-      }
-      toast.success("Post deleted");
-      fetchPosts();
-    } catch {
-      toast.error("Something went wrong");
-    }
-  }
-
-  const formFields = (
-    <>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Slug (URL) *</label>
-        <input
-          type="text"
-          value={formSlug}
-          onChange={(e) => setFormSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))}
-          placeholder="how-body-doubling-helps"
-          className="admin-input"
-          required
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Title *</label>
-        <input
-          type="text"
-          value={formTitle}
-          onChange={(e) => setFormTitle(e.target.value)}
-          placeholder="Post title"
-          className="admin-input"
-          required
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Excerpt (short summary)</label>
-        <textarea
-          value={formExcerpt}
-          onChange={(e) => setFormExcerpt(e.target.value)}
-          placeholder="Brief summary for listing"
-          rows={2}
-          className="admin-input"
-        />
-      </div>
-      <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden [&_.quill]:bg-white/5 [&_.ql-toolbar]:border-none [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-white/10 [&_.ql-container]:border-none [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:text-[var(--cream)] [&_.ql-editor]:text-sm [&_.ql-stroke]:stroke-white [&_.ql-fill]:fill-white [&_.ql-picker]:text-white">
-        <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)] px-3 pt-3">Body *</label>
-        <ReactQuill 
-          theme="snow" 
-          value={formBody} 
-          onChange={setFormBody}
-          placeholder="Professional rich text content..."
-        />
-      </div>
-      <div className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-3">
-        <p className="mb-2 text-xs font-semibold text-[var(--cream)]">SEO</p>
-        <div className="space-y-2">
-          <div>
-            <label className="mb-0.5 block text-xs text-[var(--cream-muted)]">Meta title</label>
-            <input
-              type="text"
-              value={formMetaTitle}
-              onChange={(e) => setFormMetaTitle(e.target.value)}
-              placeholder="Optional – for search results"
-              maxLength={100}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="mb-0.5 block text-xs text-[var(--cream-muted)]">Meta description</label>
-            <textarea
-              value={formMetaDescription}
-              onChange={(e) => setFormMetaDescription(e.target.value)}
-              placeholder="Optional – for search results"
-              maxLength={500}
-              rows={2}
-              className="w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-2 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
-            />
-          </div>
-        </div>
-      </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-[var(--cream-muted)]">Publish at (leave empty = draft)</label>
-        <input
-          type="datetime-local"
-          value={formPublishedAt}
-          onChange={(e) => setFormPublishedAt(e.target.value)}
-          className="admin-input"
-        />
-      </div>
-    </>
+  const filtered = posts.filter((p) =>
+    p.title.toLowerCase().includes(search.toLowerCase()) ||
+    p.slug.toLowerCase().includes(search.toLowerCase())
   );
 
+  const published = posts.filter((p) => p.publishedAt && new Date(p.publishedAt) <= new Date()).length;
+  const drafts = posts.length - published;
+
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
-            Blog (SEO)
-          </h1>
-          <p className="mt-1 text-sm text-[var(--cream-muted)]">
-            Create, edit and delete blog posts with SEO meta title and description.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/blog"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-medium text-[var(--cream-muted)] transition hover:bg-white/10 hover:text-[var(--cream)]"
-          >
-            View blog
+          <Link href="/admin" className="inline-flex items-center gap-1 text-sm text-[var(--cream-muted)] hover:text-[var(--accent)]">
+            <ChevronLeft className="h-4 w-4" /> Admin
           </Link>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] shadow-lg transition hover:bg-[var(--accent-hover)]"
-          >
-            <Plus className="h-4 w-4" />
-            Create post
-          </button>
+          <h1 className="mt-1 text-2xl font-bold text-[var(--foreground)]">Blog Posts</h1>
         </div>
+        <Link
+          href="/admin/blog/new"
+          className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm"
+          style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+        >
+          <Plus className="h-4 w-4" /> New Post
+        </Link>
       </div>
 
-      {loading ? (
-        <p className="rounded-2xl border border-white/10 bg-black/20 px-6 py-8 text-center text-sm text-[var(--cream-muted)]">
-          Loading…
-        </p>
-      ) : posts.length === 0 ? (
-        <p className="rounded-2xl border border-white/10 bg-black/20 px-6 py-8 text-center text-sm text-[var(--cream-muted)]">
-          No posts yet. Create one to get started.
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-black/20">
-          <table className="w-full min-w-[500px]">
-            <thead>
-              <tr className="border-b border-white/10 text-left">
-                <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Title</th>
-                <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Slug</th>
-                <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Engagement</th>
-                <th className="py-2 pr-3 font-medium text-[var(--cream-muted)]">Status</th>
-                <th className="py-2 font-medium text-[var(--cream-muted)]">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {posts.map((p) => (
-                <tr key={p.id} className="border-b border-white/5">
-                  <td className="py-2.5 pr-3 font-medium text-[var(--cream)] line-clamp-1">
-                    {p.title}
-                  </td>
-                  <td className="py-2.5 pr-3 font-mono text-xs text-[var(--cream-muted)]">
-                    {p.slug}
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    <div className="flex items-center gap-3 text-xs text-[var(--cream-muted)]">
-                      <span className="flex items-center gap-1" title="Views">
-                        <Eye className="h-3 w-3" /> {p.views}
-                      </span>
-                      <span className="flex items-center gap-1" title="Comments">
-                        <MessageSquare className="h-3 w-3" /> {p._count.comments}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        p.publishedAt ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-[var(--cream-muted)]"
-                      }`}
-                    >
-                      {p.publishedAt ? "Published" : "Draft"}
-                    </span>
-                  </td>
-                  <td className="py-2.5">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(p)}
-                        className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-[var(--cream-muted)] transition hover:bg-white/10 hover:text-[var(--cream)]"
-                        title="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(p)}
-                        className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-red-400/80 transition hover:bg-red-500/20 hover:text-red-400"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <Modal isOpen={createOpen} title="Create post" onClose={closeModals} className="max-w-4xl">
-        <form onSubmit={handleCreate} className="space-y-4">
-          {formFields}
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={closeModals} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-[var(--cream)]">
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--ink)] disabled:opacity-70">
-              {saving ? "Creating…" : "Create"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal isOpen={!!editPost} title="Edit post" onClose={closeModals} className="max-w-4xl">
-        {editPost && (
-          <form onSubmit={handleUpdate} className="space-y-4">
-            {formFields}
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={closeModals} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-[var(--cream)]">
-                Cancel
-              </button>
-              <button type="submit" disabled={saving} className="rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--ink)] disabled:opacity-70">
-                {saving ? "Saving…" : "Save"}
-              </button>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: "Total", value: posts.length, icon: FileText, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200" },
+          { label: "Published", value: published, icon: Globe, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" },
+          { label: "Drafts", value: drafts, icon: FileText, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
+        ].map(({ label, value, icon: Icon, color, bg, border }) => (
+          <div key={label} className={`rounded-2xl border ${border} ${bg} p-4`}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--cream-muted)]">{label}</p>
+              <Icon className={`h-4 w-4 ${color}`} />
             </div>
-          </form>
+            <p className={`mt-1 text-3xl font-extrabold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cream-muted)]" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search posts…"
+          className="w-full rounded-xl border border-[var(--border)] bg-white pl-9 pr-4 py-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-[var(--shadow-sm)]">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--accent)] border-t-transparent" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-sm text-[var(--cream-muted)]">No posts found.</p>
+            <Link href="/admin/blog/new" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--accent)] hover:underline">
+              <Plus className="h-4 w-4" /> Create your first post
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--background)]">
+                  {["Post", "Status", "Views", "Comments", "Updated", ""].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-[var(--cream-muted)]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {filtered.map((post) => {
+                  const isPublished = !!post.publishedAt && new Date(post.publishedAt) <= new Date();
+                  return (
+                    <tr key={post.id} className="group hover:bg-[var(--background)] transition-colors">
+                      {/* Post info */}
+                      <td className="px-4 py-3 max-w-xs">
+                        <div className="flex items-center gap-3">
+                          {post.coverImage && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={post.coverImage} alt="" className="h-10 w-14 flex-shrink-0 rounded-lg object-cover" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-[var(--foreground)] truncate">{post.title}</p>
+                            <p className="text-xs text-[var(--cream-muted)] truncate">/blog/{post.slug}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                          isPublished ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {isPublished ? <><Globe className="h-3 w-3" /> Published</> : <><FileText className="h-3 w-3" /> Draft</>}
+                        </span>
+                        {post.publishedAt && (
+                          <p className="mt-0.5 text-[10px] text-[var(--cream-muted)]">{fmtDate(post.publishedAt)}</p>
+                        )}
+                      </td>
+
+                      {/* Views */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 text-[var(--cream-muted)]">
+                          <Eye className="h-3.5 w-3.5" />
+                          <span className="font-medium text-[var(--foreground)]">{post.views.toLocaleString()}</span>
+                        </div>
+                      </td>
+
+                      {/* Comments */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 text-[var(--cream-muted)]">
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          <span className="font-medium text-[var(--foreground)]">{post._count.comments}</span>
+                        </div>
+                      </td>
+
+                      {/* Updated */}
+                      <td className="px-4 py-3 text-xs text-[var(--cream-muted)]">
+                        {fmtDate(post.updatedAt)}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Link
+                            href={`/admin/blog/${post.id}/edit`}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--cream-muted)] hover:bg-indigo-50 hover:text-indigo-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                          {isPublished && (
+                            <a
+                              href={`/blog/${post.slug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--cream-muted)] hover:bg-emerald-50 hover:text-emerald-600"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => handleDelete(post.id, post.title)}
+                            disabled={deleting === post.id}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--cream-muted)] hover:bg-red-50 hover:text-red-500 disabled:opacity-40"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </Modal>
+      </div>
     </div>
   );
 }

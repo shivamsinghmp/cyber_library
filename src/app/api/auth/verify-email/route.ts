@@ -1,24 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp } from "@/lib/otp";
+import { verifyMagicLinkToken } from "@/lib/magic-link";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const code = typeof body.code === "string" ? body.code.trim() : "";
-    if (!email || !code) {
-      return NextResponse.json({ error: "Email and code are required" }, { status: 400 });
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+
+    if (!email || !token) {
+      return NextResponse.json({ error: "Email and token are required" }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      return NextResponse.json({ error: "Invalid code or email" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid link" }, { status: 400 });
     }
 
-    const ok = await verifyOtp(email, "verify", code);
+    if (user.emailVerified) {
+      return NextResponse.json({ success: true, alreadyVerified: true });
+    }
+
+    const ok = await verifyMagicLinkToken(email, token);
     if (!ok) {
-      return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
+      return NextResponse.json({ error: "Link is invalid or has expired. Request a new one." }, { status: 400 });
     }
 
     await prisma.user.update({
@@ -32,4 +37,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }
-

@@ -91,11 +91,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    const currentUserId = (session?.user as { id?: string })?.id;
-    if ((session?.user as { role?: string })?.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const authResult = await requireSuperAdmin();
+    if (authResult.error) return authResult.error;
+    const currentUserId = authResult.user.id;
     const { id } = await params;
     if (id === currentUserId) {
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });

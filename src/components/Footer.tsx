@@ -42,6 +42,7 @@ const DEFAULT_FOOTER: FooterConfig = {
         { label: "Terms", url: "/terms" },
         { label: "Privacy", url: "/privacy" },
         { label: "Refund", url: "/refund" },
+        { label: "WhatsApp Data Deletion", url: "/whatsapp-data-deletion" },
       ],
     },
   ],
@@ -86,11 +87,16 @@ function FooterInner({ config }: { config: FooterConfig }) {
 
           {/* Brand */}
           <div className="space-y-3 min-w-[160px]">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg text-white text-sm"
-                style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 3px 8px rgba(99,102,241,0.35)" }}>
-                📚
-              </div>
+            <div className="flex items-center gap-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.svg"
+                alt="The Cyber Library"
+                width={36}
+                height={36}
+                className="h-9 w-9 object-contain flex-shrink-0"
+                style={{ filter: "drop-shadow(0 3px 8px rgba(99,102,241,0.35))" }}
+              />
               <div>
                 <p className="text-base font-extrabold leading-tight" style={{ color: "var(--foreground)" }}>The Cyber Library</p>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.15em]" style={{ color: "var(--accent)" }}>The Focus Hub</p>

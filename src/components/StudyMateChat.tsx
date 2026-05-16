@@ -140,15 +140,33 @@ export default function StudyMateChat() {
         body: JSON.stringify({ messages: history, imageBase64, mediaType }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: "Response parse error" }));
 
       if (!res.ok) {
         if (data.error === "coins_required") {
           setError(data.message);
           setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
-        } else {
-          throw new Error(data.error || "Server error");
+          return;
         }
+
+        // Show actual API error as assistant message — never a generic "Oops!"
+        const errMsg = (() => {
+          if (res.status === 401 || res.status === 403)
+            return "Session expire ho gayi. Page refresh karo aur dobara login karo.";
+          if (res.status === 503 || data.error === "AI not configured")
+            return "StudyMate AI abhi setup nahi hai. Admin se GEMINI_API_KEY configure karwao.";
+          if (res.status === 502 || data.error === "AI service unavailable")
+            return "AI service temporarily down hai. 1-2 minute baad dobara try karo.";
+          if (res.status === 504 || data.error?.includes("timed out"))
+            return "AI response timeout ho gayi. Network check karo ya thodi der baad try karo.";
+          return data.error || `Server error (${res.status}). Dobara try karo.`;
+        })();
+
+        setMessages((prev) => [...prev, {
+          id: genId(), role: "assistant",
+          content: errMsg,
+          timestamp: new Date(),
+        }]);
         return;
       }
 
@@ -159,10 +177,11 @@ export default function StudyMateChat() {
         totalCoins: prev.totalCoins - (data.coinsUsed ?? 0),
       }));
     } catch {
+      // Only real network errors reach here (fetch itself failed)
       setMessages((prev) => [...prev, {
         id: genId(),
         role: "assistant",
-        content: "Oops! Kuch technical problem aa gayi 😅 Thodi der baad dobara try karo.",
+        content: "Network error. Internet connection check karo aur dobara try karo.",
         timestamp: new Date(),
       }]);
     } finally {

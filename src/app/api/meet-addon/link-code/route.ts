@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { canAccessModule } from "@/lib/student-modules";
 
 const CODE_LENGTH = 6;
 const EXPIRY_MINUTES = 5;
@@ -28,6 +29,9 @@ export async function POST() {
   const role = (session.user as { role?: string }).role;
   if (role !== "STUDENT" && role !== "ADMIN") {
     return NextResponse.json({ error: "Only students can get Meet add-on code" }, { status: 403 });
+  }
+  if (!await canAccessModule(userId, "meet-addon")) {
+    return NextResponse.json({ error: "Meet Add-on is not available for your account." }, { status: 403 });
   }
   const limit = checkRateLimit(`meet-link-code:${userId}`, 8, 60_000);
   if (!limit.ok) {

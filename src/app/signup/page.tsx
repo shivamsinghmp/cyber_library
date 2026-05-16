@@ -142,8 +142,8 @@ function SignupContent() {
         } else setSubmitError("Signup fail ho gaya.");
         return;
       }
-      toast.success("Account ban gaya! 🎉");
-      router.push(`/login?registered=true&email=${encodeURIComponent(data.email)}`);
+      toast.success("Account ban gaya! Email verify karo. 🎉");
+      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
     } catch { setSubmitError("Kuch gadbad ho gayi. Dobara try karo."); }
   }
 

@@ -6,10 +6,26 @@ import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const updateStudentSchema = z.object({
-  name: z.string().optional(),
-  email: z.string().email("Invalid email").optional(),
-  goal: z.string().optional().nullable(),
-  newPassword: z.string().min(8, "Password must be at least 8 characters").optional(),
+  // User fields
+  name:        z.string().optional(),
+  email:       z.string().email("Invalid email").optional(),
+  goal:        z.string().optional().nullable(),
+  newPassword: z.string().min(8).optional(),
+  // Profile fields
+  fullName:        z.string().optional().nullable(),
+  phone:           z.string().optional().nullable(),
+  whatsappNumber:  z.string().optional().nullable(),
+  studyGoal:       z.string().optional().nullable(),
+  targetExam:      z.string().optional().nullable(),
+  targetYear:      z.string().optional().nullable(),
+  institution:     z.string().optional().nullable(),
+  bio:             z.string().optional().nullable(),
+  profilePicUrl:   z.string().optional().nullable(),
+  dailyMantra:     z.string().optional().nullable(),
+  coinBalance:     z.number().int().min(0).optional(),
+  totalPoints:     z.number().int().min(0).optional(),
+  currentStreak:   z.number().int().min(0).optional(),
+  longestStreak:   z.number().int().min(0).optional(),
 });
 
 /** GET: Get single student details (admin only) */
@@ -81,36 +97,40 @@ export async function PUT(
       );
     }
 
-    const data: { name?: string; email?: string; goal?: string | null; password?: string } = {};
-    if (parsed.data.name !== undefined) data.name = parsed.data.name;
-    if (parsed.data.email !== undefined) data.email = parsed.data.email;
-    if (parsed.data.goal !== undefined) data.goal = parsed.data.goal;
-    if (parsed.data.newPassword) {
-      data.password = await bcrypt.hash(parsed.data.newPassword, 12);
+    const d = parsed.data;
+
+    // User-level fields
+    const userData: Record<string, unknown> = {};
+    if (d.name  !== undefined) userData.name  = d.name;
+    if (d.email !== undefined) userData.email = d.email;
+    if (d.goal  !== undefined) userData.goal  = d.goal;
+    if (d.newPassword) userData.password = await bcrypt.hash(d.newPassword, 12);
+
+    if (userData.email && userData.email !== existing.email) {
+      const emailTaken = await prisma.user.findUnique({ where: { email: userData.email as string } });
+      if (emailTaken) return NextResponse.json({ error: "Email already in use." }, { status: 409 });
     }
 
-    if (data.email && data.email !== existing.email) {
-      const emailTaken = await prisma.user.findUnique({ where: { email: data.email } });
-      if (emailTaken) {
-        return NextResponse.json(
-          { error: "An account with this email already exists." },
-          { status: 409 }
-        );
-      }
+    // Profile-level fields
+    const profileData: Record<string, unknown> = {};
+    const profileFields = ["fullName","phone","whatsappNumber","studyGoal","targetExam","targetYear","institution","bio","profilePicUrl","dailyMantra","coinBalance","totalPoints","currentStreak","longestStreak"] as const;
+    for (const key of profileFields) {
+      if (d[key] !== undefined) profileData[key] = d[key];
     }
 
     const updated = await prisma.user.update({
       where: { id },
-      data,
-      select: {
-        id: true,
-        studentId: true,
-        name: true,
-        email: true,
-        goal: true,
-        createdAt: true,
-      },
+      data: userData,
+      select: { id: true, studentId: true, name: true, email: true, goal: true, createdAt: true },
     });
+
+    if (Object.keys(profileData).length > 0) {
+      await prisma.profile.upsert({
+        where:  { userId: id },
+        create: { userId: id, ...profileData },
+        update: profileData,
+      });
+    }
 
     return NextResponse.json(updated);
   } catch (e) {

@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { todayDateUtc, applyStudyStreakForQualifyingDay } from "@/lib/gamification/study-streak";
 import { getCoinDelta } from "@/lib/gamification/awards";
-import { requireUser } from "@/lib/api-helpers";
+import { requireUser, requireModule } from "@/lib/api-helpers";
 
 const MAX_DAILY_TASKS = 3;
 const MAX_CUSTOM_RANGE_DAYS = 366;
@@ -86,7 +86,7 @@ function resolveListRange(
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireUser();
+    const auth = await requireModule("tasks");
     if (auth.error) return auth.error;
     const { user } = auth;
     const userId = user.id;
@@ -162,10 +162,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const userId = (session.user as { id?: string }).id;
-    if (!userId) return NextResponse.json({ error: "User not found" }, { status: 401 });
+    const authResult = await requireModule("tasks");
+    if (authResult.error) return authResult.error;
+    const userId = authResult.user.id;
 
     const body = await req.json().catch(() => ({}));
     const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -211,10 +210,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const userId = (session.user as { id?: string }).id;
-    if (!userId) return NextResponse.json({ error: "User not found" }, { status: 401 });
+    const authResult = await requireModule("tasks");
+    if (authResult.error) return authResult.error;
+    const userId = authResult.user.id;
 
     const body = await req.json().catch(() => ({}));
     const id = typeof body.id === "string" ? body.id.trim() : "";

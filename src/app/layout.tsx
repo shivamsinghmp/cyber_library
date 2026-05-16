@@ -79,9 +79,11 @@ export async function generateMetadata(): Promise<Metadata> {
       title: siteTitle,
       description: siteDescription,
     },
-    icons: settings.SITE_FAVICON_URL?.trim()
-      ? { icon: settings.SITE_FAVICON_URL.trim() }
-      : undefined,
+    icons: {
+      icon: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
+      shortcut: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
+      apple: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
+    },
   };
 }
 

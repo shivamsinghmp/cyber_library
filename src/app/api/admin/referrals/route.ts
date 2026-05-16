@@ -18,6 +18,7 @@ export async function GET(request: Request) {
         deletedAt: null,
         referrals: { some: {} },
       },
+      take: 500,
       select: {
         id: true,
         name: true,
@@ -30,13 +31,11 @@ export async function GET(request: Request) {
               referrals: {
                 where: { deletedAt: null },
                 select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  createdAt: true,
-                  referralRewarded: true,
+                  id: true, name: true, email: true,
+                  createdAt: true, referralRewarded: true,
                 },
                 orderBy: { createdAt: "desc" },
+                take: 100,
               },
             }
           : {}),

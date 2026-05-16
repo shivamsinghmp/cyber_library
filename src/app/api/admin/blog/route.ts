@@ -21,6 +21,7 @@ const createSchema = z.object({
   title: z.string().min(1).max(500),
   excerpt: z.string().max(2000).nullable().optional(),
   body: z.string().min(1),
+  coverImage: z.string().max(1000).nullable().optional(),
   metaTitle: z.string().max(100).nullable().optional(),
   metaDescription: z.string().max(500).nullable().optional(),
   publishedAt: z.union([z.string().datetime(), z.null()]).optional(),
@@ -35,11 +36,12 @@ export async function GET() {
     }
     const posts = await prisma.blogPost.findMany({
       orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: { comments: true }
-        }
-      }
+      select: {
+        id: true, slug: true, title: true, excerpt: true,
+        coverImage: true, publishedAt: true, createdAt: true,
+        metaTitle: true, metaDescription: true,
+        _count: { select: { comments: true } },
+      },
     });
     return NextResponse.json(posts);
   } catch (e) {
@@ -87,7 +89,8 @@ export async function POST(request: Request) {
         slug: data.slug,
         title: data.title,
         excerpt: data.excerpt?.trim() || null,
-        body: DOMPurify.sanitize(data.body), // SANITIZED!
+        body: DOMPurify.sanitize(data.body),
+        coverImage: data.coverImage?.trim() || null,
         metaTitle: data.metaTitle?.trim() || null,
         metaDescription: data.metaDescription?.trim() || null,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,

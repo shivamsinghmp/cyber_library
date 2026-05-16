@@ -50,6 +50,27 @@ export async function requireAdmin(): Promise<AuthResult> {
   return { user: { id, role, email: session.user.email } };
 }
 
+/**
+ * Auth + module access check combined.
+ * Returns { user } if allowed, { error: 401/403 response } otherwise.
+ */
+export async function requireModule(moduleId: string): Promise<AuthResult> {
+  const authResult = await requireUser();
+  if (authResult.error) return authResult;
+
+  const { canAccessModule } = await import("./student-modules");
+  const allowed = await canAccessModule(authResult.user.id, moduleId);
+  if (!allowed) {
+    return {
+      error: NextResponse.json(
+        { error: "This feature is not available for your account." },
+        { status: 403 }
+      ),
+    };
+  }
+  return authResult;
+}
+
 /** Admin only (not Employee). */
 export async function requireSuperAdmin(): Promise<AuthResult> {
   const session = await auth();

@@ -103,8 +103,8 @@ export async function GET(req: NextRequest) {
     startDate = startOfDay(startDate);
     endDate = endOfDay(endDate);
 
-    // 1. Study trend data (group by day)
-    const [studySessions, meetPresence] = await Promise.all([
+    // 1. All data fetched in parallel
+    const [studySessions, meetPresence, tasks] = await Promise.all([
       prisma.studySession.findMany({
         where: { userId, startedAt: { gte: startDate, lte: endDate } },
         select: { startedAt: true, durationMinutes: true },
@@ -112,6 +112,10 @@ export async function GET(req: NextRequest) {
       prisma.meetPresenceSession.findMany({
         where: { userId, startedAt: { gte: startDate, lte: endDate } },
         select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
+      }),
+      prisma.dailyTask.findMany({
+        where: { userId, taskDate: { gte: startDate, lte: endDate } },
+        select: { completedAt: true },
       }),
     ]);
 
@@ -144,10 +148,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // 2. Task data (completed vs pending in date range)
-    const tasks = await prisma.dailyTask.findMany({
-      where: { userId, taskDate: { gte: startDate, lte: endDate } }
-    });
+    // 2. Task data (completed vs pending in date range — fetched above in parallel)
     const completedTasks = tasks.filter(t => t.completedAt).length;
     const pendingTasks = tasks.length - completedTasks;
 

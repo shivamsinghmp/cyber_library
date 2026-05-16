@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createOtp } from "@/lib/otp";
-import { sendSmsOtp } from "@/lib/sms";
 import { sendWhatsAppText } from "@/lib/whatsapp";
+import { rateLimit } from "@/lib/rate-limit";
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
@@ -16,7 +16,13 @@ function formatPhone(raw: string): string {
 
 export async function POST(request: Request) {
   try {
-    const body  = await request.json().catch(() => ({}));
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const rl = rateLimit(`forgot_mobile_ip:${ip}`, 5, 300); // 5 per 5 min per IP
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many attempts. 5 minute baad try karo." }, { status: 429 });
+    }
+
+    const body = await request.json().catch(() => ({}));
     const rawPhone = typeof body.phoneNumber === "string" ? body.phoneNumber.trim() : "";
     if (!rawPhone || rawPhone.length < 10) {
       return NextResponse.json({ error: "Valid mobile number daalo." }, { status: 400 });
@@ -42,23 +48,22 @@ export async function POST(request: Request) {
 
     const email = profile.user.email!;
 
-    // Create reset OTP stored against email (same as email flow — reset route reuses it)
+    // Create reset OTP stored against email
     const code = await createOtp(email, "reset");
 
-    // Send via SMS first, fallback to WhatsApp
-    const message = `The Cyber Library Password Reset\n\nOTP: ${code}\n\n10 minute mein expire hoga. Kisi ko mat batao.`;
+    const waMsg = `*The Cyber Library*\n\nPassword Reset OTP: *${code}*\n\n10 minute mein expire hoga. Kisi ko mat batao.`;
 
-    let delivered = await sendSmsOtp(phoneNumber, code);
-    if (!delivered) {
-      delivered = await sendWhatsAppText(phoneNumber, `*The Cyber Library*\n\n${message}`);
-    }
+    const wamid = await sendWhatsAppText(phoneNumber, waMsg);
 
-    if (!delivered) {
+    if (!wamid) {
       if (process.env.NODE_ENV !== "production") {
-        console.log(`\nDEV mobile reset OTP for ${phoneNumber} (email: ${email}): ${code}\n`);
+        console.log(`\n[DEV] Mobile reset OTP for ${phoneNumber} (${email}): ${code}\n`);
         return NextResponse.json({ success: true, maskedEmail: maskEmail(email) });
       }
-      return NextResponse.json({ error: "OTP deliver nahi hua. Number check karo ya baad mein try karo." }, { status: 502 });
+      return NextResponse.json(
+        { error: "OTP deliver nahi hua. Number check karo ya baad mein try karo." },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({ success: true, maskedEmail: maskEmail(email) });

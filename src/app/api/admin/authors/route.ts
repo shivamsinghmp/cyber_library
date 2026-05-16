@@ -1,19 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
-
-const createSchema = z.object({
-  name: z.string().min(1).max(200).transform((s) => s.trim()),
-  slug: z
-    .string()
-    .min(1)
-    .max(120)
-    .transform((s) => s.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")),
-  bio: z.string().max(5000).nullable().optional(),
-  imageUrl: z.string().url().max(1000).nullable().optional(),
-});
+import { authorSchema } from "@/lib/schemas";
 
 export async function GET() {
   try {
@@ -37,7 +25,7 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     const { user } = auth;
     const body = await request.json();
-    const parsed = createSchema.safeParse({
+    const parsed = authorSchema.safeParse({
       name: body.name,
       slug: body.slug ?? body.name,
       bio: body.bio ?? null,

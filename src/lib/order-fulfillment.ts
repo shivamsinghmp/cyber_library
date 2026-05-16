@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { generateTransactionId } from "@/lib/transactionId";
 import { addStudentToCalendarEvent } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { sendPurchaseReceipt } from "@/lib/email";
 
 export async function fulfillOrder({
   userId,
@@ -11,12 +12,13 @@ export async function fulfillOrder({
   paymentGatewayId,
 }: {
   userId: string;
-  type: "CART" | "PRODUCT" | "REWARD";
+  type: "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION";
   ids: string[];
   amountRupees: number;
   paymentGatewayId?: string;
 }) {
   const transactionId = await generateTransactionId();
+  const fulfillMeta: { planType?: "MONTHLY" | "YEARLY"; membershipStart?: Date; membershipEnd?: Date } = {};
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -72,7 +74,7 @@ export async function fulfillOrder({
     const reward = await prisma.reward.findUnique({ where: { id: ids[0] } });
     if (reward) {
       orderDetails = [{ name: `Reward: ${reward.name}`, price: reward.enrollmentAmount }];
-      
+
       const existing = await prisma.rewardWinner.findUnique({ where: { userId_rewardId: { userId, rewardId: reward.id } } });
       if (!existing) {
         await prisma.rewardWinner.create({
@@ -80,6 +82,38 @@ export async function fulfillOrder({
         });
       }
     }
+  } else if (type === "SUBSCRIPTION") {
+    // ids[0] = planType ("MONTHLY" | "YEARLY")
+    const planType = ids[0] as "MONTHLY" | "YEARLY";
+    const now = new Date();
+    const endDate = new Date(now);
+    if (planType === "MONTHLY") endDate.setMonth(endDate.getMonth() + 1);
+    else endDate.setFullYear(endDate.getFullYear() + 1);
+
+    orderDetails = [{ name: `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`, price: amountRupees }];
+
+    // Cancel any existing active subscription first
+    await prisma.userSubscription.updateMany({
+      where: { userId, status: "ACTIVE" },
+      data: { status: "CANCELLED" },
+    });
+
+    await prisma.userSubscription.create({
+      data: {
+        userId,
+        planType,
+        startDate: now,
+        endDate,
+        status: "ACTIVE",
+        amountPaid: amountRupees,
+        transactionId,
+        paymentGatewayId: paymentGatewayId ?? null,
+      },
+    });
+
+    fulfillMeta.planType        = planType;
+    fulfillMeta.membershipStart = now;
+    fulfillMeta.membershipEnd   = endDate;
   }
 
   // 2. Create the unified Transaction
@@ -95,7 +129,22 @@ export async function fulfillOrder({
     },
   });
 
-  // 3. Process Referral First-Transaction logic
+  // 3. Send purchase receipt email (fire-and-forget)
+  if (user?.email) {
+    sendPurchaseReceipt({
+      to: user.email,
+      customerName: user.profile?.fullName ?? null,
+      transactionId,
+      items: orderDetails.map((i) => ({ name: i.name, price: i.price })),
+      totalAmount: amountRupees,
+      paymentId: paymentGatewayId ?? null,
+      planType:        fulfillMeta.planType        ?? null,
+      membershipStart: fulfillMeta.membershipStart ?? null,
+      membershipEnd:   fulfillMeta.membershipEnd   ?? null,
+    }).catch((e) => console.error("[fulfillOrder] Receipt email failed:", e));
+  }
+
+  // 4. Process Referral First-Transaction logic
   if (user && user.referredById && !user.referralRewarded) {
     try {
       const reward = await prisma.reward.findFirst({ where: { type: "REFERRAL", isActive: true }, orderBy: { createdAt: "desc" } });

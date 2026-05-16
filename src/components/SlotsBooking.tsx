@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { useCart } from "@/context/CartContext";
-import toast from "react-hot-toast";
 import {
   Clock, Users, ExternalLink, ShieldCheck,
-  Loader2, CheckCircle, Zap, Lock, BookOpen,
+  Loader2, Zap, Lock, BookOpen, Video,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -61,10 +59,8 @@ export function SlotsBooking({
   emptyMessage = "Abhi koi study room available nahi hai. Thodi der baad dobara check karo.",
 }: SlotsBookingProps) {
   const { data: session } = useSession();
-  const { addItem, isInCart } = useCart();
   const [slots, setSlots]           = useState<SlotItem[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
-  const [enrolledSlotIds, setEnrolledSlotIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setSlotsLoading(true);
@@ -90,15 +86,6 @@ export function SlotsBooking({
       .finally(() => setSlotsLoading(false));
   }, [slotType]);
 
-  useEffect(() => {
-    if (!session?.user) { setEnrolledSlotIds(new Set()); return; }
-    fetch(`/api/user/subscriptions?_t=${Date.now()}`, { credentials: "include" })
-      .then(r => r.ok ? r.json() : [])
-      .then((data: { studySlotId: string }[]) => {
-        setEnrolledSlotIds(new Set(Array.isArray(data) ? data.map(s => s.studySlotId) : []));
-      })
-      .catch(() => setEnrolledSlotIds(new Set()));
-  }, [session?.user]);
 
   const urgencyColor = (seats: number) =>
     seats === 0 ? "#EF4444" : seats < 5 ? "#F59E0B" : "#10B981";
@@ -228,8 +215,6 @@ export function SlotsBooking({
             variants={stagger} initial="hidden" animate="visible"
             className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {slots.map((slot, idx) => {
-              const isEnrolled  = enrolledSlotIds.has(slot.id);
-              const inCart      = isInCart(slot.id);
               const isFull      = slot.seatsLeft === 0;
               const isUrgent    = slot.seatsLeft > 0 && slot.seatsLeft < 5;
               const colorSet    = SLOT_COLORS[idx % SLOT_COLORS.length];
@@ -239,24 +224,16 @@ export function SlotsBooking({
                 <motion.div
                   key={slot.id}
                   variants={cardAnim}
-                  whileHover={!isFull && !isEnrolled ? { y: -6, transition: { duration: 0.25 } } : {}}
+                  whileHover={!isFull ? { y: -6, transition: { duration: 0.25 } } : {}}
                   className="group relative flex flex-col overflow-hidden rounded-[1.75rem] border bg-white"
                   style={{
-                    borderColor: isEnrolled ? "#A7F3D0" : isFull ? "var(--border)" : colorSet.border,
-                    boxShadow: isEnrolled
-                      ? "0 8px 28px rgba(16,185,129,0.18), 0 2px 8px rgba(16,185,129,0.08)"
-                      : "var(--shadow-md)",
+                    borderColor: isFull ? "var(--border)" : colorSet.border,
+                    boxShadow: "var(--shadow-md)",
                   }}>
 
                   {/* ── TOP COLOR STRIPE ── */}
                   <div className="relative h-1.5 w-full"
-                    style={{ background: isEnrolled ? "linear-gradient(to right, #10B981, #06B6D4)" : colorSet.gradient }} />
-
-                  {/* ── ENROLLED GLOW OVERLAY ── */}
-                  {isEnrolled && (
-                    <div className="pointer-events-none absolute inset-0 rounded-[1.75rem]"
-                      style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.04), transparent)" }} />
-                  )}
+                    style={{ background: colorSet.gradient }} />
 
                   {/* ── CARD BODY ── */}
                   <div className="flex flex-1 flex-col p-7">
@@ -266,19 +243,16 @@ export function SlotsBooking({
                       <div className="flex items-center gap-3">
                         {/* Emoji icon */}
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
-                          style={{
-                            background: isEnrolled ? "linear-gradient(135deg, #ECFDF5, #D1FAE5)" : colorSet.pale,
-                            border: `1.5px solid ${isEnrolled ? "#A7F3D0" : colorSet.border}`,
-                          }}>
-                          {isEnrolled ? "✅" : emoji}
+                          style={{ background: colorSet.pale, border: `1.5px solid ${colorSet.border}` }}>
+                          {emoji}
                         </div>
                         <div>
                           <p className="text-[10px] font-extrabold uppercase tracking-[0.18em]"
-                            style={{ color: isEnrolled ? "#059669" : "var(--muted-text)" }}>
+                            style={{ color: "var(--muted-text)" }}>
                             {slot.label} Shift
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <Clock className="h-3.5 w-3.5" style={{ color: isEnrolled ? "#10B981" : "var(--accent)" }} />
+                            <Clock className="h-3.5 w-3.5" style={{ color: "var(--accent)" }} />
                             <span className="text-lg font-extrabold" style={{ color: "var(--foreground)" }}>
                               {slot.time}
                             </span>
@@ -286,26 +260,20 @@ export function SlotsBooking({
                         </div>
                       </div>
 
-                      {/* Price badge */}
-                      <div className="shrink-0 rounded-full px-3 py-1 text-xs font-extrabold"
-                        style={slot.price > 0
-                          ? { background: "#FFFBEB", color: "#D97706", border: "1.5px solid #FDE68A" }
-                          : { background: "#ECFDF5", color: "#059669", border: "1.5px solid #A7F3D0" }
-                        }>
-                        {slot.price > 0 ? `₹${slot.price}` : "FREE"}
+                      {/* Live indicator */}
+                      <div className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold"
+                        style={{ background: "#ECFDF5", color: "#059669", border: "1.5px solid #A7F3D0" }}>
+                        <span className="relative flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                        </span>
+                        Live
                       </div>
                     </div>
 
                     {/* Status row */}
                     <div className="mb-6">
-                      {isEnrolled ? (
-                        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
-                          <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
-                          <p className="text-xs font-extrabold text-emerald-700">
-                            Tumhara slot confirmed hai! 🎉
-                          </p>
-                        </div>
-                      ) : isFull ? (
+                      {isFull ? (
                         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5">
                           <Users className="h-4 w-4 text-red-400 shrink-0" />
                           <p className="text-xs font-extrabold text-red-600">Slot full ho gaya</p>
@@ -341,30 +309,7 @@ export function SlotsBooking({
 
                     {/* ── CTA BUTTON ── */}
                     <div className="mt-auto">
-                      {isEnrolled ? (
-                        slot.meetLink ? (
-                          <a href={slot.meetLink} target="_blank" rel="noreferrer"
-                            className="group/btn flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02]"
-                            style={{
-                              background: "linear-gradient(135deg, #10B981, #059669)",
-                              boxShadow: "0 6px 20px rgba(16,185,129,0.40)",
-                            }}>
-                            Library Mein Jao
-                            <ExternalLink className="h-4 w-4 transition-transform group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5" />
-                          </a>
-                        ) : (
-                          <div className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 py-3.5 text-center text-sm font-extrabold text-emerald-700">
-                            ✅ Slot Confirmed — Link Aayega
-                          </div>
-                        )
-                      ) : inCart ? (
-                        <Link href="/checkout?from=cart&redirect=/dashboard/subscription?payment=success"
-                          className="flex w-full items-center justify-center gap-2 rounded-2xl border py-3.5 text-sm font-extrabold transition-all hover:-translate-y-0.5"
-                          style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                          Cart Mein Hai — Checkout Karo
-                          <CheckCircle className="h-4 w-4" />
-                        </Link>
-                      ) : isFull ? (
+                      {isFull ? (
                         <button disabled
                           className="w-full cursor-not-allowed rounded-2xl border py-3.5 text-sm font-extrabold opacity-50"
                           style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: "var(--page-bg)" }}>
@@ -373,36 +318,23 @@ export function SlotsBooking({
                       ) : !session?.user ? (
                         <Link href="/login"
                           className="group/btn flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02]"
-                          style={{
-                            background: colorSet.gradient,
-                            boxShadow: `0 6px 20px ${colorSet.glow}`,
-                          }}>
-                          Login Karke Book Karo →
+                          style={{ background: colorSet.gradient, boxShadow: `0 6px 20px ${colorSet.glow}` }}>
+                          <Video className="h-4 w-4" />
+                          Login Karke Join Karo
                         </Link>
-                      ) : (
-                        <button type="button"
-                          onClick={() => {
-                            if (enrolledSlotIds.has(slot.id)) {
-                              toast.error("Tum pehle se is slot mein enrolled ho!");
-                              return;
-                            }
-                            addItem({
-                              slotId: slot.id,
-                              name: slot.label,
-                              timeLabel: slot.time,
-                              price: slot.price,
-                              roomId: slot.roomId ?? undefined,
-                            });
-                            toast.success("Slot cart mein add ho gaya! 🎉");
-                          }}
-                          className="group/btn relative w-full overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02] active:scale-95"
-                          style={{
-                            background: colorSet.gradient,
-                            boxShadow: `0 6px 20px ${colorSet.glow}`,
-                          }}>
+                      ) : slot.meetLink ? (
+                        <a href={slot.meetLink} target="_blank" rel="noreferrer"
+                          className="group/btn flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02] active:scale-95"
+                          style={{ background: colorSet.gradient, boxShadow: `0 6px 20px ${colorSet.glow}` }}>
                           <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover/btn:translate-x-[100%]" />
-                          <span className="relative">Seat Book Karo →</span>
-                        </button>
+                          <Video className="h-4 w-4 relative" />
+                          <span className="relative">Join Now</span>
+                          <ExternalLink className="h-3.5 w-3.5 relative opacity-70" />
+                        </a>
+                      ) : (
+                        <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 py-3.5 text-center text-sm font-extrabold text-amber-700">
+                          Meet Link Aayega Jaldi
+                        </div>
                       )}
                     </div>
                   </div>

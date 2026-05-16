@@ -5,14 +5,14 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, ShoppingCart, X, Menu, ChevronRight, BookOpen, Store, Brain, FileText, Home, Info, Sparkles } from "lucide-react";
+import { LogOut, User, ShoppingCart, X, Menu, ChevronRight, Store, Brain, FileText, Home, Info, Sparkles, Tag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 const navLinks = [
   { href: "/",          label: "Home",       icon: Home },
-  { href: "/study-room",label: "Study Room", icon: BookOpen },
   { href: "/why-join",  label: "Why Join",   icon: Sparkles },
+  { href: "/pricing",   label: "Pricing",    icon: Tag },
   { href: "/store",     label: "Store",      icon: Store },
   { href: "/blog",      label: "Blog",       icon: FileText },
   { href: "/rules",     label: "Rules",      icon: Brain },
@@ -75,7 +75,7 @@ export function Navbar({ initialLogoUrl, initialTitle, initialTagline }: NavbarP
   }
   if (pathname.startsWith("/meet-addon")) dashboardLink = "/meet-addon/panel";
 
-  const logoSrc      = logoUrl?.trim() || "/logo.png";
+  const logoSrc      = logoUrl?.trim() || "/logo.svg";
   const isExtLogo    = logoSrc.startsWith("http");
 
   const isActive = (href: string) =>
@@ -102,12 +102,12 @@ export function Navbar({ initialLogoUrl, initialTitle, initialTagline }: NavbarP
 
           {/* ── BRAND ── */}
           <Link href="/" className="group flex items-center gap-3 shrink-0">
-            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl transition-transform duration-300 group-hover:scale-105"
-              style={{ boxShadow: "0 4px 12px rgba(99,102,241,0.25)" }}>
+            <div className="relative h-10 w-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
+              style={{ filter: "drop-shadow(0 4px 10px rgba(99,102,241,0.35))" }}>
               {isExtLogo ? (
-                <img src={logoSrc} alt={siteTitle} width={36} height={36} className="h-full w-full object-cover" />
+                <img src={logoSrc} alt={siteTitle} className="h-10 w-10 object-contain" />
               ) : (
-                <Image src={logoSrc} alt={siteTitle} width={36} height={36} className="object-cover" priority />
+                <Image src={logoSrc} alt={siteTitle} width={40} height={40} className="object-contain" priority />
               )}
             </div>
             <div className="hidden sm:flex flex-col leading-tight">

@@ -13,6 +13,7 @@ const updateCouponSchema = z.object({
   validFrom: z.string().nullable().optional().transform((s) => (s ? new Date(s).toISOString() : null)),
   validUntil: z.string().nullable().optional().transform((s) => (s ? new Date(s).toISOString() : null)),
   isActive: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
   description: z.string().max(200).nullable().optional(),
 });
 
@@ -87,6 +88,7 @@ export async function PUT(
     if (data.validFrom !== undefined) updateData.validFrom = data.validFrom ? new Date(data.validFrom) : null;
     if (data.validUntil !== undefined) updateData.validUntil = data.validUntil ? new Date(data.validUntil) : null;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.isPublic !== undefined) updateData.isPublic = data.isPublic;
     if (data.description !== undefined) updateData.description = data.description?.trim() || null;
 
     const coupon = await prisma.coupon.update({

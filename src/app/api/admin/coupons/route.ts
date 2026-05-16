@@ -1,20 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
-
-const createCouponSchema = z.object({
-  code: z.string().min(1).max(50).transform((s) => s.trim().toUpperCase()),
-  discountType: z.enum(["PERCENT", "FIXED"]),
-  discountValue: z.number().int().min(0),
-  minOrderAmount: z.number().int().min(0).nullable().optional(),
-  maxTotalUses: z.number().int().min(0).nullable().optional(),
-  validFrom: z.string().nullable().optional().transform((s) => (s ? new Date(s).toISOString() : null)),
-  validUntil: z.string().nullable().optional().transform((s) => (s ? new Date(s).toISOString() : null)),
-  isActive: z.boolean().optional().default(true),
-  description: z.string().max(200).nullable().optional(),
-});
+import { couponSchema } from "@/lib/schemas";
 
 export async function GET() {
   try {
@@ -38,7 +25,7 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
     // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const body = await request.json();
-    const parsed = createCouponSchema.safeParse({
+    const parsed = couponSchema.safeParse({
       ...body,
       minOrderAmount: body.minOrderAmount === "" || body.minOrderAmount == null ? null : Number(body.minOrderAmount),
       maxTotalUses: body.maxTotalUses === "" || body.maxTotalUses == null ? null : Number(body.maxTotalUses),
@@ -77,6 +64,7 @@ export async function POST(request: Request) {
         validFrom: data.validFrom ? new Date(data.validFrom) : null,
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
         isActive: data.isActive,
+        isPublic: data.isPublic ?? false,
         description: data.description?.trim() || null,
       },
     });

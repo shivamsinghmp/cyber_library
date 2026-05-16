@@ -4,7 +4,7 @@ import { useState, Suspense, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Tag, X } from "lucide-react";
+import { Tag, X, Ticket, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import toast from "react-hot-toast";
 
@@ -36,29 +36,35 @@ function CheckoutForm() {
   const { items: cartItems, clear: clearCart } = useCart();
   const fromCart = searchParams.get("from") === "cart";
   const typeReward = searchParams.get("type") === "reward";
+  const typeSubscription = searchParams.get("type") === "subscription";
   const rewardId = searchParams.get("rewardId") ?? "";
+  const subPlan = (searchParams.get("plan") ?? "").toUpperCase() as "MONTHLY" | "YEARLY" | "";
 
   const planName = searchParams.get("name") || searchParams.get("productName") || DEFAULT_PLAN.name;
-  const priceFromQuery = Number(searchParams.get("price")) || Number(searchParams.get("amount")) || DEFAULT_PLAN.price;
+  const priceFromQuery    = Number(searchParams.get("price")) || Number(searchParams.get("amount")) || DEFAULT_PLAN.price;
+  const originalPriceFromQuery = Number(searchParams.get("originalAmount")) || 0;
   const productId = searchParams.get("productId") ?? "";
   const customRedirectUrl = searchParams.get("redirect") ?? "";
 
   const isCartMode = fromCart && cartItems.length > 0;
   const isRewardEnrollment = typeReward && rewardId;
   const isProductPurchase = !!productId;
+  const isSubscription = typeSubscription && (subPlan === "MONTHLY" || subPlan === "YEARLY");
 
   const { data: session, status } = useSession();
   const [enrolledSlotIds, setEnrolledSlotIds] = useState<Set<string>>(new Set());
   const [subsLoaded, setSubsLoaded] = useState(false);
 
   useEffect(() => {
-    if (fromCart && cartItems.length === 0 && !isRewardEnrollment && !isProductPurchase) {
+    if (fromCart && cartItems.length === 0 && !isRewardEnrollment && !isProductPurchase && !isSubscription) {
       router.replace("/cart");
       return;
     }
-    if (status === "unauthenticated" && ((fromCart && cartItems.length > 0) || isRewardEnrollment || isProductPurchase)) {
+    if (status === "unauthenticated" && ((fromCart && cartItems.length > 0) || isRewardEnrollment || isProductPurchase || isSubscription)) {
       let callback = "/checkout?from=cart";
-      if (isProductPurchase) {
+      if (isSubscription) {
+        callback = `/checkout?type=subscription&plan=${subPlan}&name=${encodeURIComponent(planName)}&amount=${priceFromQuery}`;
+      } else if (isProductPurchase) {
         callback = `/checkout?productId=${encodeURIComponent(productId)}&productName=${encodeURIComponent(planName)}&amount=${priceFromQuery}`;
       } else if (isRewardEnrollment) {
         callback = `/checkout?type=reward&rewardId=${encodeURIComponent(rewardId)}&name=${encodeURIComponent(planName)}&price=${priceFromQuery}`;
@@ -67,7 +73,7 @@ function CheckoutForm() {
       }
       router.replace(`/login?callbackUrl=${encodeURIComponent(callback)}`);
     }
-  }, [fromCart, cartItems.length, status, router, isRewardEnrollment, isProductPurchase, productId, rewardId, planName, priceFromQuery]);
+  }, [fromCart, cartItems.length, status, router, isRewardEnrollment, isProductPurchase, isSubscription, productId, rewardId, planName, priceFromQuery, subPlan]);
 
   useEffect(() => {
     if (!session?.user || !fromCart) {
@@ -87,17 +93,27 @@ function CheckoutForm() {
   const price = isCartMode ? payableItems.reduce((s, i) => s + i.price, 0) : priceFromQuery;
   const displayName = isCartMode
     ? `Cart (${payableItems.length} subscription${payableItems.length !== 1 ? "s" : ""})`
-    : isProductPurchase
+    : isSubscription
       ? planName
-      : isRewardEnrollment
-        ? `Reward: ${planName}`
-        : planName;
+      : isProductPurchase
+        ? planName
+        : isRewardEnrollment
+          ? `Reward: ${planName}`
+          : planName;
 
   const [submitting, setSubmitting] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [couponMessage, setCouponMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [couponApplying, setCouponApplying] = useState(false);
+
+  type PublicCoupon = {
+    id: string; code: string; discountType: string; discountValue: number;
+    description: string | null; minOrderAmount: number | null;
+    validUntil: string | null; validFrom: string | null;
+  };
+  const [publicCoupons, setPublicCoupons] = useState<PublicCoupon[]>([]);
+  const [offersOpen, setOffersOpen] = useState(true);
 
   const discount = appliedCoupon?.discountAmount ?? 0;
   const total = Math.max(0, price - discount);
@@ -145,9 +161,44 @@ function CheckoutForm() {
     setCouponMessage(null);
   }
 
+  useEffect(() => {
+    fetch("/api/public/coupons")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: PublicCoupon[]) => setPublicCoupons(data))
+      .catch(() => {});
+  }, []);
+
+  async function quickApplyCoupon(code: string) {
+    setCouponInput(code);
+    setCouponMessage(null);
+    if (!session?.user) { setCouponMessage({ type: "error", text: "Please log in to apply a coupon." }); return; }
+    setCouponApplying(true);
+    try {
+      const res = await fetch("/api/coupon/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, orderAmount: price }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setAppliedCoupon({ code: data.code, discountAmount: data.discountAmount, description: data.description ?? data.code });
+        setCouponMessage({ type: "success", text: `Coupon applied: ${data.description ?? data.code}` });
+        setCouponInput("");
+      } else {
+        setCouponMessage({ type: "error", text: data.error ?? "Coupon apply nahi hua" });
+      }
+    } catch { setCouponMessage({ type: "error", text: "Network error" }); }
+    finally { setCouponApplying(false); }
+  }
+
   const redirectToSuccess = useCallback(() => {
     if (customRedirectUrl) {
       window.location.href = customRedirectUrl;
+      return;
+    }
+    if (isSubscription) {
+      toast.success("🎉 Subscription activated! Welcome aboard.");
+      router.push("/dashboard");
       return;
     }
     const params = new URLSearchParams({
@@ -160,7 +211,7 @@ function CheckoutForm() {
     if (isRewardEnrollment) params.set("rewardId", rewardId);
     if (isProductPurchase) params.set("digital", "1");
     router.push(`/success?${params.toString()}`);
-  }, [displayName, total, discount, appliedCoupon?.code, isCartMode, isRewardEnrollment, isProductPurchase, rewardId, router, customRedirectUrl]);
+  }, [displayName, total, discount, appliedCoupon?.code, isCartMode, isRewardEnrollment, isProductPurchase, isSubscription, rewardId, router, customRedirectUrl]);
   async function completeWithoutPayment() {
     if (isCartMode && payableItems.length > 0) {
         clearCart();
@@ -191,7 +242,10 @@ function CheckoutForm() {
     try {
       let payloadType = "CART";
       let payloadIds: string[] = [];
-      if (isCartMode) {
+      if (isSubscription) {
+        payloadType = "SUBSCRIPTION";
+        payloadIds = [subPlan as string];
+      } else if (isCartMode) {
         payloadType = "CART";
         payloadIds = payableItems.map((i) => i.slotId);
       } else if (isProductPurchase) {
@@ -209,6 +263,7 @@ function CheckoutForm() {
           type: payloadType,
           ids: payloadIds,
           couponCode: appliedCoupon?.code,
+          ...(isSubscription ? { amountOverride: price } : {}),
         }),
       });
       const orderData = await orderRes.json().catch(() => ({}));
@@ -220,7 +275,13 @@ function CheckoutForm() {
 
       // If backend calculated price is 0 (due to 100% coupon), it will skip Razorpay
       if (orderData.free === true) {
-        await completeWithoutPayment();
+        if (isCartMode) clearCart();
+        toast.success("🎉 Payment successful!");
+        if (orderData.transactionId) {
+          router.push(`/dashboard/receipt/${orderData.transactionId}`);
+        } else {
+          redirectToSuccess();
+        }
         return;
       }
 
@@ -240,6 +301,7 @@ function CheckoutForm() {
         name: "The Cyber Library",
         description: displayName,
         handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+          let txnId: string | null = null;
           try {
             const verifyRes = await fetch("/api/razorpay/verify", {
               method: "POST",
@@ -253,11 +315,19 @@ function CheckoutForm() {
                 amount: total
               })
             });
-            if (verifyRes.ok && isCartMode) clearCart();
+            if (verifyRes.ok) {
+              if (isCartMode) clearCart();
+              const verifyData = await verifyRes.json().catch(() => ({}));
+              txnId = verifyData.transactionId ?? null;
+            }
           } catch (e) {
             console.error("Verification error", e);
           }
-          redirectToSuccess();
+          if (txnId) {
+            router.push(`/dashboard/receipt/${txnId}`);
+          } else {
+            redirectToSuccess();
+          }
         },
         modal: {
           ondismiss: () => setSubmitting(false),
@@ -322,6 +392,52 @@ function CheckoutForm() {
                 <span className="font-medium text-[var(--cream)]">₹{price}</span>
               </div>
             </>
+          ) : isSubscription ? (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[var(--cream-muted)]">Plan</span>
+                <span className="flex items-center gap-2 font-semibold text-[var(--cream)]">
+                  {planName}
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+                    style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                    {subPlan === "MONTHLY" ? "Monthly" : "Yearly"}
+                  </span>
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-[var(--cream-muted)]">
+                <span>Billing cycle</span>
+                <span className="font-medium text-[var(--cream)]">
+                  {subPlan === "MONTHLY" ? "Every month" : "Every year"}
+                </span>
+              </div>
+              {/* Price row — original + offer */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--cream-muted)]">Amount</span>
+                <div className="flex flex-col items-end gap-0.5">
+                  {originalPriceFromQuery > price && (
+                    <span className="text-xs text-white/40 line-through">
+                      ₹{originalPriceFromQuery.toLocaleString("en-IN")}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    {originalPriceFromQuery > price && (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+                        style={{ background: "linear-gradient(135deg,#ef4444,#f97316)" }}>
+                        -{Math.round(((originalPriceFromQuery - price) / originalPriceFromQuery) * 100)}% OFF
+                      </span>
+                    )}
+                    <span className="text-base font-bold text-[var(--cream)]">
+                      ₹{price.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  {originalPriceFromQuery > price && (
+                    <span className="text-[10px] text-emerald-400 font-semibold">
+                      You save ₹{(originalPriceFromQuery - price).toLocaleString("en-IN")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
           ) : (
             <>
               <div className="flex justify-between text-sm text-[var(--cream-muted)]">
@@ -333,6 +449,85 @@ function CheckoutForm() {
                 <span className="font-medium text-[var(--cream)]">₹{price}</span>
               </div>
             </>
+          )}
+
+          {/* ── Available public coupons ── */}
+          {publicCoupons.length > 0 && (
+            <div className="border-t border-white/10 pt-4">
+              <button
+                type="button"
+                onClick={() => setOffersOpen((o) => !o)}
+                className="flex w-full items-center justify-between text-xs font-bold text-[var(--accent)] mb-2"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Ticket className="h-3.5 w-3.5" />
+                  Available Offers ({publicCoupons.length})
+                </span>
+                {offersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+              {offersOpen && (
+                <div className="flex flex-col gap-2 mb-3">
+                  {publicCoupons.map((c) => {
+                    const discountLabel = c.discountType === "PERCENT"
+                      ? `${c.discountValue}% off`
+                      : `₹${c.discountValue} off`;
+                    const isApplied = appliedCoupon?.code === c.code;
+                    const daysLeft = c.validUntil
+                      ? Math.ceil((new Date(c.validUntil).getTime() - Date.now()) / 86400000)
+                      : null;
+                    const expiring = daysLeft !== null && daysLeft <= 3;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`relative flex items-center justify-between rounded-xl border px-3 py-2.5 transition-all ${
+                          isApplied
+                            ? "border-emerald-500/40 bg-emerald-500/10"
+                            : "border-dashed border-white/20 bg-white/5 hover:border-white/30"
+                        }`}
+                      >
+                        {/* Left: code + description */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-xs font-black tracking-wider text-[var(--accent)]">
+                              {c.code}
+                            </span>
+                            <span className="rounded-full bg-[var(--accent)]/20 px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]">
+                              {discountLabel}
+                            </span>
+                            {expiring && daysLeft !== null && (
+                              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-400">
+                                <Clock className="h-3 w-3" />
+                                {daysLeft === 0 ? "Expires today!" : `${daysLeft}d left`}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-[10px] text-[var(--cream-muted)] truncate">
+                            {c.description ?? discountLabel}
+                            {c.minOrderAmount ? ` · Min. ₹${c.minOrderAmount}` : ""}
+                            {c.validUntil && !expiring
+                              ? ` · Valid till ${new Date(c.validUntil).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}`
+                              : ""}
+                          </p>
+                        </div>
+                        {/* Right: apply / applied */}
+                        <button
+                          type="button"
+                          disabled={couponApplying}
+                          onClick={() => isApplied ? removeCoupon() : quickApplyCoupon(c.code)}
+                          className={`ml-3 shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all disabled:opacity-50 ${
+                            isApplied
+                              ? "bg-emerald-500/20 text-emerald-400 hover:bg-red-500/20 hover:text-red-400"
+                              : "bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30"
+                          }`}
+                        >
+                          {isApplied ? "Remove" : "Apply"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
           <div className="border-t border-white/10 pt-4">
@@ -397,17 +592,17 @@ function CheckoutForm() {
               <span className="font-medium">−₹{discount}</span>
             </div>
           )}
-          <div className="border-t border-white/10 pt-3 flex justify-between text-sm font-semibold text-[var(--cream)]">
-            <span>Total</span>
-            <span>₹{total}</span>
+          <div className="border-t border-white/10 pt-3 flex justify-between items-center">
+            <span className="text-sm font-semibold text-[var(--cream)]">Total Payable</span>
+            <div className="flex items-center gap-2">
+              {discount > 0 && (
+                <span className="text-xs text-white/40 line-through">₹{price.toLocaleString("en-IN")}</span>
+              )}
+              <span className="text-lg font-black text-[var(--cream)]">
+                ₹{total.toLocaleString("en-IN")}
+              </span>
+            </div>
           </div>
-        </div>
-
-        <div className="rounded-xl border border-dashed border-white/20 bg-white/5 p-4 text-center text-xs text-[var(--cream-muted)]">
-          <p className="font-medium text-[var(--cream)]/80">Payment integration</p>
-          <p className="mt-1">
-            Integrate Razorpay or Stripe: create order/session on your backend, then open checkout or redirect. On success, redirect to /success.
-          </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">

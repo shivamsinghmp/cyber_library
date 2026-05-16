@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendSmsOtp } from "@/lib/sms";
 import { sendWhatsAppText } from "@/lib/whatsapp";
 import { z } from "zod";
 
@@ -38,27 +37,21 @@ export async function POST(request: Request) {
     await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber } });
     await prisma.whatsAppOTP.create({ data: { phoneNumber, otp, expiresAt } });
 
-    // Primary: Fast2SMS SMS
-    let delivered = await sendSmsOtp(phoneNumber, otp);
+    const waMsg = `*The Cyber Library*\n\nYour verification OTP is: *${otp}*\n\nExpires in 10 minutes. Do not share it.`;
+    const wamid = await sendWhatsAppText(phoneNumber, waMsg);
 
-    // Fallback: WhatsApp
-    if (!delivered) {
-      const msg = `*The Cyber Library Verification*\n\nYour OTP is: *${otp}*\n\nExpires in 10 minutes. Do not share it.`;
-      delivered = await sendWhatsAppText(phoneNumber, msg);
-    }
-
-    if (!delivered) {
+    if (!wamid) {
       if (process.env.NODE_ENV !== "production") {
-        console.log(`\nDEV OTP for ${phoneNumber}: ${otp}\n`);
+        console.log(`\n[DEV] OTP for ${phoneNumber}: ${otp}\n`);
         return NextResponse.json({ ok: true, message: "OTP logged to server console (dev mode)" });
       }
       return NextResponse.json(
-        { error: "Could not deliver OTP. Please check the number or try later." },
+        { error: "OTP deliver nahi hua. Number check karo ya baad mein try karo." },
         { status: 502 }
       );
     }
 
-    return NextResponse.json({ ok: true, message: "OTP sent successfully" });
+    return NextResponse.json({ ok: true, message: "OTP sent via WhatsApp", wamid });
   } catch (e) {
     console.error("POST /api/auth/whatsapp-otp/send:", e);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

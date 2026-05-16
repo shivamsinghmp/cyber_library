@@ -6,9 +6,10 @@ import { auth } from "@/auth";
 import { fulfillOrder } from "@/lib/order-fulfillment";
 
 const bodySchema = z.object({
-  type: z.enum(["CART", "PRODUCT", "REWARD"]),
+  type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION"]),
   ids: z.array(z.string()).min(1),
   couponCode: z.string().optional(),
+  amountOverride: z.number().optional(), // for SUBSCRIPTION: price from pricing API
 });
 
 /** Create a Razorpay order. Returns orderId and keyId for frontend checkout. */
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload format" }, { status: 400 });
     }
     
-    const { type, ids, couponCode } = parsed.data;
+    const { type, ids, couponCode, amountOverride } = parsed.data;
     let computedAmountRupees = 0;
 
     const session = await auth();
@@ -72,6 +73,21 @@ export async function POST(request: Request) {
       });
       if (!reward) return NextResponse.json({ error: "Reward not found" }, { status: 404 });
       computedAmountRupees = reward.enrollmentAmount;
+    } else if (type === "SUBSCRIPTION") {
+      const planType = ids[0] as "MONTHLY" | "YEARLY";
+      if (planType !== "MONTHLY" && planType !== "YEARLY") {
+        return NextResponse.json({ error: "Invalid plan type" }, { status: 400 });
+      }
+      // Fetch authoritative price from DB — never trust client-supplied amount
+      const { getAppSetting } = await import("@/lib/app-settings");
+      const raw = await getAppSetting("PRICING_DATA");
+      const pricing = raw ? JSON.parse(raw) : null;
+      const serverOfferPrice: number = pricing?.[planType === "MONTHLY" ? "monthly" : "yearly"]?.offerPrice ?? 0;
+      if (!serverOfferPrice || serverOfferPrice <= 0) {
+        return NextResponse.json({ error: "Pricing not configured" }, { status: 503 });
+      }
+      // Allow max 100% off via coupons (coupon applied below), reject any client price < 1
+      computedAmountRupees = serverOfferPrice;
     }
 
     // 2. Validate and apply coupon authentically on the backend
@@ -109,18 +125,21 @@ export async function POST(request: Request) {
 
     // If order becomes completely free due to coupons, fulfill immediately on backend
     if (amountPaise < 1) {
+      let freeTxnId: string | null = null;
       if (session?.user?.id) {
-        await fulfillOrder({
+        const txn = await fulfillOrder({
           userId: session.user.id,
           type,
           ids,
           amountRupees: 0,
         });
+        freeTxnId = txn.transactionId;
       }
       return NextResponse.json({
         orderId: `free_${Date.now()}`,
         amount: 0,
-        free: true
+        free: true,
+        transactionId: freeTxnId,
       });
     }
 

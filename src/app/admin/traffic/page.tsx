@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Activity, Calendar, Users, Smartphone, Monitor } from "lucide-react";
@@ -67,52 +67,52 @@ export default function AdminTrafficPage() {
       </div>
 
       {loading && !data ? (
-        <div className="rounded-2xl border border-white/10 bg-black/25 p-12 text-center text-[var(--cream-muted)]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center text-[var(--cream-muted)]">
           Loading…
         </div>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                   <Activity className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">Active now</p>
-                  <p className="text-2xl font-bold text-[var(--cream)]">{data?.activeNow ?? 0}</p>
+                  <p className="text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">Active now</p>
+                  <p className="text-2xl font-bold text-gray-900">{data?.activeNow ?? 0}</p>
                   <p className="text-[10px] text-[var(--cream-muted)]">Unique IPs (last 5 min)</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
                   <Calendar className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">Last 7 days</p>
-                  <p className="text-2xl font-bold text-[var(--cream)]">{data?.last7Days ?? 0}</p>
+                  <p className="text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">Last 7 days</p>
+                  <p className="text-2xl font-bold text-gray-900">{data?.last7Days ?? 0}</p>
                   <p className="text-[10px] text-[var(--cream-muted)]">Page views</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
                   <Users className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-[var(--cream-muted)]">Last 30 days</p>
-                  <p className="text-2xl font-bold text-[var(--cream)]">{data?.last30Days ?? 0}</p>
+                  <p className="text-xs text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">Last 30 days</p>
+                  <p className="text-2xl font-bold text-gray-900">{data?.last30Days ?? 0}</p>
                   <p className="text-[10px] text-[var(--cream-muted)]">Page views</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-black/25 p-6">
-            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[var(--cream)]">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900">
               <Calendar className="h-5 w-5 text-[var(--accent)]" />
               Date range – full data with IP & device
             </h2>
@@ -123,7 +123,7 @@ export default function AdminTrafficPage() {
                   type="date"
                   value={from}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)]"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
                 />
               </div>
               <div>
@@ -132,7 +132,7 @@ export default function AdminTrafficPage() {
                   type="date"
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
-                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-[var(--cream)]"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
                 />
               </div>
               <button
@@ -149,8 +149,8 @@ export default function AdminTrafficPage() {
               <>
                 {graph.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="mb-3 text-sm font-medium text-[var(--cream)]">Traffic graph (visits per day)</h3>
-                    <div className="flex items-end justify-between gap-1 rounded-xl border border-white/10 bg-black/20 p-4">
+                    <h3 className="mb-3 text-sm font-medium text-gray-900">Traffic graph (visits per day)</h3>
+                    <div className="flex items-end justify-between gap-1 rounded-xl border border-gray-200 bg-gray-50 p-4">
                       {graph.map((d) => (
                         <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
                           <div
@@ -165,28 +165,28 @@ export default function AdminTrafficPage() {
                   </div>
                 )}
 
-                <h3 className="mb-2 text-sm font-medium text-[var(--cream)]">Visits (IP, device, path, time)</h3>
+                <h3 className="mb-2 text-sm font-medium text-gray-900">Visits (IP, device, path, time)</h3>
                 {!data.visits?.length ? (
-                  <p className="rounded-xl border border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
+                  <p className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-[var(--cream-muted)]">
                     No visits in this range.
                   </p>
                 ) : (
-                  <div className="max-h-96 overflow-auto rounded-xl border border-white/10">
+                  <div className="max-h-96 overflow-auto rounded-xl border border-gray-200">
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-black/80">
-                        <tr className="border-b border-white/10 text-left">
-                          <th className="py-2 px-3 font-medium text-[var(--cream-muted)]">IP</th>
-                          <th className="py-2 px-3 font-medium text-[var(--cream-muted)]">Device</th>
-                          <th className="py-2 px-3 font-medium text-[var(--cream-muted)]">Path</th>
-                          <th className="py-2 px-3 font-medium text-[var(--cream-muted)]">Time</th>
+                      <thead className="sticky top-0 bg-gray-100">
+                        <tr className="border-b border-gray-200 text-left">
+                          <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">IP</th>
+                          <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">Device</th>
+                          <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">Path</th>
+                          <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 bg-gray-50">Time</th>
                         </tr>
                       </thead>
                       <tbody>
                         {data.visits.map((v) => (
-                          <tr key={v.id} className="border-b border-white/5">
-                            <td className="py-2 px-3 font-mono text-[var(--cream)]">{v.ip}</td>
+                          <tr key={v.id} className="border-b border-gray-100">
+                            <td className="py-2 px-3 font-mono text-gray-900">{v.ip}</td>
                             <td className="py-2 px-3">
-                              <span className="inline-flex items-center gap-1.5 text-[var(--cream)]">
+                              <span className="inline-flex items-center gap-1.5 text-gray-900">
                                 {DEVICE_ICONS[v.deviceType] ?? <Monitor className="h-4 w-4" />}
                                 {getDeviceLabel(v.deviceType)}
                               </span>

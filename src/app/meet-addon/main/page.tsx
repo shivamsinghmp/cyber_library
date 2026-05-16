@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Target, Zap, Clock, Check, Maximize2, Minimize2,
   Flame, Coins, CalendarDays, Coffee, RotateCcw,
-  CheckCircle2, Circle, TrendingUp,
+  CheckCircle2, Circle, TrendingUp, Music2, Sparkles,
 } from "lucide-react";
+import { SpotifyPlayer } from "../panel/components/SpotifyPlayer";
+import { AIChatBot }    from "../panel/components/AIChatBot";
 
 function getToken(): string | null {
   try { return localStorage.getItem("vl_meet_addon_token"); } catch { return null; }
@@ -136,6 +138,8 @@ export default function MeetAddonMainStagePage() {
   const [mounted, setMounted] = useState(false);
   const [zenMode, setZenMode] = useState(false);
 
+  const [spotifyOpen, setSpotifyOpen] = useState(false);
+  const [chatOpen,    setChatOpen]    = useState(false);
   const [timerMode, setTimerMode] = useState<"focus" | "break">("focus");
   const [timerDuration, setTimerDuration] = useState(25 * 60);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -373,10 +377,32 @@ export default function MeetAddonMainStagePage() {
           )}
         </div>
 
-        <button onClick={() => setZenMode(!zenMode)}
-          className="p-2 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] text-[#6366F1] hover:bg-[#6366F1] hover:text-white transition-all">
-          {zenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSpotifyOpen((o) => !o)}
+            title="Study Music (YouTube + Spotify)"
+            className="p-2 rounded-xl border transition-all"
+            style={spotifyOpen
+              ? { borderColor: "#a855f7", background: "#a855f7", color: "#fff" }
+              : { borderColor: "rgba(168,85,247,0.3)", background: "rgba(168,85,247,0.08)", color: "#a855f7" }}
+          >
+            <Music2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setChatOpen((o) => !o)}
+            title="StudyMate AI"
+            className="p-2 rounded-xl border transition-all"
+            style={chatOpen
+              ? { borderColor: "#6366F1", background: "#6366F1", color: "#fff" }
+              : { borderColor: "rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.08)", color: "#6366F1" }}
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
+          <button onClick={() => setZenMode(!zenMode)}
+            className="p-2 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] text-[#6366F1] hover:bg-[#6366F1] hover:text-white transition-all">
+            {zenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
       {/* ── Daily Promise ── */}
@@ -613,6 +639,9 @@ export default function MeetAddonMainStagePage() {
           </div>
         )}
       </div>
+
+      <SpotifyPlayer isOpen={spotifyOpen} onClose={() => setSpotifyOpen(false)} />
+      <AIChatBot isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 
       {/* ── Bottom bar ── */}
       {!zenMode && (

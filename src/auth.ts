@@ -12,7 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
+    maxAge: 24 * 60 * 60, // 1 day — daily auto-logout
   },
   trustHost: true,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
@@ -32,27 +32,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return token;
         }
 
-        // ── 4-device session limit ────────────────────────────────────
+        // ── 1-device session limit — new login kicks all other sessions ──
         const jti = crypto.randomUUID();
         token.jti = jti;
 
-        const activeSessions = await prisma.session.findMany({
-          where: { userId: user.id },
-          orderBy: { expires: "asc" },
-        });
-
-        if (activeSessions.length >= 4) {
-          const toDelete = activeSessions.slice(0, activeSessions.length - 3);
-          await prisma.session.deleteMany({
-            where: { id: { in: toDelete.map(s => s.id) } },
-          });
-        }
+        // Delete all existing sessions so previous device is logged out
+        await prisma.session.deleteMany({ where: { userId: user.id as string } });
 
         await prisma.session.create({
           data: {
             sessionToken: jti,
             userId: user.id as string,
-            expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
           },
         });
       }
@@ -84,7 +75,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                   data: {
                     sessionToken: token.jti as string,
                     userId: token.id as string,
-                    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
                   },
                 }).catch(() => {}); // ignore race-condition duplicates
               } else {

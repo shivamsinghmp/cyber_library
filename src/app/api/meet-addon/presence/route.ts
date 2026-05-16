@@ -149,11 +149,32 @@ export async function POST(request: NextRequest) {
 
     await maybeApplyStudyStreakFromMeetPresence(userId).catch(() => {});
 
+    // Detect slot from roomKey (returned to client, no immediate checkin)
+    let detectedSlot: { id: string; name: string; timeLabel: string; roomId: string } | null = null;
+    try {
+      const slot = await prisma.studySlot.findFirst({
+        where: {
+          OR: [
+            { meetLink: { contains: roomKey, mode: "insensitive" } },
+            { roomId: roomKey },
+          ],
+          isActive: true,
+        },
+        select: { id: true, name: true, timeLabel: true, roomId: true },
+      });
+      if (slot) {
+        detectedSlot = { id: slot.id, name: slot.name, timeLabel: slot.timeLabel, roomId: slot.roomId ?? "" };
+      }
+    } catch (e) {
+      console.error("[meet-addon/presence] slot detect error:", e);
+    }
+
     return NextResponse.json({
       ok: true,
       sessionId: created.id,
       startedAt: created.startedAt.toISOString(),
       event: "session_created",
+      detectedSlot,
     }, { headers: cors });
 
   } catch (e) {

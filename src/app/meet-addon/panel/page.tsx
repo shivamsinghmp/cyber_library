@@ -5,10 +5,12 @@ import {
   Plus, CheckCircle, Clock, Flame, X, RotateCcw,
   CalendarClock, Loader2, LogOut, Pencil, MonitorPlay,
   Droplets, Maximize2, Minimize2, Coffee, BrainCircuit,
-  Trash2, Send, Target, Check, Zap,
+  Trash2, Send, Target, Check, Zap, Music2, Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LoginCard } from "./components/LoginCard";
+import { SpotifyPlayer } from "./components/SpotifyPlayer";
+import { AIChatBot }    from "./components/AIChatBot";
 
 const TOKEN_KEY = "vl_meet_addon_token";
 const TIMER_STORAGE_KEY = "vl_meet_timer_state";
@@ -81,6 +83,8 @@ export default function MeetAddonPanelPage() {
   const [isRunning, setIsRunning] = useState(false);
 
   const [zenMode, setZenMode] = useState(false);
+  const [spotifyOpen, setSpotifyOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mainStageLoading, setMainStageLoading] = useState(false);
   const [studentName, setStudentName] = useState<string>("");
@@ -510,6 +514,22 @@ export default function MeetAddonPanelPage() {
           className={`p-2.5 rounded-full border transition-all shadow-lg ${zenMode ? "bg-[#6366F1] text-white border-[var(--accent)]" : "border-[#C7D2FE] bg-[#F8FAFF] hover:bg-white/10 text-[#334155] backdrop-blur-md"}`}>
           {zenMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
         </button>
+        {/* Music Player button */}
+        <button
+          onClick={() => setSpotifyOpen((o) => !o)}
+          title="Study Music (YouTube + Spotify)"
+          className={`p-2.5 rounded-full border transition-all shadow-lg ${spotifyOpen ? "border-purple-500 bg-purple-500 text-white" : "border-purple-400/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"}`}
+        >
+          <Music2 className="w-4 h-4" />
+        </button>
+        {/* AI Chatbot button */}
+        <button
+          onClick={() => setChatOpen((o) => !o)}
+          title="StudyMate AI"
+          className={`p-2.5 rounded-full border transition-all shadow-lg ${chatOpen ? "border-[#6366F1] bg-[#6366F1] text-white" : "border-[#6366F1]/30 bg-[#6366F1]/10 text-[#6366F1] hover:bg-[#6366F1]/20"}`}
+        >
+          <Sparkles className="w-4 h-4" />
+        </button>
         {!zenMode && (
           <button onClick={openMainStage} disabled={mainStageLoading}
             className={`p-2.5 rounded-full border transition-all shadow-lg backdrop-blur-md disabled:opacity-40 ${isMainStageOpen ? "border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20" : "border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"}`}>
@@ -523,6 +543,11 @@ export default function MeetAddonPanelPage() {
           </button>
         )}
       </div>
+
+      {/* Spotify floating player */}
+      <SpotifyPlayer isOpen={spotifyOpen} onClose={() => setSpotifyOpen(false)} />
+      {/* AI Chatbot */}
+      <AIChatBot isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 
       <AnimatePresence mode="wait">
         <motion.div key={zenMode ? "zen" : "dash"} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.35 }}

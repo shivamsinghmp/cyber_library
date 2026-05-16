@@ -45,6 +45,7 @@ model User {
   dailyTasks            DailyTask[]
   meetPollResponses     MeetPollResponse[]
   meetAddonLinkCodes    MeetAddonLinkCode[]
+  moduleAccess          StudentModuleAccess[]
   focusSessions         FocusSession[]
   meetPresenceSessions  MeetPresenceSession[]
   pomodoroTimerSessions PomodoroTimerSession[]
@@ -58,6 +59,27 @@ model User {
   employeePermission EmployeePermission?
   blogComments       BlogComment[]
   adminAuditLogs     AdminAuditLog[]
+  userSubscriptions  UserSubscription[]
+}
+
+// Plan-based membership subscription (monthly / yearly)
+model UserSubscription {
+  id               String   @id @default(cuid())
+  userId           String
+  planType         String   // MONTHLY | YEARLY
+  startDate        DateTime @default(now())
+  endDate          DateTime
+  status           String   @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
+  amountPaid       Int
+  transactionId    String?
+  paymentGatewayId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, endDate])
 }
 
 model LoginLog {
@@ -198,6 +220,7 @@ model Coupon {
   validFrom      DateTime? // optional start date
   validUntil     DateTime? // optional end date
   isActive       Boolean   @default(true)
+  isPublic       Boolean   @default(false) // show publicly on checkout page
   description    String? // e.g. "10% off"
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -232,14 +255,19 @@ model WhatsAppOTP {
 // WhatsApp Message History (Admin to Student, Student to Admin)
 model WhatsAppMessage {
   id          String   @id @default(cuid())
+  wamid       String?  @unique // Meta WhatsApp Message ID — used to match delivery/read status
   userId      String?
-  phoneNumber String // Destination/origin number
-  direction   String // "INBOUND" | "OUTBOUND"
-  content     String   @db.Text
-  status      String   @default("SENT") // SENT, DELIVERED, READ, FAILED
+  phoneNumber String
+  direction   String   // "INBOUND" | "OUTBOUND"
+  content     String   @db.Text // AES-256-GCM encrypted (base64url)
+  contentIv   String?  // Encryption IV — null = legacy plain text row
+  status      String   @default("SENT") // SENT | DELIVERED | READ | FAILED
   createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([phoneNumber])
+  @@index([wamid])
 }
 
 // Blog posts (admin-managed, SEO fields)
@@ -249,6 +277,7 @@ model BlogPost {
   title           String
   excerpt         String?   @db.Text
   body            String    @db.Text
+  coverImage      String?   // featured/cover image URL
   metaTitle       String? // SEO title
   metaDescription String?   @db.Text // SEO meta description
   customCss       String?   @db.Text // optional custom CSS for this post (sanitized)
@@ -328,6 +357,9 @@ model Transaction {
   createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // Digital products for store (PDFs, courses, etc.)
@@ -336,6 +368,7 @@ model DigitalProduct {
   name        String
   description String?  @db.Text
   price       Int // rupees
+  coinPrice   Int?     // coins required to unlock (null = not available for coins)
   imageUrl    String? // optional cover image
   downloadUrl String?  @db.Text // link or path to file (e.g. S3 URL, or /api/download/xxx)
   isActive    Boolean  @default(true)
@@ -701,42 +734,46 @@ model ActionReward {
   updatedAt DateTime @updatedAt
 }
 
-// Configurable Email Accounts (SMTP via App Passwords) for different routing (OTP vs Support)
-model EmailAccount {
-  id                String   @id @default(cuid())
-  email             String   @unique
-  passwordEncrypted String   @db.Text
-  iv                String   @db.Text
-  purpose           String   @default("GENERAL") // OTP | SUPPORT | GENERAL | MARKETING
-  isActive          Boolean  @default(true)
-  senderName        String   @default("The Cyber Library")
-  smtpHost          String   @default("smtp.gmail.com")
-  smtpPort          Int      @default(2525)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
-
 // Email HTML Templates
 model EmailTemplate {
   id        String   @id @default(cuid())
-  purpose   String   @unique // e.g., OTP_VERIFY, OTP_RESET
+  purpose   String   @unique // OTP_VERIFY | OTP_RESET | MAGIC_LINK_VERIFY | CUSTOM
   subject   String
   bodyHtml  String   @db.Text
-  variables Json? // e.g., ["code", "name"] to help admin know what to use
+  variables Json?    // ["code","name","verify_url"] — hints for editor
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// Log of all sent Emails
+// Log of every sent email — Resend webhook updates delivery/open/click
 model EmailLog {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
+  resendId     String?   @unique // Resend email ID — used for webhook matching
   toEmail      String
+  toName       String?
   subject      String
-  purpose      String   @default("GENERAL")
-  status       String // "SUCCESS" | "FAILED"
-  errorMessage String?  @db.Text
-  senderEmail  String? // The configured Google identity that sent this
-  createdAt    DateTime @default(now())
+  purpose      String    @default("GENERAL")
+  status       String    @default("SENT") // SENT | DELIVERED | OPENED | BOUNCED | FAILED
+  errorMessage String?   @db.Text
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  bouncedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([toEmail])
+  @@index([createdAt])
+  @@index([status])
+}
+
+// Email signatures — admin can attach to manual/bulk emails
+model EmailSignature {
+  id        String   @id @default(cuid())
+  name      String
+  html      String   @db.Text
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Custom Drafts Library for HTML Emails
@@ -757,6 +794,18 @@ model EmployeePermission {
   modules   String[] // Array of allowed module keys
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Per-student module access overrides (admin can disable specific modules per student)
+model StudentModuleAccess {
+  userId   String
+  moduleId String
+  disabled Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, moduleId])
+  @@index([userId])
 }
 
 // System Audit Logging to track backend actions

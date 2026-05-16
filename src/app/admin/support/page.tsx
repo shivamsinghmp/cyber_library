@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { 
   MessageSquare, 
   Mail, 
@@ -20,7 +20,7 @@ export default async function AdminSupportTickets() {
       
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold flex items-center gap-3 text-[var(--cream)]">
+        <h1 className="text-3xl font-bold flex items-center gap-3 text-gray-900">
           <MessageSquare className="w-8 h-8 text-[var(--wood)]" />
           Support Tickets
         </h1>
@@ -35,7 +35,7 @@ export default async function AdminSupportTickets() {
           <Mail className="w-7 h-7 text-[var(--accent)]" />
         </div>
         <div>
-          <h2 className="text-4xl font-black text-[var(--cream)]">{tickets.length}</h2>
+          <h2 className="text-4xl font-black text-gray-900">{tickets.length}</h2>
           <p className="text-[var(--cream)]/60 font-medium">Total Messages Received</p>
         </div>
       </div>

@@ -80,11 +80,11 @@ export async function GET() {
         select: { durationMinutes: true, startedAt: true },
       }),
       prisma.studySession.findMany({
-        where: { userId, durationMinutes: { not: null } },
+        where: { userId, durationMinutes: { not: null }, startedAt: { gte: new Date(now.getFullYear() - 2, 0, 1) } },
         select: { startedAt: true, durationMinutes: true },
       }),
       prisma.meetPresenceSession.findMany({
-        where: { userId },
+        where: { userId, startedAt: { gte: new Date(now.getFullYear() - 2, 0, 1) } },
         select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
       }),
       prisma.roomSubscription.findFirst({
