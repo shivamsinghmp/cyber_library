@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Trash2, Star, Edit3, Check } from "lucide-react";
+import DOMPurify from "isomorphic-dompurify";
 import toast from "react-hot-toast";
 import type { EmailSignature } from "./types";
 
@@ -85,7 +86,7 @@ export function EmailSignaturesTab({ signatures, onRefresh }: Props) {
           {form.html && (
             <details className="rounded-xl border border-[var(--border)] overflow-hidden">
               <summary className="cursor-pointer px-4 py-2 text-xs font-semibold text-[var(--cream-muted)] bg-[var(--background)]">Preview</summary>
-              <div className="p-4 bg-white" dangerouslySetInnerHTML={{ __html: form.html }} />
+              <div className="p-4 bg-white" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(form.html) }} />
             </details>
           )}
           <label className="flex items-center gap-2 cursor-pointer text-sm">
@@ -120,7 +121,7 @@ export function EmailSignaturesTab({ signatures, onRefresh }: Props) {
                   <button onClick={() => handleDelete(s.id)} className="rounded-lg p-1.5 text-[var(--cream-muted)] hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
-              <div className="rounded-xl border border-[var(--border)] bg-gray-50 p-3" dangerouslySetInnerHTML={{ __html: s.html }} />
+              <div className="rounded-xl border border-[var(--border)] bg-gray-50 p-3" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(s.html) }} />
             </div>
           ))}
         </div>

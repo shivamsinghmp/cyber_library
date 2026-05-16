@@ -9,6 +9,10 @@ export async function POST() {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    // ENV_SUPERADMIN is stateless — no DB row, skip logging
+    if (userId === "ENV_SUPERADMIN") {
+      return NextResponse.json({ ok: true });
+    }
 
     const existing = await prisma.loginLog.findFirst({
       where: { userId, logoutAt: null },
