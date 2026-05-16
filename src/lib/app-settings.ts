@@ -8,8 +8,6 @@ export const APP_SETTING_KEYS = {
   GOOGLE_SERVICE_ACCOUNT_EMAIL:   { label: "Google Service Account Email",                       secret: false },
   GOOGLE_PRIVATE_KEY:             { label: "Google Private Key (PEM)",                           secret: true  },
   GOOGLE_CALENDAR_ID:             { label: "Google Calendar ID",                                 secret: false },
-  AUTH_GOOGLE_ID:                 { label: "Google OAuth Client ID",                             secret: false },
-  AUTH_GOOGLE_SECRET:             { label: "Google OAuth Client Secret",                         secret: true  },
   NEXTAUTH_URL:                   { label: "NextAuth URL (optional)",                            secret: false },
   ANNOUNCEMENT:                   { label: "Announcement banner (site-wide)",                    secret: false },
   SUPPORT_WHATSAPP_NUMBER:        { label: "Support WhatsApp number (e.g. 919876543210)",        secret: false },

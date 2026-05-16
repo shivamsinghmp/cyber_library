@@ -16,8 +16,6 @@ const OPTIONAL_VARS = [
   { key: "ANTHROPIC_API_KEY",           desc: "AI StudyMate chat" },
   { key: "UPSTASH_REDIS_REST_URL",      desc: "Redis cache + rate limiting" },
   { key: "UPSTASH_REDIS_REST_TOKEN",    desc: "Redis auth token" },
-  { key: "AUTH_GOOGLE_ID",              desc: "Google OAuth login" },
-  { key: "AUTH_GOOGLE_SECRET",          desc: "Google OAuth login" },
 ] as const;
 
 let validated = false;

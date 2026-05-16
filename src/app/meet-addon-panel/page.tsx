@@ -14,21 +14,6 @@ function extractMeetCode(raw: string): string {
   return raw.replace("https://meet.google.com/", "").split("?")[0].trim();
 }
 
-// ─── Google Identity Services types ──────────────────────────────────────────
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: object) => void;
-          renderButton: (el: HTMLElement, config: object) => void;
-          prompt: () => void;
-        };
-      };
-    };
-  }
-}
-
 // ─── Panel ───────────────────────────────────────────────────────────────────
 
 function AddonPanel() {
@@ -40,7 +25,6 @@ function AddonPanel() {
   );
 
   const [screen, setScreen]           = useState<Screen>("login");
-  const [showFallback, setShowFallback] = useState(false);  // code/password fallback
   const [codeInput, setCodeInput]     = useState("");
   const [email, setEmail]             = useState("");
   const [password, setPassword]       = useState("");
@@ -60,7 +44,6 @@ function AddonPanel() {
   const heartbeatRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const confirmedRef  = useRef(false);
-  const googleBtnRef  = useRef<HTMLDivElement>(null);
 
   // ── Restore saved token ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -68,56 +51,7 @@ function AddonPanel() {
     if (saved) setToken(saved);
   }, []);
 
-  // ── Load Google Identity Services SDK ────────────────────────────────────────
-  useEffect(() => {
-    if (token) return; // already logged in
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => initGoogleSignIn();
-    document.head.appendChild(script);
-    return () => { script.remove(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  function initGoogleSignIn() {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId || !window.google) return;
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: handleGoogleCredential,
-      use_fedcm_for_prompt: true,
-    });
-    if (googleBtnRef.current) {
-      window.google.accounts.id.renderButton(googleBtnRef.current, {
-        theme: "filled_black",
-        size: "large",
-        width: 260,
-        text: "signin_with",
-        shape: "pill",
-      });
-    }
-  }
-
-  async function handleGoogleCredential(response: { credential: string }) {
-    setAuthLoading(true); setAuthError(null);
-    try {
-      const res = await fetch("/api/meet-addon/google-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: response.credential }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setAuthError(data.error || "Google login fail hua."); setAuthLoading(false); return; }
-      localStorage.setItem("meet_addon_token", data.token);
-      setToken(data.token);
-      setUserName(data.name || "");
-    } catch { setAuthError("Network error."); }
-    setAuthLoading(false);
-  }
-
-  // ── Fallback: link code login ─────────────────────────────────────────────
+  // ── Link code login ──────────────────────────────────────────────────────────
   async function loginWithCode() {
     if (codeInput.length !== 6) { setAuthError("6-digit code daalo."); return; }
     setAuthLoading(true); setAuthError(null);
@@ -264,51 +198,22 @@ function AddonPanel() {
           {!token ? (
             <>
               <p style={s.heading}>Login karo</p>
-              <p style={s.hint}>Apne Google account se instantly login karo.</p>
-
-              {/* Google Sign-In button (rendered by GIS SDK) */}
-              {authLoading ? (
-                <div style={{ ...s.gBtn, justifyContent: "center" }}>
-                  <div style={s.spinner} />
-                  <span style={{ fontSize: 13, color: "#888" }}>Logging in…</span>
-                </div>
-              ) : (
-                <div ref={googleBtnRef} style={{ margin: "4px 0" }} />
-              )}
-
+              <p style={s.hint}>Dashboard → Meet Add-on → "Code Generate Karo"</p>
+              <input style={s.input} placeholder="6-digit code" inputMode="numeric"
+                maxLength={6} value={codeInput}
+                onChange={e => setCodeInput(e.target.value.replace(/\D/g,"").slice(0,6))} />
+              <button style={s.btn} disabled={authLoading} onClick={loginWithCode}>
+                {authLoading ? "Logging in…" : "Code se Login"}
+              </button>
               {authError && <p style={s.err}>{authError}</p>}
-
-              {/* Divider */}
-              <div style={s.divider}>
-                <div style={s.divLine} />
-                <span style={s.divText}>ya</span>
-                <div style={s.divLine} />
-              </div>
-
-              {/* Fallback toggle */}
-              {!showFallback ? (
-                <button style={s.linkBtn} onClick={() => setShowFallback(true)}>
-                  Google se nahi hua? Link code use karo →
-                </button>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <p style={s.hint}>Dashboard → Meet Add-on → "Code Generate Karo"</p>
-                  <input style={s.input} placeholder="6-digit code" inputMode="numeric"
-                    maxLength={6} value={codeInput}
-                    onChange={e => setCodeInput(e.target.value.replace(/\D/g,"").slice(0,6))} />
-                  <button style={s.btn} disabled={authLoading} onClick={loginWithCode}>
-                    Code se Login
-                  </button>
-                  <details style={{ marginTop: 4 }}>
-                    <summary style={{ ...s.linkBtn, cursor: "pointer" }}>Password se login karo</summary>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-                      <input style={s.input} placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-                      <input style={s.input} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                      <button style={s.btn} disabled={authLoading} onClick={loginWithPassword}>Login</button>
-                    </div>
-                  </details>
+              <details style={{ marginTop: 4 }}>
+                <summary style={{ ...s.linkBtn, cursor: "pointer" }}>Password se login karo</summary>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                  <input style={s.input} placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                  <input style={s.input} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+                  <button style={s.btn} disabled={authLoading} onClick={loginWithPassword}>Login</button>
                 </div>
-              )}
+              </details>
             </>
           ) : (
             // Logged in but no meetCode from URL
@@ -417,7 +322,6 @@ const s: Record<string, React.CSSProperties> = {
   section: { padding: "14px", display: "flex", flexDirection: "column", gap: 10, flex: 1 },
   heading: { fontSize: 14, fontWeight: 800, color: "#f5f2ea", margin: 0 },
   hint: { fontSize: 11, color: "#888", margin: 0, lineHeight: 1.5 },
-  gBtn: { display: "flex", alignItems: "center", gap: 8, minHeight: 44 },
   input: {
     width: "100%", boxSizing: "border-box" as const,
     background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
@@ -430,9 +334,6 @@ const s: Record<string, React.CSSProperties> = {
   },
   linkBtn: { fontSize: 11, color: "#818cf8", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const, padding: 0 },
   err: { fontSize: 11, color: "#f87171", margin: 0 },
-  divider: { display: "flex", alignItems: "center", gap: 8 },
-  divLine: { flex: 1, height: 1, background: "rgba(255,255,255,0.07)" },
-  divText: { fontSize: 10, color: "#555" },
   slotCard: {
     background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)",
     borderRadius: 12, padding: "12px 14px",

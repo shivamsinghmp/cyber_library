@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   Settings, ChevronLeft, Copy, Check,
-  MessageCircle, Calendar, Lock, Globe,
+  MessageCircle, Calendar, Lock,
   BarChart2, ImageIcon, Bell, Mail,
 } from "lucide-react";
 
@@ -40,15 +40,6 @@ const ENV_GROUPS: EnvGroup[] = [
       { key: "GOOGLE_SERVICE_ACCOUNT_EMAIL", example: "myapp@myproject.iam.gserviceaccount.com" },
       { key: "GOOGLE_PRIVATE_KEY",           example: "-----BEGIN PRIVATE KEY-----\\n...", secret: true },
       { key: "GOOGLE_CALENDAR_ID",           example: "primary or xxx@group.calendar.google.com" },
-    ],
-  },
-  {
-    title: "Google OAuth",
-    icon: <Globe className="h-4 w-4" />,
-    vars: [
-      { key: "AUTH_GOOGLE_ID",     example: "123456789-xxx.apps.googleusercontent.com" },
-      { key: "AUTH_GOOGLE_SECRET", example: "GOCSPX-xxx",  secret: true },
-      { key: "NEXTAUTH_URL",       example: "https://yourdomain.com", note: "Production URL only" },
     ],
   },
   {
