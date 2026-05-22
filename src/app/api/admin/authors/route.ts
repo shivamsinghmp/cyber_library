@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 import { authorSchema } from "@/lib/schemas";
@@ -7,7 +7,6 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
     const authors = await prisma.author.findMany({
       orderBy: { name: "asc" },
       include: { _count: { select: { posts: true } }, user: { select: { id: true, name: true, email: true } } },
@@ -23,7 +22,6 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
     const body = await request.json();
     const parsed = authorSchema.safeParse({
       name: body.name,

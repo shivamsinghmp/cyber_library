@@ -6,21 +6,13 @@ import { Redis } from "@upstash/redis";
 
 const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author", "/api/admin", "/api/dashboard", "/api/staff", "/api/student", "/api/study", "/api/profile", "/api/user", "/api/feedback", "/api/rewards"];
 
-// Public API routes that must stay accessible without login
-const PUBLIC_API_EXCEPTIONS = [
-  "/api/study/leaderboard",
-];
+const PUBLIC_API_EXCEPTIONS = ["/api/study/leaderboard"];
 
 function isProtected(pathname: string): boolean {
-  if (PUBLIC_API_EXCEPTIONS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
-    return false;
-  }
+  if (PUBLIC_API_EXCEPTIONS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return false;
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
-// 1. SECURITY (RATE LIMITING): Initialize Upstash Ratelimiter for API abuse prevention
-// Fixed Window / Sliding Window: 100 requests per minute per IP
-// (Increased from 50 to 100 to prevent false positives for schools/libraries sharing a single NAT IP)
 const ratelimit = process.env.UPSTASH_REDIS_REST_URL
   ? new Ratelimit({
       redis: new Redis({
@@ -32,17 +24,11 @@ const ratelimit = process.env.UPSTASH_REDIS_REST_URL
     })
   : null;
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // GLOBAL API RATE LIMITING (DDoS & Brute Force Protection)
   if (pathname.startsWith("/api/") && ratelimit) {
-    // SECURITY FIX: Prevent 'X-Forwarded-For' Spoofing
-    // Next.js request.ip is injected securely by Vercel/proxies at the edge.
-    // If request.ip is null (e.g. running locally), fallback to headers, but
-    // only trust the FIRST ip in the comma-separated x-forwarded-for list.
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
-               
     const { success, limit, remaining, reset } = await ratelimit.limit(`ratelimit_api_${ip}`);
     if (!success) {
       console.warn(`[SECURITY] Rate Limit Exceeded for IP: ${ip}`);
@@ -58,23 +44,16 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (!isProtected(pathname)) {
-    return NextResponse.next();
-  }
+  if (!isProtected(pathname)) return NextResponse.next();
 
   const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-  // If no secret is configured, next-auth/jwt will throw. Treat as unauthenticated
-  // so users can still reach `/login` instead of hitting a runtime error page.
   if (!secret) {
     const login = new URL("/login", request.url);
     login.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(login);
   }
 
-  const token = await getToken({
-    req: request,
-    secret,
-  });
+  const token = await getToken({ req: request, secret });
 
   if (!token) {
     const login = new URL("/login", request.url);
@@ -84,7 +63,6 @@ export async function proxy(request: NextRequest) {
 
   const role = (token.role as string) || "STUDENT";
 
-  // Redirect non-students away from /dashboard to their dashboard
   if (pathname.startsWith("/dashboard")) {
     if (role === "ADMIN") return NextResponse.redirect(new URL("/admin", request.url));
     if (role === "EMPLOYEE") return NextResponse.redirect(new URL("/staff", request.url));
@@ -114,16 +92,12 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith("/api/admin")) {
-    if (role !== "ADMIN" && role !== "EMPLOYEE") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (role !== "ADMIN" && role !== "EMPLOYEE") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/api/author")) {
-    if (role !== "AUTHOR") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (role !== "AUTHOR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     return NextResponse.next();
   }
 

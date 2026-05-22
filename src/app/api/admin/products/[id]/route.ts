@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
@@ -22,7 +21,6 @@ export async function GET(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
     const { id } = await params;
     const product = await prisma.digitalProduct.findUnique({ where: { id } });
     if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -41,7 +39,6 @@ export async function PUT(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
     const { id } = await params;
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
@@ -75,7 +72,6 @@ export async function DELETE(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
     const { id } = await params;
     await prisma.digitalProduct.delete({ where: { id } });
     return NextResponse.json({ success: true });

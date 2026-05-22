@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { invalidateCache } from "@/lib/redis";
 import { requireSuperAdmin } from "@/lib/api-helpers";
@@ -8,7 +7,6 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const faqs = await prisma.faq.findMany({ orderBy: { order: "asc" } });
     await invalidateCache("public:faqs");
@@ -23,7 +21,6 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const data = await request.json();
     const faq = await prisma.faq.create({

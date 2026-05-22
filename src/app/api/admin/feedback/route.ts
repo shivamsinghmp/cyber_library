@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
@@ -7,7 +6,6 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
 
     const feedbacks = await prisma.feedback.findMany({
       include: {
@@ -28,8 +26,7 @@ export async function PATCH(req: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
-    
+
     const { id, status } = await req.json();
     if (!id || !status) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 

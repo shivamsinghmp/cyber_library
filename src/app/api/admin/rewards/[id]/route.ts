@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
@@ -21,7 +20,6 @@ export async function PUT(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const { id } = await params;
     const body = await request.json();
     const parsed = updateSchema.safeParse(body);
@@ -47,7 +45,6 @@ export async function DELETE(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const { id } = await params;
     await prisma.reward.delete({ where: { id } });
     return NextResponse.json({ success: true });

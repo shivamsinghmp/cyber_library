@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 import { rewardSchema } from "@/lib/schemas";
@@ -8,7 +8,6 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const list = await prisma.reward.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { winners: true } } },
@@ -25,7 +24,6 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const body = await request.json();
     const parsed = rewardSchema.safeParse(body);
     if (!parsed.success) {

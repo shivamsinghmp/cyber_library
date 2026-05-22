@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import bcrypt from "bcrypt";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateStudentId } from "@/lib/studentId";
 import { z } from "zod";

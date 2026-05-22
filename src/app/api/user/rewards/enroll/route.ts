@@ -1,8 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+﻿import { NextResponse } from "next/server";
 
-/** POST: DEPRECATED - All reward enrollments are now handled securely by the backend /api/razorpay/verify route */
-export async function POST(request: Request) {
+export async function POST() {
   return NextResponse.json({ error: "Direct reward enrollment is disabled for security reasons." }, { status: 403 });
 }

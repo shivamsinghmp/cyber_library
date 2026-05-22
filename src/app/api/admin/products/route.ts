@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
@@ -19,7 +18,6 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const products = await prisma.digitalProduct.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { purchases: true } } },
@@ -36,7 +34,6 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const body = await request.json();
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {

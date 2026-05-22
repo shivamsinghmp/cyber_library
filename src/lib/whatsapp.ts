@@ -94,3 +94,70 @@ export async function sendWhatsAppTemplate(
     return null;
   }
 }
+
+/**
+ * Send an OTP via WhatsApp using the configured template.
+ * Handles templates that have both a body variable AND a URL button variable (common for OTP templates).
+ * Template name is read from WHATSAPP_OTP_TEMPLATE_NAME env var (default: "otp").
+ * In dev, falls back to plain text if template fails.
+ */
+export async function sendWhatsAppOtp(toPhoneNumber: string, otp: string): Promise<string | null> {
+  const templateName = process.env.WHATSAPP_OTP_TEMPLATE_NAME?.trim() || "otp";
+  const langCode     = process.env.WHATSAPP_OTP_TEMPLATE_LANG?.trim() || "en";
+
+  const { phoneId, token } = await getCredentials();
+  if (!phoneId || !token) {
+    console.warn("⚠️ WhatsApp credentials missing — skipping OTP to " + toPhoneNumber);
+    return null;
+  }
+
+  const to = toPhoneNumber.replace(/\D/g, "");
+
+  // OTP templates typically have: body {{1}} + URL button {{1}} (both need the OTP value)
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: langCode },
+      components: [
+        {
+          type: "body",
+          parameters: [{ type: "text", text: otp }],
+        },
+        {
+          type: "button",
+          sub_type: "url",
+          index: "0",
+          parameters: [{ type: "text", text: otp }],
+        },
+      ],
+    },
+  };
+
+  try {
+    const res  = await waFetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, payload, token);
+    const data = await res.json() as { messages?: { id: string }[]; error?: unknown };
+
+    if (!res.ok) {
+      console.error(`WhatsApp OTP template '${templateName}' failed:`, JSON.stringify(data));
+
+      // Dev fallback: plain text if template fails
+      if (process.env.NODE_ENV !== "production") {
+        const text = `*The Cyber Library*\n\nYour verification OTP is: *${otp}*\n\nExpires in 10 minutes. Do not share it.`;
+        return sendWhatsAppText(toPhoneNumber, text);
+      }
+      return null;
+    }
+
+    const wamid = data.messages?.[0]?.id ?? null;
+    console.log(`WhatsApp OTP template '${templateName}' queued for ${to} — wamid: ${wamid}`);
+    return wamid;
+  } catch (e) {
+    if ((e as Error).name === "AbortError") console.error("WhatsApp OTP timeout for", to);
+    else console.error("WhatsApp OTP error:", e);
+    return null;
+  }
+}

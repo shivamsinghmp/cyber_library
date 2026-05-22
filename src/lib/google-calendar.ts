@@ -30,7 +30,7 @@ async function getCalendarClient(): Promise<{ client: calendar_v3.Calendar; cale
     email: creds.serviceAccountEmail,
     key: creds.privateKey,
     scopes: ["https://www.googleapis.com/auth/calendar"],
-    subject: creds.calendarId,
+    subject: creds.calendarId, // impersonate calendar owner for Meet link generation
   });
   const client = google.calendar({ version: "v3", auth });
   return { client, calendarId: creds.calendarId };

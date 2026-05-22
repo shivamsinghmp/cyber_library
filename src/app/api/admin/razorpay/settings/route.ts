@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encrypt";
 import { z } from "zod";
@@ -15,7 +14,6 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const row = await prisma.razorpaySetting.findFirst({
       orderBy: { updatedAt: "desc" },
     });
@@ -37,7 +35,6 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {

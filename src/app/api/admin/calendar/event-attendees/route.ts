@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { getCalendarEventAttendees } from "@/lib/google-calendar";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
@@ -7,7 +6,6 @@ export async function GET(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");

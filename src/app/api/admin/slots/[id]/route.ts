@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { createStudyRoomEvent, addStudentToCalendarEvent } from "@/lib/google-calendar";
@@ -27,7 +26,6 @@ export async function PUT(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
     const { id } = await params;
     const body = await request.json();
     const parsed = updateSlotSchema.safeParse({
@@ -111,7 +109,6 @@ export async function DELETE(
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    const { user } = auth;
     const { id } = await params;
     await prisma.studySlot.delete({ where: { id } });
     return NextResponse.json({ ok: true });

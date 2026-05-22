@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { sendWhatsAppText } from "@/lib/whatsapp";
+import { sendWhatsAppOtp } from "@/lib/whatsapp";
+import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const schema = z.object({
@@ -17,6 +19,26 @@ export async function POST(request: Request) {
     }
 
     const { phoneNumber } = parsed.data;
+
+    // Rate limit: max 3 OTPs per phone per 10 minutes
+    const phoneRl = rateLimit(`wa-otp:${phoneNumber}`, 3, 600);
+    if (!phoneRl.success) {
+      return NextResponse.json(
+        { error: "Too many OTP requests. Please wait before requesting again." },
+        { status: 429 }
+      );
+    }
+
+    // Rate limit: max 10 OTPs per IP per 10 minutes
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ipRl = rateLimit(`wa-otp-ip:${ip}`, 10, 600);
+    if (!ipRl.success) {
+      return NextResponse.json(
+        { error: "Too many requests from this device." },
+        { status: 429 }
+      );
+    }
 
     const existingProfile = await prisma.profile.findFirst({
       where: {
@@ -37,14 +59,18 @@ export async function POST(request: Request) {
     await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber } });
     await prisma.whatsAppOTP.create({ data: { phoneNumber, otp, expiresAt } });
 
-    const waMsg = `*The Cyber Library*\n\nYour verification OTP is: *${otp}*\n\nExpires in 10 minutes. Do not share it.`;
-    const wamid = await sendWhatsAppText(phoneNumber, waMsg);
+    const wamid = await sendWhatsAppOtp(phoneNumber, otp);
 
-    if (!wamid) {
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`\n[DEV] OTP for ${phoneNumber}: ${otp}\n`);
-        return NextResponse.json({ ok: true, message: "OTP logged to server console (dev mode)" });
-      }
+    // Dev: always log OTP to terminal (WhatsApp delivery unreliable on test accounts)
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`\n=============================`);
+      console.log(`[DEV] WhatsApp OTP`);
+      console.log(`Phone  : ${phoneNumber}`);
+      console.log(`OTP    : ${otp}`);
+      console.log(`=============================\n`);
+    }
+
+    if (!wamid && process.env.NODE_ENV === "production") {
       return NextResponse.json(
         { error: "OTP deliver nahi hua. Number check karo ya baad mein try karo." },
         { status: 502 }

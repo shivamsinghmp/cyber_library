@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextResponse } from "next/server";
 import { APP_SETTING_KEYS, getAppSetting, setAppSetting } from "@/lib/app-settings";
 import { invalidateCache } from "@/lib/redis";
 import { z } from "zod";
@@ -10,7 +9,6 @@ export async function GET() {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const keys = Object.keys(APP_SETTING_KEYS) as (keyof typeof APP_SETTING_KEYS)[];
     const result: Record<string, { label: string; secret: boolean; value: string | null; hasValue: boolean }> = {};
@@ -43,7 +41,6 @@ export async function POST(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
-    // auth verified (user identity confirmed by requireSuperAdmin/requireAdmin)
 
     const body = await request.json();
     const parsed = postSchema.safeParse(body);

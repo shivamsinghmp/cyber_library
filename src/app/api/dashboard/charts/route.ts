@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { format, eachDayOfInterval, startOfDay, endOfDay, isSameDay, subDays } from "date-fns";
 import { requireUser } from "@/lib/api-helpers";

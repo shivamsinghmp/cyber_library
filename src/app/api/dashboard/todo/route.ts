@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { todayDateUtc, applyStudyStreakForQualifyingDay } from "@/lib/gamification/study-streak";
 import { getCoinDelta } from "@/lib/gamification/awards";

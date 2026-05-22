@@ -7,15 +7,6 @@ export interface RateLimitResult {
 
 const rateLimiterCache = new Map<string, { count: number; resetTime: number }>();
 
-/**
- * Basic In-Memory Rate Limiter using a Sliding Window / Token Bucket approach.
- * WARNING: Since this is in-memory, it resets when the Node/Next server restarts.
- * For production with cluster setups, Redis is strongly recommended.
- * 
- * @param identifier The unique identifier (e.g. IP Address or User ID).
- * @param limit Maximum requests allowed inside the time window.
- * @param windowInSeconds Time window duration.
- */
 export function rateLimit(identifier: string, limit: number, windowInSeconds: number): RateLimitResult {
   const now = Date.now();
   const windowMs = windowInSeconds * 1000;
