@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const validateBodySchema = z.object({
-  code: z.string().min(1, "Code is required").transform((s) => s.trim().toUpperCase()),
+  code: z.string().min(1, "Code is required").max(50, "Invalid coupon code").transform((s) => s.trim().toUpperCase()),
   orderAmount: z.number().min(0).optional().default(0),
 });
 

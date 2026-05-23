@@ -82,8 +82,8 @@ export async function GET(request: Request) {
 // ─── POST ──────────────────────────────────────────────────────────────────────
 
 const sendSchema = z.object({
-  phoneNumber: z.string().min(10),
-  message:     z.string().min(1),
+  phoneNumber: z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid phone number format"),
+  message:     z.string().min(1).max(4096),
   userId:      z.string().optional(),
 });
 

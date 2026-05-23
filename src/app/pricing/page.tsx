@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Check,
@@ -48,8 +48,9 @@ export default function PricingPage() {
   const [data, setData] = useState<PricingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [billing, setBilling] = useState<"monthly" | "yearly">("yearly");
+  const clickedRef = useRef(false);
 
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
@@ -61,11 +62,17 @@ export default function PricingPage() {
   }, []);
 
   const handleSubscribe = useCallback(() => {
+    if (status === "loading") return;
+
     if (!session?.user) {
       router.push(`/login?callbackUrl=${encodeURIComponent("/pricing")}`);
       return;
     }
+
     if (!data) return;
+    if (clickedRef.current) return;
+    clickedRef.current = true;
+    setTimeout(() => { clickedRef.current = false; }, 3000);
 
     const tier = billing === "monthly" ? data.monthly : data.yearly;
     const planType = billing === "monthly" ? "MONTHLY" : "YEARLY";
@@ -79,7 +86,7 @@ export default function PricingPage() {
       originalAmount: String(tier.originalPrice),
     });
     router.push(`/checkout?${params.toString()}`);
-  }, [session, data, billing, router]);
+  }, [session, status, data, billing, router]);
 
   const tier = data ? data[billing] : null;
   const discount = tier ? calcDiscount(tier.originalPrice, tier.offerPrice) : 0;
@@ -328,7 +335,7 @@ export default function PricingPage() {
               onClick={handleSubscribe}
               className="mb-10 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 py-4 text-base font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-500/40 active:scale-[0.98]"
             >
-              {session?.user ? (data.ctaText || "Subscribe Now") : "Login to Subscribe"}
+              {session?.user ? (data.ctaText || "Get Started Now") : "Login to Subscribe"}
               <ArrowRight className="h-5 w-5" />
             </button>
 
@@ -361,7 +368,7 @@ export default function PricingPage() {
               variants={stagger}
               className="space-y-3"
             >
-              {data.features.map((feature, i) => (
+              {(data.features ?? []).map((feature, i) => (
                 <motion.li key={i} variants={fadeUp} className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600/10">
                     <Check className="h-3 w-3 text-indigo-600" />

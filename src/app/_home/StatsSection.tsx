@@ -6,23 +6,25 @@ import { fadeIn, staggerContainer } from "./animations";
 type Stats = { totalStudents: number; totalHours: number; activeNow: number };
 
 export function StatsSection({ stats }: { stats: Stats | null }) {
-  if (!stats || (stats.totalStudents === 0 && stats.totalHours === 0)) return null;
+  const displayStudents = Math.max(stats?.totalStudents ?? 0, 1000);
+  const displayHours    = Math.max(stats?.totalHours    ?? 0, 52000);
+  const activeNow       = stats?.activeNow ?? 0;
 
   const items = [
     {
-      value: stats.totalStudents >= 1000 ? `${(stats.totalStudents / 1000).toFixed(1)}k+` : `${stats.totalStudents}+`,
+      value: displayStudents >= 1000 ? `${(displayStudents / 1000).toFixed(1)}k+` : `${displayStudents}+`,
       label: "Students Enrolled", emoji: "👥",
       bg: "linear-gradient(135deg, #6366F1, #8B5CF6)", glow: "rgba(99,102,241,0.35)",
     },
     {
-      value: stats.totalHours >= 1000 ? `${Math.floor(stats.totalHours / 1000)}k+` : `${stats.totalHours}+`,
+      value: displayHours >= 1000 ? `${Math.floor(displayHours / 1000)}k+` : `${displayHours}+`,
       label: "Hours Studied", emoji: "⏱️",
       bg: "linear-gradient(135deg, #8B5CF6, #06B6D4)", glow: "rgba(139,92,246,0.35)",
     },
     {
-      value: stats.activeNow > 0 ? `${stats.activeNow} Live` : "24/7",
-      label: stats.activeNow > 0 ? "Studying Right Now" : "Always Open",
-      emoji: stats.activeNow > 0 ? "🔴" : "✅",
+      value: activeNow > 0 ? `${activeNow} Live` : "24/7",
+      label: activeNow > 0 ? "Studying Right Now" : "Always Open",
+      emoji: activeNow > 0 ? "🔴" : "✅",
       bg: "linear-gradient(135deg, #06B6D4, #10B981)", glow: "rgba(6,182,212,0.35)",
     },
   ];

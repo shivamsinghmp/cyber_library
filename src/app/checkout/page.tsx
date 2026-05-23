@@ -270,14 +270,19 @@ function CheckoutForm() {
         payloadIds = [rewardId];
       }
 
+      if (payloadIds.length === 0) {
+        toast.error("Checkout session invalid hai. Wapas jao aur dobara try karo.");
+        setSubmitting(false);
+        return;
+      }
+
       const orderRes = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: payloadType,
           ids: payloadIds,
-          couponCode: appliedCoupon?.code,
-          ...(isSubscription ? { amountOverride: price } : {}),
+          couponCode: appliedCoupon?.code || undefined,
         }),
       });
       const orderData = await orderRes.json().catch(() => ({}));
@@ -326,7 +331,7 @@ function CheckoutForm() {
                 razorpay_signature: response.razorpay_signature,
                 type: payloadType,
                 ids: payloadIds,
-                amount: total
+                couponCode: appliedCoupon?.code || undefined,
               })
             });
             if (verifyRes.ok) {
@@ -381,8 +386,8 @@ function CheckoutForm() {
       <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
         Checkout
       </h1>
-      <p className="mt-1 text-sm text-[var(--cream-muted)]">
-        Payment will be completed via Razorpay or Stripe.
+      <p className="mt-1 text-sm text-[var(--cream)]">
+        Payment will be completed via Razorpay.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
@@ -612,7 +617,7 @@ function CheckoutForm() {
               {discount > 0 && (
                 <span className="text-xs text-white/40 line-through">₹{price.toLocaleString("en-IN")}</span>
               )}
-              <span className="text-lg font-black text-[var(--cream)]">
+              <span className={`text-lg font-black ${total === 0 ? "text-green-400" : "text-[var(--cream)]"}`}>
                 ₹{total.toLocaleString("en-IN")}
               </span>
             </div>

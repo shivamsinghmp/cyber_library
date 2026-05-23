@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encrypt";
+import crypto from "crypto";
 
 function encryptContent(plain: string) {
   try { const { encrypted, iv } = encrypt(plain); return { content: encrypted, contentIv: iv }; }
@@ -82,7 +83,38 @@ type WAEntry = {
 
 export async function POST(request: Request) {
   try {
+    // Verify Meta's HMAC-SHA256 signature — prevents fake webhook payloads.
+    const appSecret = process.env.WHATSAPP_APP_SECRET?.trim();
+    if (appSecret) {
+      const signature = request.headers.get("x-hub-signature-256") ?? "";
+      const rawBody = await request.text();
+      const expected = "sha256=" + crypto
+        .createHmac("sha256", appSecret)
+        .update(rawBody)
+        .digest("hex");
+      const sigBuf = Buffer.from(signature);
+      const expBuf = Buffer.from(expected);
+      const valid =
+        sigBuf.length === expBuf.length &&
+        crypto.timingSafeEqual(sigBuf, expBuf);
+      if (!valid) {
+        console.warn("[webhook/whatsapp] Invalid signature — request rejected");
+        return new Response("Forbidden", { status: 403 });
+      }
+      const body = JSON.parse(rawBody) as { object: string; entry: WAEntry[] };
+      return handleWebhookBody(body);
+    }
+
     const body = await request.json() as { object: string; entry: WAEntry[] };
+    return handleWebhookBody(body);
+  } catch (e) {
+    console.error("WhatsApp webhook error:", e);
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+  }
+}
+
+async function handleWebhookBody(body: { object: string; entry: WAEntry[] }) {
+  try {
 
     if (body.object !== "whatsapp_business_account") {
       return NextResponse.json({ ok: false }, { status: 400 });
@@ -143,7 +175,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("WhatsApp webhook error:", e);
+    console.error("WhatsApp webhook handleBody error:", e);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }

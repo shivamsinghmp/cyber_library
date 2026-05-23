@@ -4,12 +4,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { fulfillOrder } from "@/lib/order-fulfillment";
+import { DEFAULT_PRICING } from "@/lib/pricing-defaults";
 
 const bodySchema = z.object({
   type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION"]),
   ids: z.array(z.string()).min(1),
   couponCode: z.string().optional(),
-  amountOverride: z.number().optional(), // for SUBSCRIPTION: price from pricing API
 });
 
 /** Create a Razorpay order. Returns orderId and keyId for frontend checkout. */
@@ -26,10 +26,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
+      console.error("[create-order] Invalid payload:", JSON.stringify(body), parsed.error.flatten());
       return NextResponse.json({ error: "Invalid payload format" }, { status: 400 });
     }
     
-    const { type, ids, couponCode, amountOverride } = parsed.data;
+    const { type, ids, couponCode } = parsed.data;
     let computedAmountRupees = 0;
 
     const session = await auth();
@@ -78,15 +79,26 @@ export async function POST(request: Request) {
       if (planType !== "MONTHLY" && planType !== "YEARLY") {
         return NextResponse.json({ error: "Invalid plan type" }, { status: 400 });
       }
-      // Fetch authoritative price from DB — never trust client-supplied amount
+      // Fetch authoritative price from DB — fall back to DEFAULT_PRICING only when DB has no entry
       const { getAppSetting } = await import("@/lib/app-settings");
       const raw = await getAppSetting("PRICING_DATA");
-      const pricing = raw ? JSON.parse(raw) : null;
-      const serverOfferPrice: number = pricing?.[planType === "MONTHLY" ? "monthly" : "yearly"]?.offerPrice ?? 0;
-      if (!serverOfferPrice || serverOfferPrice <= 0) {
+      const tierKey = planType === "MONTHLY" ? "monthly" : "yearly";
+      let serverOfferPrice: number;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          const dbPrice = Number(parsed?.[tierKey]?.offerPrice);
+          // 0 is valid (free plan) — only fall back if value is not a finite number
+          serverOfferPrice = Number.isFinite(dbPrice) ? dbPrice : DEFAULT_PRICING[tierKey].offerPrice;
+        } catch {
+          serverOfferPrice = DEFAULT_PRICING[tierKey].offerPrice;
+        }
+      } else {
+        serverOfferPrice = DEFAULT_PRICING[tierKey].offerPrice;
+      }
+      if (serverOfferPrice < 0) {
         return NextResponse.json({ error: "Pricing not configured" }, { status: 503 });
       }
-      // Allow max 100% off via coupons (coupon applied below), reject any client price < 1
       computedAmountRupees = serverOfferPrice;
     }
 
@@ -95,7 +107,8 @@ export async function POST(request: Request) {
     if (couponCode && computedAmountRupees > 0) {
       if (session?.user?.id) {
         const coupon = await prisma.coupon.findUnique({ where: { code: couponCode } });
-        if (coupon && coupon.isActive && (!coupon.validUntil || coupon.validUntil > new Date())) {
+        const now = new Date();
+        if (coupon && coupon.isActive && (!coupon.validFrom || coupon.validFrom <= now) && (!coupon.validUntil || coupon.validUntil > now)) {
           
           let hasUsed = false;
           const userUse = await prisma.couponRedemption.findUnique({
@@ -113,7 +126,7 @@ export async function POST(request: Request) {
 
           if (!hasUsed && validMin && validUsage) {
             if (coupon.discountType === "FIXED") discount = coupon.discountValue;
-            else if (coupon.discountType === "PERCENT") discount = (computedAmountRupees * coupon.discountValue) / 100;
+            else if (coupon.discountType === "PERCENT") discount = Math.round((computedAmountRupees * coupon.discountValue) / 100);
           }
         }
       }
@@ -125,21 +138,22 @@ export async function POST(request: Request) {
 
     // If order becomes completely free due to coupons, fulfill immediately on backend
     if (amountPaise < 1) {
-      let freeTxnId: string | null = null;
-      if (session?.user?.id) {
-        const txn = await fulfillOrder({
-          userId: session.user.id,
-          type,
-          ids,
-          amountRupees: 0,
-        });
-        freeTxnId = txn.transactionId;
+      const userId = (session?.user as { id?: string })?.id;
+      if (!userId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      const txn = await fulfillOrder({
+        userId,
+        type,
+        ids,
+        amountRupees: 0,
+        couponCode: couponCode || undefined,
+      });
       return NextResponse.json({
         orderId: `free_${Date.now()}`,
         amount: 0,
         free: true,
-        transactionId: freeTxnId,
+        transactionId: txn.transactionId,
       });
     }
 

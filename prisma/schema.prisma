@@ -243,13 +243,14 @@ model CouponRedemption {
 // WhatsApp OTP for Sign Up
 model WhatsAppOTP {
   id          String   @id @default(cuid())
-  phoneNumber String // The number receiving the OTP
-  otp         String // The 6-digit code
-  expiresAt   DateTime // Expiration timestamp
+  phoneNumber String
+  otp         String
+  expiresAt   DateTime
   verified    Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   @@index([phoneNumber])
+  @@index([phoneNumber, expiresAt]) // fast lookup for OTP validation queries
 }
 
 // WhatsApp Message History (Admin to Student, Student to Admin)
@@ -389,6 +390,7 @@ model DigitalPurchase {
   user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   product DigitalProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, productId]) // prevent duplicate purchases at DB level
   @@index([userId])
   @@index([productId])
 }
@@ -669,12 +671,13 @@ model TrafficVisit {
   id         String   @id @default(cuid())
   ip         String
   userAgent  String?  @db.Text
-  deviceType String // MOBILE | TABLET | LAPTOP | DESKTOP
+  deviceType String
   path       String?
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
   @@index([ip])
+  @@index([path, createdAt]) // analytics: visits per page per day queries
 }
 
 // Admin-configurable app settings (env vars stored in DB; secrets encrypted)
@@ -812,8 +815,8 @@ model StudentModuleAccess {
 model AdminAuditLog {
   id        String   @id @default(cuid())
   userId    String
-  action    String // e.g., "CREATE", "UPDATE", "DELETE"
-  module    String // e.g., "BLOG", "STAFF_PERMISSIONS"
+  action    String
+  module    String
   details   String   @db.Text
   ipAddress String?
   createdAt DateTime @default(now())
@@ -822,4 +825,5 @@ model AdminAuditLog {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([module, createdAt]) // admin panel filters by module + date
 }

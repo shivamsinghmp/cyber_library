@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import crypto from "crypto";
+import { z } from "zod";
 import { getRazorpayCredentials } from "@/lib/razorpay-credentials";
 import { fulfillOrder } from "@/lib/order-fulfillment";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
@@ -13,11 +15,22 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, ids, type } = body;
 
-    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+    const verifySchema = z.object({
+      razorpay_payment_id: z.string().min(1),
+      razorpay_order_id:   z.string().min(1),
+      razorpay_signature:  z.string().min(1),
+      type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION"]),
+      ids:  z.array(z.string()).min(1),
+      couponCode: z.string().optional(),
+    });
+
+    const parsed = verifySchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ error: "Incomplete payment data" }, { status: 400 });
     }
+
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, ids, type, couponCode } = parsed.data;
 
     const credentials = await getRazorpayCredentials();
     if (!credentials || !credentials.keySecret) {
@@ -36,22 +49,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Authenticity verification failed" }, { status: 400 });
     }
 
+    // Idempotency: if this payment was already fulfilled, return the existing transaction
+    const existingTxn = await prisma.transaction.findFirst({
+      where: { paymentGatewayId: razorpay_payment_id },
+      select: { transactionId: true },
+    });
+    if (existingTxn) {
+      return NextResponse.json({ success: true, transactionId: existingTxn.transactionId });
+    }
+
     // Fetch the authoritative order amount from Razorpay — never trust the
     // client-supplied `amount`. The signature only binds (orderId, paymentId),
     // not the amount, so without this lookup an attacker could claim they paid
     // ₹0.01 while having paid the real price.
     let amountRupees: number;
     try {
+      const rzpController = new AbortController();
+      const rzpTimer = setTimeout(() => rzpController.abort(), 15_000);
       const orderRes = await fetch(
         `https://api.razorpay.com/v1/orders/${encodeURIComponent(razorpay_order_id)}`,
         {
+          signal: rzpController.signal,
           headers: {
             Authorization:
               "Basic " +
               Buffer.from(credentials.keyId + ":" + credentials.keySecret).toString("base64"),
           },
         }
-      );
+      ).finally(() => clearTimeout(rzpTimer));
       if (!orderRes.ok) {
         console.error("[razorpay/verify] order lookup failed:", orderRes.status);
         return NextResponse.json({ error: "Order verification failed" }, { status: 502 });
@@ -66,10 +91,11 @@ export async function POST(request: Request) {
     // Signature is valid and amount comes from Razorpay — fulfill the order.
     const transaction = await fulfillOrder({
       userId,
-      type: type as "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION",
-      ids: ids as string[],
+      type,
+      ids,
       amountRupees,
       paymentGatewayId: razorpay_payment_id,
+      couponCode: couponCode || undefined,
     });
 
     return NextResponse.json({ success: true, transactionId: transaction.transactionId });

@@ -10,12 +10,14 @@ export async function fulfillOrder({
   ids,
   amountRupees,
   paymentGatewayId,
+  couponCode,
 }: {
   userId: string;
   type: "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION";
   ids: string[];
   amountRupees: number;
   paymentGatewayId?: string;
+  couponCode?: string;
 }) {
   const transactionId = await generateTransactionId();
   const fulfillMeta: { planType?: "MONTHLY" | "YEARLY"; membershipStart?: Date; membershipEnd?: Date } = {};
@@ -38,37 +40,43 @@ export async function fulfillOrder({
     });
     orderDetails = slots.map(s => ({ slotId: s.id, name: `${s.name} (${s.timeLabel})`, price: s.price }));
 
-    // Grant Room Subscriptions (skip already enrolled)
-    for (const slot of slots) {
-      const existing = await prisma.roomSubscription.findUnique({
-        where: { userId_studySlotId: { userId, studySlotId: slot.id } },
-      });
-      if (existing) {
-        console.info(`fulfillOrder: userId=${userId} already enrolled in slot=${slot.id}, skipping`);
-        continue;
-      }
-      await prisma.roomSubscription.create({
-        data: { userId, studySlotId: slot.id },
+    // Grant Room Subscriptions atomically — skip already enrolled, createMany for the rest
+    const existingSubs = await prisma.roomSubscription.findMany({
+      where: { userId, studySlotId: { in: slots.map(s => s.id) } },
+      select: { studySlotId: true },
+    });
+    const alreadyEnrolled = new Set(existingSubs.map(s => s.studySlotId));
+    const newSlots = slots.filter(s => !alreadyEnrolled.has(s.id));
+
+    if (newSlots.length > 0) {
+      await prisma.roomSubscription.createMany({
+        data: newSlots.map(s => ({ userId, studySlotId: s.id })),
+        skipDuplicates: true,
       });
 
-      if (slot.calendarEventId && user?.email) {
-        addStudentToCalendarEvent(slot.calendarEventId, user.email).catch(err => {
-          console.error(`[fulfillOrder] Calendar invite failed for userId=${userId} slotId=${slot.id}:`, err);
-        });
-      }
-
-      if (userPhone) {
-         sendWhatsAppTemplate(userPhone, "room_subscription_confirmation", "en", [userName, slot.name, slot.timeLabel]).catch(err => console.error("WA Temp Err:", err));
+      for (const slot of newSlots) {
+        if (slot.calendarEventId && user?.email) {
+          addStudentToCalendarEvent(slot.calendarEventId, user.email).catch(err => {
+            console.error(`[fulfillOrder] Calendar invite failed for userId=${userId} slotId=${slot.id}:`, err);
+          });
+        }
+        if (userPhone) {
+          sendWhatsAppTemplate(userPhone, "room_subscription_confirmation", "en", [userName, slot.name, slot.timeLabel]).catch(err => console.error("WA Temp Err:", err));
+        }
       }
     }
   } else if (type === "PRODUCT") {
     const product = await prisma.digitalProduct.findUnique({ where: { id: ids[0] } });
     if (product) {
       orderDetails = [{ productId: product.id, name: product.name, price: product.price }];
-      // Grant Digital Product
-      await prisma.digitalPurchase.create({
-        data: { userId, productId: product.id, transactionId },
+      const alreadyPurchased = await prisma.digitalPurchase.findFirst({
+        where: { userId, productId: product.id },
       });
+      if (!alreadyPurchased) {
+        await prisma.digitalPurchase.create({
+          data: { userId, productId: product.id, transactionId },
+        });
+      }
     }
   } else if (type === "REWARD") {
     const reward = await prisma.reward.findUnique({ where: { id: ids[0] } });
@@ -129,7 +137,23 @@ export async function fulfillOrder({
     },
   });
 
-  // 3. Send purchase receipt email (fire-and-forget)
+  // 3. Record coupon redemption (now that payment is confirmed)
+  // Use createMany + skipDuplicates so a retry/race never double-counts the redemption.
+  if (couponCode) {
+    try {
+      const coupon = await prisma.coupon.findUnique({ where: { code: couponCode }, select: { id: true } });
+      if (coupon) {
+        await prisma.couponRedemption.createMany({
+          data: [{ couponId: coupon.id, userId }],
+          skipDuplicates: true,
+        });
+      }
+    } catch (e) {
+      console.error("[fulfillOrder] Coupon redemption record failed:", e);
+    }
+  }
+
+  // 4. Send purchase receipt email (fire-and-forget)
   if (user?.email) {
     sendPurchaseReceipt({
       to: user.email,
@@ -144,7 +168,7 @@ export async function fulfillOrder({
     }).catch((e) => console.error("[fulfillOrder] Receipt email failed:", e));
   }
 
-  // 4. Process Referral First-Transaction logic
+  // 5. Process Referral First-Transaction logic
   if (user && user.referredById && !user.referralRewarded) {
     try {
       const reward = await prisma.reward.findFirst({ where: { type: "REFERRAL", isActive: true }, orderBy: { createdAt: "desc" } });

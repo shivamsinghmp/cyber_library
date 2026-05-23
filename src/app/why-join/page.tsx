@@ -68,6 +68,70 @@ const FEATURES = [
   },
 ];
 
+const AI_FEATURES = [
+  { emoji: "🗓️", title: "Study Plan",     desc: "Exam date + syllabus daalo — AI perfect timetable banata hai ek second mein",          bg: "#EEF2FF", border: "#C7D2FE", iconBg: "#6366F1" },
+  { emoji: "⚡",  title: "Shortcuts",       desc: "Har question ke 3 methods — slow, fast, fastest. Exam mein time bachao.",               bg: "#FFFBEB", border: "#FDE68A", iconBg: "#D97706" },
+  { emoji: "📸",  title: "Photo Solve",     desc: "Handwritten ya printed question — photo upload karo, AI step-by-step solve karega",      bg: "#F5F3FF", border: "#DDD6FE", iconBg: "#7C3AED" },
+  { emoji: "🎯",  title: "80/20 Focus",     desc: "Top 20% topics jo 80% marks denge — faltu cheezein padhna bilkul band karo",            bg: "#FEF2F2", border: "#FECACA", iconBg: "#DC2626" },
+  { emoji: "🧠",  title: "Doubt Clear",     desc: "Step-by-step reasoning ke saath explain karega — tab tak samjhayega jab tak clear na ho", bg: "#ECFDF5", border: "#A7F3D0", iconBg: "#059669" },
+  { emoji: "📈",  title: "Weak Topic Fix",  desc: "AI diagnose karega kahan aur kyun galti hoti hai — root cause fix karega",              bg: "#ECFEFF", border: "#A5F3FC", iconBg: "#0891B2" },
+  { emoji: "⏱️",  title: "Speed Training",  desc: "Standard vs shortcut method side by side — speed double karo exam mein",               bg: "#FFF7ED", border: "#FED7AA", iconBg: "#EA580C" },
+  { emoji: "💆",  title: "Stress Support",  desc: "Frustrated feel ho? Bas batao — AI friend mode mein aa jaayega, judge nahi karega",     bg: "#FDF2F8", border: "#FBCFE8", iconBg: "#DB2777" },
+];
+
+const MOCK_FLOW = [
+  {
+    step: "01",
+    emoji: "📝",
+    title: "Mock Test Do",
+    desc: "PYQ-based real exam pattern ke questions — exactly waise jaise exam mein aate hain. Time limit ke saath, koi hint nahi.",
+    bg: "linear-gradient(135deg, #EEF2FF, #E0E7FF)",
+    border: "#C7D2FE",
+    accent: "#6366F1",
+  },
+  {
+    step: "02",
+    emoji: "❌",
+    title: "Galat Jawab? Koi Baat Nahi",
+    desc: "Jab bhi koi question galat hoga — AI turant detect karega. Ek bhi galti chhootegi nahi. Yahi se asli learning shuru hoti hai.",
+    bg: "linear-gradient(135deg, #FEF2F2, #FEE2E2)",
+    border: "#FECACA",
+    accent: "#DC2626",
+  },
+  {
+    step: "03",
+    emoji: "🧠",
+    title: "AI Turant Solution Dega",
+    desc: "Wahi pe — reason kya tha, sahi approach kya hai, shortcut kya hai, aur is type ke question mein dobara galti kaise avoid kare.",
+    bg: "linear-gradient(135deg, #ECFDF5, #D1FAE5)",
+    border: "#A7F3D0",
+    accent: "#059669",
+  },
+];
+
+const PYQ_HIGHLIGHTS = [
+  {
+    emoji: "📚", title: "10+ Saal Ki PYQ Bank",
+    desc: "UPSC, JEE, NEET, GATE, CAT, SSC — sab exams ke past year questions ek jagah. Exam-wise, topic-wise sorted.",
+    bg: "#EEF2FF", border: "#C7D2FE", iconBg: "#6366F1",
+  },
+  {
+    emoji: "🎯", title: "Smart Mock Tests",
+    desc: "Real exam pattern, actual marking scheme, aur time pressure. Ghar pe exam hall jaisa feel.",
+    bg: "#FFFBEB", border: "#FDE68A", iconBg: "#D97706",
+  },
+  {
+    emoji: "⚡", title: "Instant AI Explanation",
+    desc: "Wrong answer pe rukna nahi — AI seedha wahi explain karega apni bhasha mein. Hindi ya English, jo chahiye.",
+    bg: "#ECFDF5", border: "#A7F3D0", iconBg: "#059669",
+  },
+  {
+    emoji: "📊", title: "Weak Topic Radar",
+    desc: "Kitne mock diye, kahan baar baar galti hoti hai — AI apna performance card banata hai aur next target batata hai.",
+    bg: "#ECFEFF", border: "#A5F3FC", iconBg: "#0891B2",
+  },
+];
+
 const WHO_IS_IT_FOR = [
   { emoji: "📖", title: "UPSC Aspirants",    desc: "Mains ke liye 8-10 ghante daily chahiye? Yahan possible hai." },
   { emoji: "⚗️", title: "JEE / NEET Students", desc: "Conceptual clarity ke liye focused study environment zaroori hai." },
@@ -284,6 +348,163 @@ export default function WhyJoinPage() {
                 </motion.div>
               ))}
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══ STUDYMATE AI ══ */}
+      <section className="py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+
+            <div className="mb-14 text-center">
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
+                  style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
+                  <span className="text-base">✨</span> AI-Powered Feature
+                </span>
+              </motion.div>
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
+                style={{ color: "var(--foreground)" }}>
+                StudyMate AI — Tumhara Personal Topper Dost
+              </motion.h2>
+              <motion.p variants={fadeIn} className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: "var(--body-text)" }}>
+                UPSC, JEE, NEET, GATE, CAT, SSC — koi bhi exam ho. Doubt karo, photo upload karo, plan banao.
+                24/7 available, kabhi judge nahi karega.
+              </motion.p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {AI_FEATURES.map((f, i) => (
+                <motion.div key={i} variants={fadeIn}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="rounded-2xl border p-5 transition-all hover:shadow-[var(--shadow-md)]"
+                  style={{ background: f.bg, borderColor: f.border }}>
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl text-xl"
+                    style={{ background: f.iconBg, boxShadow: `0 4px 12px ${f.iconBg}55` }}>
+                    {f.emoji}
+                  </div>
+                  <h3 className="text-sm font-extrabold mb-1" style={{ color: "var(--foreground)" }}>{f.title}</h3>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--body-text)" }}>{f.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            <motion.div variants={fadeIn} className="mt-10 text-center">
+              <Link href="/dashboard/studymate"
+                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-extrabold text-white transition-all hover:scale-105"
+                style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 24px rgba(99,102,241,0.40)" }}>
+                <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
+                ✨ StudyMate AI Try Karo — Free Hai →
+              </Link>
+            </motion.div>
+
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══ AI MOCK TEST + PYQ ══ */}
+      <section className="py-24" style={{ background: "linear-gradient(180deg, #FFFBEB 0%, #FEF3C7 100%)" }}>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }} variants={stagger}>
+
+            {/* Header */}
+            <div className="mb-14 text-center">
+              <motion.div variants={fadeIn}>
+                <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
+                  style={{ borderColor: "#FDE68A", background: "#FFFBEB", color: "#D97706" }}>
+                  🏆 Rank Aane Ka Asli Formula
+                </span>
+              </motion.div>
+              <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
+                style={{ color: "var(--foreground)" }}>
+                AI Mock Test + PYQ Training
+              </motion.h2>
+              <motion.p variants={fadeIn} className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: "var(--body-text)" }}>
+                Sirf padhai karna kaafi nahi — sahi tarike se practice zaroori hai.
+                Galat jawab diya toh AI wahi pe rok ke samjhayega.{" "}
+                <span className="font-bold" style={{ color: "var(--accent)" }}>Isi se rank aata hai.</span>
+              </motion.p>
+            </div>
+
+            {/* ── 3-Step Flow ── */}
+            <div className="mb-14 grid gap-5 sm:grid-cols-3">
+              {MOCK_FLOW.map((step, i) => (
+                <motion.div key={i} variants={fadeIn} className="relative">
+                  {/* Connector arrow between steps */}
+                  {i < MOCK_FLOW.length - 1 && (
+                    <div className="hidden sm:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10
+                      h-7 w-7 items-center justify-center rounded-full bg-white border-2 text-sm font-black shadow-sm"
+                      style={{ borderColor: "var(--border)", color: "var(--muted-text)" }}>
+                      →
+                    </div>
+                  )}
+                  <div className="h-full rounded-2xl border p-6 flex flex-col gap-3"
+                    style={{ background: step.bg, borderColor: step.border }}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{step.emoji}</span>
+                      <span className="text-xs font-black uppercase tracking-widest px-2 py-1 rounded-lg"
+                        style={{ background: step.accent + "20", color: step.accent }}>
+                        Step {step.step}
+                      </span>
+                    </div>
+                    <h3 className="text-base font-extrabold leading-snug" style={{ color: "var(--foreground)" }}>{step.title}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>{step.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* ── 4 highlight cards ── */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {PYQ_HIGHLIGHTS.map((f, i) => (
+                <motion.div key={i} variants={fadeIn}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="rounded-2xl border p-5 transition-all hover:shadow-[var(--shadow-md)]"
+                  style={{ background: "white", borderColor: f.border }}>
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl text-xl"
+                    style={{ background: f.iconBg, boxShadow: `0 4px 12px ${f.iconBg}55` }}>
+                    {f.emoji}
+                  </div>
+                  <h3 className="text-sm font-extrabold mb-1" style={{ color: "var(--foreground)" }}>{f.title}</h3>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--body-text)" }}>{f.desc}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* ── Instant solution demo card ── */}
+            <motion.div variants={fadeIn}
+              className="mt-10 rounded-2xl border overflow-hidden"
+              style={{ borderColor: "#FDE68A", boxShadow: "0 8px 32px rgba(217,119,6,0.12)" }}>
+              {/* Header bar */}
+              <div className="px-6 py-4 flex items-center gap-3"
+                style={{ background: "linear-gradient(135deg, #D97706, #F59E0B)", color: "white" }}>
+                <span className="text-xl">⚡</span>
+                <span className="font-extrabold text-sm uppercase tracking-wide">Live Example — AI Instant Explanation</span>
+                <span className="ml-auto text-xs font-bold bg-white/20 px-3 py-1 rounded-full">Mock Test Mode</span>
+              </div>
+              {/* Body */}
+              <div className="p-6 grid sm:grid-cols-2 gap-6" style={{ background: "white" }}>
+                {/* Wrong answer */}
+                <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
+                  <p className="text-xs font-black text-red-600 uppercase tracking-wide">❌ Student Ka Jawab (Galat)</p>
+                  <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Q. Bharat mein pehli panch-varshiya yojana kab shuru hui?</p>
+                  <div className="inline-block rounded-lg px-3 py-1.5 text-sm font-bold bg-red-100 text-red-700">1952 (Galat)</div>
+                </div>
+                {/* AI solution */}
+                <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: "#A7F3D0", background: "#ECFDF5" }}>
+                  <p className="text-xs font-black text-emerald-600 uppercase tracking-wide">🧠 AI Ka Turant Jawab</p>
+                  <p className="text-xs font-semibold text-emerald-800">
+                    Sahi jawab hai <span className="font-black">1951</span> — 1 April 1951 ko shuru hui thi.
+                    1952 galat isliye laga kyunki pehle elections bhi usi saal hue the — yeh common confusion hai.
+                  </p>
+                  <p className="text-[11px] text-emerald-700 font-bold">
+                    💡 Trick: "Pehle plan, phir vote" — Plan 1951, Elections 1952.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
           </motion.div>
         </div>
       </section>

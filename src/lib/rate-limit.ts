@@ -7,10 +7,20 @@ export interface RateLimitResult {
 
 const rateLimiterCache = new Map<string, { count: number; resetTime: number }>();
 
+// Prune expired entries every 5 minutes to prevent unbounded memory growth.
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of rateLimiterCache) {
+      if (now > record.resetTime) rateLimiterCache.delete(key);
+    }
+  }, 5 * 60 * 1000);
+}
+
 export function rateLimit(identifier: string, limit: number, windowInSeconds: number): RateLimitResult {
   const now = Date.now();
   const windowMs = windowInSeconds * 1000;
-  
+
   const record = rateLimiterCache.get(identifier);
 
   if (!record) {
@@ -19,7 +29,6 @@ export function rateLimit(identifier: string, limit: number, windowInSeconds: nu
   }
 
   if (now > record.resetTime) {
-    // Reset window
     record.count = 1;
     record.resetTime = now + windowMs;
     return { success: true, limit, remaining: limit - 1, reset: record.resetTime };

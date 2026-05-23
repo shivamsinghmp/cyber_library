@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    if (!otpRecord || otpRecord.otp !== otp || !otpRecord.verified || otpRecord.expiresAt < new Date()) {
+    if (!otpRecord || !otpRecord.verified || otpRecord.expiresAt < new Date()) {
       return NextResponse.json(
         { error: { otp: ["Invalid or expired OTP. Please verify your number first."] } },
         { status: 400 }

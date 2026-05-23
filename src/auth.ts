@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
 // Synthetic ID used for the env-based superadmin (never stored in DB)
@@ -44,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             userId: user.id as string,
             expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
           },
-        });
+        }).catch(() => {}); // ignore race-condition duplicate on concurrent login
       }
 
       // Env superadmin: JWT is self-validating, skip DB check
@@ -141,7 +142,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const saEmail    = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
         const saPassword = process.env.SUPERADMIN_PASSWORD?.trim();
 
-        if (saEmail && saPassword && email === saEmail && password === saPassword) {
+        // Use timingSafeEqual to prevent timing-based enumeration of the superadmin email/password.
+        const emailMatch = saEmail
+          ? (() => { try { return crypto.timingSafeEqual(Buffer.from(email), Buffer.from(saEmail)); } catch { return false; } })()
+          : false;
+        const passwordMatch = saPassword
+          ? (() => { try { return crypto.timingSafeEqual(Buffer.from(password), Buffer.from(saPassword)); } catch { return false; } })()
+          : false;
+        if (saEmail && saPassword && emailMatch && passwordMatch) {
           // Only allow ADMIN role selection for the superadmin
           if (requestedRole && requestedRole !== "ADMIN") return null;
           return {
