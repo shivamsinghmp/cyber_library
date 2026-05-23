@@ -127,9 +127,6 @@ export default async function RootLayout({
             crossOrigin="anonymous"
           />
         )}
-        {customHeadHtml && (
-          <div dangerouslySetInnerHTML={{ __html: customHeadHtml }} />
-        )}
         {fbPixelId && (
           <script
             dangerouslySetInnerHTML={{
@@ -161,6 +158,9 @@ export default async function RootLayout({
         </SmoothScroll>
         {resolvedGaId && <GoogleAnalytics gaId={resolvedGaId} />}
         {resolvedGtmId && <GoogleTagManager gtmId={resolvedGtmId} />}
+        {customHeadHtml && (
+          <div dangerouslySetInnerHTML={{ __html: customHeadHtml }} />
+        )}
       </body>
     </html>
   );
