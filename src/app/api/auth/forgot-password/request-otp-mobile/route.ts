@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createOtp } from "@/lib/otp";
-import { sendWhatsAppText } from "@/lib/whatsapp";
+import { sendWhatsAppOtp } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
 
 function maskEmail(email: string): string {
@@ -51,9 +51,7 @@ export async function POST(request: Request) {
     // Create reset OTP stored against email
     const code = await createOtp(email, "reset");
 
-    const waMsg = `*The Cyber Library*\n\nPassword Reset OTP: *${code}*\n\n10 minute mein expire hoga. Kisi ko mat batao.`;
-
-    const wamid = await sendWhatsAppText(phoneNumber, waMsg);
+    const wamid = await sendWhatsAppOtp(phoneNumber, code);
 
     if (!wamid) {
       if (process.env.NODE_ENV !== "production") {

@@ -32,7 +32,13 @@ export async function POST(request: Request) {
 
     try {
       const code = await createOtp(email, "reset");
-      await sendOtpEmail(email, code, "reset");
+      const sent = await sendOtpEmail(email, code, "reset");
+      if (!sent) {
+        return NextResponse.json(
+          { error: "OTP email nahi gaya. Thodi der mein dobara try karo." },
+          { status: 500 }
+        );
+      }
     } catch (e) {
       console.error("Failed to send reset OTP:", e);
       return NextResponse.json(
