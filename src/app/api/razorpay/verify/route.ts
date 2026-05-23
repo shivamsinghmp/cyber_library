@@ -89,16 +89,30 @@ export async function POST(request: Request) {
     }
 
     // Signature is valid and amount comes from Razorpay — fulfill the order.
-    const transaction = await fulfillOrder({
-      userId,
-      type,
-      ids,
-      amountRupees,
-      paymentGatewayId: razorpay_payment_id,
-      couponCode: couponCode || undefined,
-    });
-
-    return NextResponse.json({ success: true, transactionId: transaction.transactionId });
+    try {
+      const transaction = await fulfillOrder({
+        userId,
+        type,
+        ids,
+        amountRupees,
+        paymentGatewayId: razorpay_payment_id,
+        couponCode: couponCode || undefined,
+      });
+      return NextResponse.json({ success: true, transactionId: transaction.transactionId });
+    } catch (fulfillErr) {
+      // P2002 = unique constraint violation — concurrent webhook fired simultaneously,
+      // the first call already fulfilled this payment. Return success idempotently.
+      if (fulfillErr && typeof fulfillErr === "object" && "code" in fulfillErr && (fulfillErr as { code: string }).code === "P2002") {
+        const existing = await prisma.transaction.findFirst({
+          where: { paymentGatewayId: razorpay_payment_id },
+          select: { transactionId: true },
+        });
+        if (existing) {
+          return NextResponse.json({ success: true, transactionId: existing.transactionId });
+        }
+      }
+      throw fulfillErr;
+    }
 
   } catch (e) {
     console.error("POST /api/razorpay/verify:", e);

@@ -34,26 +34,25 @@ export async function POST(request: Request) {
     let computedAmountRupees = 0;
 
     const session = await auth();
+    const userId = (session?.user as { id?: string })?.id;
+    if (!userId) {
+      return NextResponse.json({ error: "Login karo pehle." }, { status: 401 });
+    }
 
     // 1. Calculate base amount from strictly trusted database tables
     if (type === "CART") {
       // Filter out already-enrolled slots to prevent double booking
-      const userId = (session?.user as { id?: string })?.id;
-      let filteredIds = ids;
-      if (userId) {
-        const existingSubs = await prisma.roomSubscription.findMany({
-          where: { userId, studySlotId: { in: ids } },
-          select: { studySlotId: true },
-        });
-        const alreadyEnrolled = new Set(existingSubs.map(s => s.studySlotId));
-        filteredIds = ids.filter(id => !alreadyEnrolled.has(id));
-        if (filteredIds.length === 0) {
-          return NextResponse.json({ error: "You are already enrolled in all selected slots." }, { status: 400 });
-        }
-        if (filteredIds.length < ids.length) {
-          // Some were filtered — update ids for fulfillment
-          parsed.data.ids = filteredIds;
-        }
+      const existingSubs = await prisma.roomSubscription.findMany({
+        where: { userId, studySlotId: { in: ids } },
+        select: { studySlotId: true },
+      });
+      const alreadyEnrolled = new Set(existingSubs.map(s => s.studySlotId));
+      const filteredIds = ids.filter(id => !alreadyEnrolled.has(id));
+      if (filteredIds.length === 0) {
+        return NextResponse.json({ error: "You are already enrolled in all selected slots." }, { status: 400 });
+      }
+      if (filteredIds.length < ids.length) {
+        parsed.data.ids = filteredIds;
       }
       const slots = await prisma.studySlot.findMany({
         where: { id: { in: filteredIds } },
@@ -112,7 +111,7 @@ export async function POST(request: Request) {
           
           let hasUsed = false;
           const userUse = await prisma.couponRedemption.findUnique({
-             where: { couponId_userId: { couponId: coupon.id, userId: session.user.id } }
+             where: { couponId_userId: { couponId: coupon.id, userId } }
           });
           if (userUse) hasUsed = true;
           
@@ -125,8 +124,8 @@ export async function POST(request: Request) {
           const validUsage = coupon.maxTotalUses ? redemptionCount < coupon.maxTotalUses : true;
 
           if (!hasUsed && validMin && validUsage) {
-            if (coupon.discountType === "FIXED") discount = coupon.discountValue;
-            else if (coupon.discountType === "PERCENT") discount = Math.round((computedAmountRupees * coupon.discountValue) / 100);
+            if (coupon.discountType === "FIXED") discount = Math.min(coupon.discountValue, computedAmountRupees);
+            else if (coupon.discountType === "PERCENT") discount = Math.min(Math.round((computedAmountRupees * coupon.discountValue) / 100), computedAmountRupees);
           }
         }
       }
@@ -138,10 +137,6 @@ export async function POST(request: Request) {
 
     // If order becomes completely free due to coupons, fulfill immediately on backend
     if (amountPaise < 1) {
-      const userId = (session?.user as { id?: string })?.id;
-      if (!userId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
       const txn = await fulfillOrder({
         userId,
         type,
@@ -159,9 +154,8 @@ export async function POST(request: Request) {
 
     const rzpController = new AbortController();
     const rzpTimer = setTimeout(() => rzpController.abort(), 15_000);
-    // Idempotency key = session userId + items hash — prevents double-charge on network retry
-    const sessionUserId = (session?.user as { id?: string })?.id ?? "anon";
-    const idempotencyKey = `${sessionUserId}-${Buffer.from(JSON.stringify(ids)).toString("base64url").slice(0, 32)}`;
+    // Idempotency key = userId + items hash — prevents double-charge on network retry
+    const idempotencyKey = `${userId}-${Buffer.from(JSON.stringify(ids)).toString("base64url").slice(0, 32)}`;
     const res = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       signal: rzpController.signal,
