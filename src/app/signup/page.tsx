@@ -98,7 +98,7 @@ function SignupContent() {
       });
       const json = await res.json();
       if (!res.ok) { setOtpError(json.error || "OTP nahi gaya. Dobara try karo."); return; }
-      setOtpSent(true); setOtpVerified(false); setOtpValue(""); setResendCooldown(60);
+      setOtpSent(true); setOtpVerified(false); setOtpValue(""); setResendCooldown(180);
       toast.success("OTP bhej diya gaya!");
     } catch { setOtpError("Kuch gadbad ho gayi. Try karo."); }
     finally { setSendingOtp(false); }
@@ -282,7 +282,7 @@ function SignupContent() {
                       ? { background: "#ECFDF5", color: "#065F46", border: "1.5px solid #A7F3D0" }
                       : { background: "var(--accent-pale)", color: "var(--accent)", border: "1.5px solid var(--accent-border)" }
                     }>
-                    {otpVerified ? "✓ Verified" : sendingOtp ? "…" : resendCooldown > 0 ? `${resendCooldown}s` : otpSent ? "Resend" : "Send OTP"}
+                    {otpVerified ? "✓ Verified" : sendingOtp ? "…" : resendCooldown > 0 ? `${Math.floor(resendCooldown / 60)}:${String(resendCooldown % 60).padStart(2, "0")}` : otpSent ? "Resend" : "Send OTP"}
                   </button>
                 </div>
               </Field>
