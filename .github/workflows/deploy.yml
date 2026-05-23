@@ -1,30 +1,28 @@
-name: Deploy to GCP VM
+name: Deploy to DigitalOcean
 
 on:
   push:
     branches:
-      - main  # Agar aapka branch 'master' hai toh yahan master likhein
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
           port: 22
           script: |
+            set -e
             cd /var/www/cyber_library
             git pull origin main
-            npm install
+            npm ci --omit=dev
             npx prisma generate
-            npx prisma db push
+            npx prisma migrate deploy
             NODE_OPTIONS="--max-old-space-size=1024" npm run build
-            pm2 restart sql-prox || true
-            pm2 restart cyber-app || pm2 start npm --name "cyber-app" -- start
+            pm2 reload ecosystem.config.js --update-env
+            pm2 save

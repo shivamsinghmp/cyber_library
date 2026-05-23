@@ -12,7 +12,7 @@ module.exports = {
       name:        "cyber-library",
       script:      "node_modules/.bin/next",
       args:        "start",
-      cwd:         "/home/cyberlib/app",  // ← update to your actual deploy path
+      cwd:         "/var/www/cyber_library",
 
       // Cluster mode: 3 workers for 4vCPU (1 core reserved for PG + OS)
       instances:   3,
