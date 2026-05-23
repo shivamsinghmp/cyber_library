@@ -9,6 +9,7 @@ import { z } from "zod";
 
 const schema = z.object({
   phoneNumber: z.string().min(10, "Invalid phone number"),
+  email: z.string().email().optional(),
 });
 
 export async function POST(request: Request) {
@@ -20,13 +21,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
     }
 
-    const { phoneNumber } = parsed.data;
+    const { phoneNumber, email } = parsed.data;
 
     // Rate limit: max 3 OTPs per phone per 10 minutes
     const phoneRl = rateLimit(`wa-otp:${phoneNumber}`, 3, 600);
     if (!phoneRl.success) {
       return NextResponse.json(
-        { error: "Too many OTP requests. Please wait before requesting again." },
+        { error: "Bahut zyada OTP requests. Thodi der baad try karo." },
         { status: 429 }
       );
     }
@@ -37,20 +38,29 @@ export async function POST(request: Request) {
     const ipRl = rateLimit(`wa-otp-ip:${ip}`, 10, 600);
     if (!ipRl.success) {
       return NextResponse.json(
-        { error: "Too many requests from this device." },
+        { error: "Is device se bahut zyada requests aa rahe hain. Baad mein try karo." },
         { status: 429 }
       );
     }
 
-    const existingProfile = await prisma.profile.findFirst({
-      where: {
-        OR: [{ whatsappNumber: phoneNumber }, { phone: phoneNumber }],
-      },
-    });
+    // Check email + mobile duplicates in parallel
+    const [existingUser, existingProfile] = await Promise.all([
+      email ? prisma.user.findUnique({ where: { email }, select: { id: true } }) : Promise.resolve(null),
+      prisma.profile.findFirst({
+        where: { OR: [{ whatsappNumber: phoneNumber }, { phone: phoneNumber }] },
+        select: { id: true },
+      }),
+    ]);
 
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "Yeh email pehle se registered hai. Login karo ya dusri email use karo." },
+        { status: 409 }
+      );
+    }
     if (existingProfile) {
       return NextResponse.json(
-        { error: "This mobile number is already registered to another account." },
+        { error: "Yeh mobile number pehle se registered hai. Login karo ya dusra number use karo." },
         { status: 409 }
       );
     }

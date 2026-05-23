@@ -90,11 +90,12 @@ function SignupContent() {
     const raw = getValues("whatsappNumber");
     if (!raw || raw.length < 10) { setOtpError("Pehle valid mobile number daalo."); return; }
     const phoneNumber = formatNumber(raw);
+    const emailVal = getValues("email").trim().toLowerCase();
     setSendingOtp(true); setOtpError(null);
     try {
       const res  = await fetch("/api/auth/whatsapp-otp/send", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ phoneNumber, ...(emailVal ? { email: emailVal } : {}) }),
       });
       const json = await res.json();
       if (!res.ok) { setOtpError(json.error || "OTP nahi gaya. Dobara try karo."); return; }

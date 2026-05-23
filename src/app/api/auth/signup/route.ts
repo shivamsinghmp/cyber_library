@@ -59,13 +59,13 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: { email: ["An account with this email already exists."] } },
+        { error: { email: ["Yeh email pehle se registered hai. Login karo ya dusri email use karo."] } },
         { status: 409 }
       );
     }
     if (existingProfile) {
       return NextResponse.json(
-        { error: { whatsappNumber: ["This number cannot be used for registration."] } },
+        { error: { whatsappNumber: ["Yeh mobile number pehle se registered hai. Login karo ya dusra number use karo."] } },
         { status: 409 }
       );
     }
