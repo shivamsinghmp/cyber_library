@@ -22,8 +22,10 @@ export default function ForgotPasswordPage() {
   const [email,  setEmail]  = useState("");
   const [phone,  setPhone]  = useState("");
 
-  // after mobile OTP, API returns the masked email (used for reset)
-  const [resolvedEmail, setResolvedEmail] = useState("");
+  // display: masked email shown in UI (e.g. sh***@gmail.com)
+  const [resolvedEmail,    setResolvedEmail]    = useState("");
+  // actual email used in reset API call — never shown to user
+  const [actualResetEmail, setActualResetEmail] = useState("");
 
   const [code,            setCode]            = useState("");
   const [password,        setPassword]        = useState("");
@@ -72,8 +74,9 @@ export default function ForgotPasswordPage() {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { setError(data.error || "OTP nahi gaya. Dobara try karo."); return; }
-        // maskedEmail may be null if number not found — we still move forward (security)
+        // maskedEmail for display; resetEmail is the actual email used in reset API
         setResolvedEmail(data.maskedEmail || "");
+        setActualResetEmail(data.resetEmail || "");
         setMessage(
           data.maskedEmail
             ? `OTP bheja gaya SMS/WhatsApp pe! (Email: ${data.maskedEmail})`
@@ -93,8 +96,10 @@ export default function ForgotPasswordPage() {
     if (password !== confirmPassword)           { setError("Dono passwords same nahi hain."); return; }
     if (password.length < 8)                    { setError("Password kam se kam 8 characters hona chahiye."); return; }
 
-    // For reset we always use the email key (mobile flow resolves email server-side)
-    const emailForReset = method === "email" ? email : resolvedEmail;
+    // For reset we always use the actual email key
+    // Mobile flow: actualResetEmail holds the real email returned by OTP API
+    // Email flow: user typed it directly
+    const emailForReset = method === "email" ? email : actualResetEmail;
     if (!emailForReset) {
       setError("Kuch gadbad ho gayi — pehle se shuru karo.");
       setStep("request");

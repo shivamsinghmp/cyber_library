@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     if (!wamid) {
       if (process.env.NODE_ENV !== "production") {
         console.log(`\n[DEV] Mobile reset OTP for ${phoneNumber} (${email}): ${code}\n`);
-        return NextResponse.json({ success: true, maskedEmail: maskEmail(email) });
+        return NextResponse.json({ success: true, maskedEmail: maskEmail(email), resetEmail: email });
       }
       return NextResponse.json(
         { error: "OTP deliver nahi hua. Number check karo ya baad mein try karo." },
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, maskedEmail: maskEmail(email) });
+    return NextResponse.json({ success: true, maskedEmail: maskEmail(email), resetEmail: email });
   } catch (e) {
     console.error("POST /api/auth/forgot-password/request-otp-mobile:", e);
     return NextResponse.json({ error: "Kuch gadbad ho gayi." }, { status: 500 });
