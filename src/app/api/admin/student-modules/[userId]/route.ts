@@ -63,7 +63,9 @@ export async function PUT(
 
   const { userId } = await params;
   const body = await request.json().catch(() => ({}));
-  const disabled: string[] = Array.isArray(body.disabled) ? body.disabled : [];
+  const submitted: string[] = Array.isArray(body.disabled) ? body.disabled : [];
+  const validIds = new Set(STUDENT_MODULES.map((m) => m.id));
+  const disabled = submitted.filter((id) => typeof id === "string" && validIds.has(id));
 
   await setStudentDisabledModules(userId, disabled);
   return NextResponse.json({ success: true, disabled });

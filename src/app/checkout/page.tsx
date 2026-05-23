@@ -41,10 +41,24 @@ function CheckoutForm() {
   const subPlan = (searchParams.get("plan") ?? "").toUpperCase() as "MONTHLY" | "YEARLY" | "";
 
   const planName = searchParams.get("name") || searchParams.get("productName") || DEFAULT_PLAN.name;
-  const priceFromQuery    = Number(searchParams.get("price")) || Number(searchParams.get("amount")) || DEFAULT_PLAN.price;
-  const originalPriceFromQuery = Number(searchParams.get("originalAmount")) || 0;
+  // Use explicit finite-number checks so amount=0 (admin-configured free plan)
+  // is honoured instead of falling through `||` to DEFAULT_PLAN.price.
+  const priceFromQuery = (() => {
+    const priceStr = searchParams.get("price");
+    if (priceStr !== null && Number.isFinite(Number(priceStr))) return Number(priceStr);
+    const amountStr = searchParams.get("amount");
+    if (amountStr !== null && Number.isFinite(Number(amountStr))) return Number(amountStr);
+    return DEFAULT_PLAN.price;
+  })();
+  const originalPriceFromQuery = (() => {
+    const s = searchParams.get("originalAmount");
+    return s !== null && Number.isFinite(Number(s)) ? Number(s) : 0;
+  })();
   const productId = searchParams.get("productId") ?? "";
-  const customRedirectUrl = searchParams.get("redirect") ?? "";
+  // Restrict post-payment redirect to same-origin relative paths to prevent open redirect.
+  const rawRedirect = searchParams.get("redirect") ?? "";
+  const customRedirectUrl =
+    rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "";
 
   const isCartMode = fromCart && cartItems.length > 0;
   const isRewardEnrollment = typeReward && rewardId;

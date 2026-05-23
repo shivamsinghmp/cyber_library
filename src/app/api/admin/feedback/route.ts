@@ -22,13 +22,20 @@ export async function GET() {
   }
 }
 
+const ALLOWED_FEEDBACK_STATUS = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const;
+
 export async function PATCH(req: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
 
     const { id, status } = await req.json();
-    if (!id || !status) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    }
+    if (!status || !ALLOWED_FEEDBACK_STATUS.includes(status)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
 
     const updated = await prisma.feedback.update({
       where: { id },

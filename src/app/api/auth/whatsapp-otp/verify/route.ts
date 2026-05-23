@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const schema = z.object({
@@ -18,6 +21,29 @@ export async function POST(request: Request) {
 
     const { phoneNumber, otp } = parsed.data;
 
+    // Per-phone brute-force protection: 5 attempts / 10 min
+    const phoneRl = rateLimit(`wa-otp-verify:${phoneNumber}`, 5, 600);
+    if (!phoneRl.success) {
+      // Burn the active OTP record so an attacker who exhausts attempts
+      // cannot keep guessing across windows.
+      await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber } });
+      return NextResponse.json(
+        { error: "Too many attempts. Please request a new OTP." },
+        { status: 429 }
+      );
+    }
+
+    // Per-IP brute-force protection: 20 attempts / 10 min
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+    const ipRl = rateLimit(`wa-otp-verify-ip:${ip}`, 20, 600);
+    if (!ipRl.success) {
+      return NextResponse.json(
+        { error: "Too many requests from this device." },
+        { status: 429 }
+      );
+    }
+
     const record = await prisma.whatsAppOTP.findFirst({
       where: { phoneNumber },
       orderBy: { expiresAt: "desc" },
@@ -32,7 +58,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "OTP has expired. Please request a new one." }, { status: 400 });
     }
 
-    if (record.otp !== otp) {
+    const ok = await bcrypt.compare(otp, record.otp);
+    if (!ok) {
       return NextResponse.json({ error: "Incorrect OTP. Please try again." }, { status: 400 });
     }
 

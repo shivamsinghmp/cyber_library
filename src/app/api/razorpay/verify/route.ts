@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, ids, type, amount } = body;
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, ids, type } = body;
 
     if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
       return NextResponse.json({ error: "Incomplete payment data" }, { status: 400 });
@@ -36,13 +36,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Authenticity verification failed" }, { status: 400 });
     }
 
-    // Since signature is valid, this payment actually successfully reached Razorpay for the given order.
-    // Proceed to fulfill the order securely.
+    // Fetch the authoritative order amount from Razorpay — never trust the
+    // client-supplied `amount`. The signature only binds (orderId, paymentId),
+    // not the amount, so without this lookup an attacker could claim they paid
+    // ₹0.01 while having paid the real price.
+    let amountRupees: number;
+    try {
+      const orderRes = await fetch(
+        `https://api.razorpay.com/v1/orders/${encodeURIComponent(razorpay_order_id)}`,
+        {
+          headers: {
+            Authorization:
+              "Basic " +
+              Buffer.from(credentials.keyId + ":" + credentials.keySecret).toString("base64"),
+          },
+        }
+      );
+      if (!orderRes.ok) {
+        console.error("[razorpay/verify] order lookup failed:", orderRes.status);
+        return NextResponse.json({ error: "Order verification failed" }, { status: 502 });
+      }
+      const order = (await orderRes.json()) as { amount: number; status: string };
+      amountRupees = order.amount / 100;
+    } catch (e) {
+      console.error("[razorpay/verify] order lookup error:", e);
+      return NextResponse.json({ error: "Order verification failed" }, { status: 502 });
+    }
+
+    // Signature is valid and amount comes from Razorpay — fulfill the order.
     const transaction = await fulfillOrder({
       userId,
       type: type as "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION",
       ids: ids as string[],
-      amountRupees: amount, // Extracted from client but authenticated via the successful checkout of the generated order ID
+      amountRupees,
       paymentGatewayId: razorpay_payment_id,
     });
 

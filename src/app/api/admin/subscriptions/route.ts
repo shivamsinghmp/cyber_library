@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireAdmin, requireSuperAdmin } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
@@ -66,7 +66,10 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const auth = await requireAdmin();
+    // Subscription status changes (activate / expire / cancel) directly affect
+    // paid access. Restrict to ADMIN only — EMPLOYEEs with ENGAGEMENT permission
+    // could otherwise grant themselves or others free paid plans.
+    const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
 
     const { id, status } = await request.json();

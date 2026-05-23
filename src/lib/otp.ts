@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import { randomInt } from "crypto";
 import { prisma } from "./prisma";
 
 type OtpPurpose = "verify" | "reset";
@@ -11,8 +12,8 @@ function buildIdentifier(purpose: OtpPurpose, email: string) {
 
 function generateNumericCode(length = 6): string {
   const min = 10 ** (length - 1);
-  const max = 10 ** length - 1;
-  return String(Math.floor(Math.random() * (max - min + 1)) + min);
+  const max = 10 ** length; // exclusive upper bound for randomInt
+  return String(randomInt(min, max));
 }
 
 export async function createOtp(email: string, purpose: OtpPurpose): Promise<string> {

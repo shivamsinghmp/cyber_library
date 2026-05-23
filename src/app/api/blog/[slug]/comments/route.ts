@@ -50,6 +50,22 @@ export async function POST(
       return NextResponse.json({ error: "Comment content is required" }, { status: 400 });
     }
 
+    // Comments are plain text only. Strip every HTML tag and decode common entities
+    // to prevent stored XSS regardless of how the frontend renders them.
+    const cleanContent = body.content
+      .replace(/<[^>]*>/g, "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#x?[0-9a-f]+;/gi, "")
+      .trim()
+      .slice(0, 2000);
+
+    if (cleanContent.length === 0) {
+      return NextResponse.json({ error: "Comment content is required" }, { status: 400 });
+    }
+
     const post = await prisma.blogPost.findUnique({
       where: { slug: slug },
       select: { id: true }
@@ -63,7 +79,7 @@ export async function POST(
       data: {
         postId: post.id,
         userId: session.user.id,
-        content: body.content.trim()
+        content: cleanContent
       },
       include: {
         user: { select: { name: true, image: true, role: true } }

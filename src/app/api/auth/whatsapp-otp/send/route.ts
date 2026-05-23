@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import bcrypt from "bcrypt";
+import { randomInt } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppOtp } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
@@ -53,11 +55,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = String(randomInt(100000, 1000000));
+    const hashedOtp = await bcrypt.hash(otp, 12);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber } });
-    await prisma.whatsAppOTP.create({ data: { phoneNumber, otp, expiresAt } });
+    await prisma.whatsAppOTP.create({ data: { phoneNumber, otp: hashedOtp, expiresAt } });
 
     const wamid = await sendWhatsAppOtp(phoneNumber, otp);
 

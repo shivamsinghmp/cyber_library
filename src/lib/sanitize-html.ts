@@ -10,35 +10,46 @@ function escapeHtml(s: string): string {
 export function sanitizeBlogHtml(html: string): string {
   if (!html || typeof html !== "string") return "";
   let out = html;
+  // Strip <script>...</script> blocks entirely
   out = out.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-  out = out.replace(/\s*on\w+=["'][^"']*["']/gi, "");
-  out = out.replace(/<(\w+)(\s[^>]*)?>/gi, (m, name, rest = "") => {
+  // Strip <style>...</style> blocks (custom CSS should go through scopeCustomCss)
+  out = out.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+  // Strip on* event-handler attributes — handle whitespace/newline between attr and =
+  out = out.replace(/\s+on\w+\s*=\s*("([^"]*)"|'([^']*)'|[^\s>]+)/gi, "");
+  // Strip inline javascript:/vbscript:/data: URLs (defence-in-depth before per-tag rebuild)
+  out = out.replace(/(href|src|formaction|action)\s*=\s*("|')\s*(javascript|vbscript|data)\s*:[^"']*\2/gi, "$1=\"#\"");
+
+  out = out.replace(/<(\w+)(\s[^>]*)?\/?>/gi, (m, name, rest = "") => {
     const tag = name.toLowerCase();
     if (!ALLOWED.has(tag)) return "";
     if (tag === "a") {
-      const href = rest.match(/href=["']([^"']+)["']/i);
+      const href = rest.match(/href\s*=\s*["']([^"']+)["']/i);
       if (!href) return "";
       const u = href[1].trim();
-      if (!/^https?:\/\/|\/|#/.test(u)) return "";
-      const rel = rest.match(/rel=["']([^"']+)["']/i);
+      if (!/^(https?:\/\/|\/|#|mailto:)/i.test(u)) return "";
+      const rel = rest.match(/rel\s*=\s*["']([^"']+)["']/i);
       const safeRel = rel ? ` rel="${escapeHtml(rel[1].slice(0, 100))}"` : "";
       return `<a href="${escapeHtml(u)}"${safeRel}>`;
     }
     if (tag === "img") {
-      const src = rest.match(/src=["']([^"']+)["']/i);
+      const src = rest.match(/src\s*=\s*["']([^"']+)["']/i);
       if (!src || !/^https?:\/\//i.test(src[1])) return "";
-      const alt = rest.match(/alt=["']([^"']*)["']/i);
+      const alt = rest.match(/alt\s*=\s*["']([^"']*)["']/i);
       const altStr = alt ? ` alt="${escapeHtml(alt[1].slice(0, 200))}"` : "";
       return `<img src="${escapeHtml(src[1])}"${altStr} />`;
     }
     if (tag === "iframe") {
-      const src = rest.match(/src=["']([^"']+)["']/i);
+      const src = rest.match(/src\s*=\s*["']([^"']+)["']/i);
       if (!src) return "";
       const s = src[1];
-      if (!s.includes("youtube.com") && !s.includes("vimeo.com")) return "";
+      // Only allow embeds from YouTube/Vimeo with strict origin check
+      if (!/^https:\/\/(www\.)?(youtube\.com|youtube-nocookie\.com|player\.vimeo\.com)\//i.test(s)) return "";
       return `<iframe src="${escapeHtml(s)}" title="video" class="w-full aspect-video" allowfullscreen></iframe>`;
     }
-    return m;
+    // For all other allowed tags (p, div, span, ul, li, etc.) drop EVERY attribute.
+    // No legitimate need for style/class/id on user-supplied blog body markup, and
+    // this prevents `style="background:url(...)"`, `class="malicious"` injections.
+    return `<${tag}>`;
   });
   out = out.replace(/<\/(\w+)>/gi, (m, name) => (ALLOWED.has(name.toLowerCase()) ? m : ""));
   return out;

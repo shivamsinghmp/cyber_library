@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
+import DOMPurify from "isomorphic-dompurify";
 import { sendBulkEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
+
+function sanitizeEmailHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input", "button", "meta", "link"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "onblur"],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|cid):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  });
+}
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "subject and html required" }, { status: 400 });
     }
 
-    let finalHtml = html as string;
+    let finalHtml = sanitizeEmailHtml(String(html));
     if (signatureId) {
       const sig = await prisma.emailSignature.findUnique({ where: { id: signatureId as string } });
       if (sig) finalHtml += sig.html;

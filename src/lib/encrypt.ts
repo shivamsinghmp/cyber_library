@@ -7,10 +7,12 @@ const SALT_LEN = 16;
 const TAG_LEN = 16;
 
 function getEncryptionKey(): Buffer {
-  const secret =
-    process.env.ENCRYPTION_KEY || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-  if (!secret || secret.length < 16) {
-    throw new Error("ENCRYPTION_KEY or AUTH_SECRET must be set (min 16 chars)");
+  // Dedicated key for symmetric encryption of stored secrets (Razorpay,
+  // SMTP, WhatsApp). MUST be distinct from AUTH_SECRET so a JWT-secret
+  // compromise does not also unwrap every stored secret in the DB.
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret || secret.length < 32) {
+    throw new Error("ENCRYPTION_KEY must be set (min 32 chars) and distinct from AUTH_SECRET");
   }
   return scryptSync(secret, "razorpay-salt", KEY_LEN);
 }

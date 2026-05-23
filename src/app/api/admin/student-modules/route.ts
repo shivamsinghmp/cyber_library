@@ -36,7 +36,11 @@ export async function PUT(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const disabled: string[] = Array.isArray(body.disabled) ? body.disabled : [];
+  const submitted: string[] = Array.isArray(body.disabled) ? body.disabled : [];
+  // Whitelist against the known module-id set so attackers cannot poison the
+  // disabled list with arbitrary strings.
+  const validIds = new Set(STUDENT_MODULES.map((m) => m.id));
+  const disabled = submitted.filter((id) => typeof id === "string" && validIds.has(id));
 
   await setDisabledModules(disabled);
   return NextResponse.json({ success: true, disabled });

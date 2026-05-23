@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomInt } from "crypto";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -7,13 +8,9 @@ import { canAccessModule } from "@/lib/student-modules";
 const CODE_LENGTH = 6;
 const EXPIRY_MINUTES = 5;
 
-function randomDigit(): string {
-  return String(Math.floor(Math.random() * 10));
-}
-
 function generateCode(): string {
   let s = "";
-  for (let i = 0; i < CODE_LENGTH; i++) s += randomDigit();
+  for (let i = 0; i < CODE_LENGTH; i++) s += String(randomInt(0, 10));
   return s;
 }
 

@@ -86,8 +86,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               return {} as typeof token;
             }
           }
-        } catch {
-          // DB unreachable — fail open to avoid mass lockout
+        } catch (err) {
+          // DB unreachable during session validation — fail closed.
+          // Returning an empty token forces re-authentication rather than
+          // silently accepting a token that may have been revoked.
+          console.error("[auth] Session DB validation failed:", err);
+          return {} as typeof token;
         }
       }
 
