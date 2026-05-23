@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Mail, Phone, Lock, ArrowLeft, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,11 +31,27 @@ export default function ForgotPasswordPage() {
   const [password,        setPassword]        = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const [submitting, setSubmitting] = useState(false);
-  const [message,    setMessage]    = useState<string | null>(null);
-  const [error,      setError]      = useState<string | null>(null);
-  const [showPw,     setShowPw]     = useState(false);
-  const [showCpw,    setShowCpw]    = useState(false);
+  const [submitting,     setSubmitting]     = useState(false);
+  const [resendLoading,  setResendLoading]  = useState(false);
+  const [resendTimer,    setResendTimer]    = useState(0); // seconds remaining
+  const [message,        setMessage]        = useState<string | null>(null);
+  const [error,          setError]          = useState<string | null>(null);
+  const [showPw,         setShowPw]         = useState(false);
+  const [showCpw,        setShowCpw]        = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  function startResendTimer() {
+    setResendTimer(180);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendTimer(prev => {
+        if (prev <= 1) { clearInterval(timerRef.current!); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  }
 
   const stepNum = step === "request" ? 1 : step === "reset" ? 2 : 3;
 
@@ -61,6 +77,7 @@ export default function ForgotPasswordPage() {
         setResolvedEmail(email);
         setMessage("OTP bhej diya! Email inbox check karo.");
         setStep("reset");
+        startResendTimer();
       } catch { setError("Kuch gadbad ho gayi. Dobara try karo."); }
       finally   { setSubmitting(false); }
 
@@ -83,9 +100,37 @@ export default function ForgotPasswordPage() {
             : "Agar ye number registered hai toh OTP aa jaayega."
         );
         setStep("reset");
+        startResendTimer();
       } catch { setError("Kuch gadbad ho gayi. Dobara try karo."); }
       finally   { setSubmitting(false); }
     }
+  }
+
+  /* ── Resend OTP ── */
+  async function handleResend() {
+    setError(null); setMessage(null);
+    setResendLoading(true);
+    try {
+      if (method === "email") {
+        const res  = await fetch("/api/auth/forgot-password/request-otp", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { setError(data.error || "OTP nahi gaya. Dobara try karo."); return; }
+        setMessage("OTP dobara bhej diya! Email inbox check karo.");
+      } else {
+        const res  = await fetch("/api/auth/forgot-password/request-otp-mobile", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phoneNumber: formatPhone(phone) }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { setError(data.error || "OTP nahi gaya. Dobara try karo."); return; }
+        setMessage("OTP dobara bheja gaya! WhatsApp check karo.");
+      }
+      startResendTimer();
+    } catch { setError("Kuch gadbad ho gayi. Dobara try karo."); }
+    finally   { setResendLoading(false); }
   }
 
   /* ── Step 2: verify OTP + reset password ── */
@@ -372,9 +417,22 @@ export default function ForgotPasswordPage() {
                         placeholder="• • • • • •"
                         className={`${inputCls} text-center tracking-[0.5em] font-mono text-xl`}
                         style={inputStyle} autoFocus />
-                      <p className="text-[10px] font-semibold" style={{ color: "var(--muted-text)" }}>
-                        Code 10 minute mein expire ho jaayega ⏱
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-semibold" style={{ color: "var(--muted-text)" }}>
+                          Code 10 minute mein expire ho jaayega ⏱
+                        </p>
+                        {resendTimer > 0 ? (
+                          <p className="text-[10px] font-bold tabular-nums" style={{ color: "var(--muted-text)" }}>
+                            {Math.floor(resendTimer / 60)}:{String(resendTimer % 60).padStart(2, "0")} mein resend
+                          </p>
+                        ) : (
+                          <button type="button" onClick={handleResend} disabled={resendLoading}
+                            className="text-[11px] font-extrabold transition-colors hover:opacity-75 disabled:opacity-50"
+                            style={{ color: "var(--accent)" }}>
+                            {resendLoading ? "Bhej raha…" : "OTP Dobara Bhejo"}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* New password */}
