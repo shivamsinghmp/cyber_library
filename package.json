@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:turbo": "next dev",
-    "build": "next build --webpack",
+    "build": "NODE_OPTIONS='--max-old-space-size=6144' next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "create-admin": "node scripts/create-admin.js"
