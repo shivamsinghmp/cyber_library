@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { fulfillOrder } from "@/lib/order-fulfillment";
 import { DEFAULT_PRICING } from "@/lib/pricing-defaults";
+import { rateLimit } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
   type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION"]),
@@ -37,6 +38,12 @@ export async function POST(request: Request) {
     const userId = (session?.user as { id?: string })?.id;
     if (!userId) {
       return NextResponse.json({ error: "Login karo pehle." }, { status: 401 });
+    }
+
+    // 10 order attempts per user per hour
+    const rl = rateLimit(`create_order_user:${userId}`, 10, 3600);
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many order attempts. 1 ghante baad try karo." }, { status: 429 });
     }
 
     // 1. Calculate base amount from strictly trusted database tables

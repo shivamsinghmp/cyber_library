@@ -33,10 +33,10 @@ export async function POST(request: Request) {
       );
     }
     const { name, email, password, goal, whatsappNumber, otp } = parsed.data;
-    const refCode =
-      typeof body.ref === "string" && body.ref.trim().length > 0
-        ? body.ref.trim()
-        : undefined;
+    const rawRef = typeof body.ref === "string" ? body.ref.trim() : "";
+    const refCode = rawRef.length > 0 && rawRef.length <= 20 && /^[a-zA-Z0-9_-]+$/.test(rawRef)
+      ? rawRef
+      : undefined;
 
     // Parallel validation checks + hash + studentId generation
     const [existingUser, existingProfile, otpRecord, refUser, hashedPassword, studentId] = await Promise.all([
