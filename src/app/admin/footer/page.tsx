@@ -23,39 +23,35 @@ type FooterConfig = {
 const DEFAULT_FOOTER: FooterConfig = {
   columns: [
     {
-      title: "Solutions",
+      title: "Platform",
       links: [
-        { label: "Marketing", url: "/marketing" },
-        { label: "Analytics", url: "/analytics" },
-        { label: "Automation", url: "/automation" },
-      ],
-    },
-    {
-      title: "Support",
-      links: [
-        { label: "Submit ticket", url: "/support" },
-        { label: "Documentation", url: "/docs" },
-        { label: "Guides", url: "/guides" },
+        { label: "Study Room", url: "/study-room" },
+        { label: "Mentorship", url: "/mentorship" },
+        { label: "Mental Session", url: "/mental-session" },
+        { label: "Store", url: "/store" },
       ],
     },
     {
       title: "Company",
       links: [
-        { label: "About", url: "/about" },
+        { label: "About Us", url: "/about" },
         { label: "Blog", url: "/blog" },
+        { label: "Rules", url: "/rules" },
+        { label: "Support", url: "/support" },
       ],
     },
     {
       title: "Legal",
       links: [
-        { label: "Terms of service", url: "/terms" },
-        { label: "Privacy policy", url: "/privacy" },
+        { label: "Terms", url: "/terms" },
+        { label: "Privacy", url: "/privacy" },
+        { label: "Refund", url: "/refund" },
       ],
     },
   ],
   newsletter: {
-    title: "Subscribe to our newsletter",
-    description: "The latest news and articles, sent to your inbox weekly.",
+    title: "Stay in the loop",
+    description: "Focus tips & hub updates, weekly.",
     buttonText: "Subscribe",
   },
   socials: [
