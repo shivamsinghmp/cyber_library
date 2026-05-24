@@ -28,6 +28,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const registered   = searchParams.get("registered") === "1";
   const verified     = searchParams.get("verified") === "1";
+  const callbackUrl  = searchParams.get("callbackUrl");
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
@@ -93,12 +94,15 @@ function LoginForm() {
         try { await fetch("/api/auth/record-login", { method: "POST" }); } catch {}
         const session = await getSession();
         const role    = (session?.user as { role?: string } | undefined)?.role ?? "STUDENT";
-        let target = "/dashboard";
-        if      (role === "ADMIN")      target = "/admin";
-        else if (role === "EMPLOYEE")   target = "/staff";
-        else if (role === "INFLUENCER") target = "/affiliate";
-        else if (role === "AUTHOR")     target = "/author";
-        window.location.href = target;
+        let defaultTarget = "/dashboard";
+        if      (role === "ADMIN")      defaultTarget = "/admin";
+        else if (role === "EMPLOYEE")   defaultTarget = "/staff";
+        else if (role === "INFLUENCER") defaultTarget = "/affiliate";
+        else if (role === "AUTHOR")     defaultTarget = "/author";
+        // Honour the callbackUrl set by NextAuth when it bounced the user to login,
+        // but only for safe relative paths (prevent open-redirect).
+        const isSafe = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//");
+        window.location.href = isSafe ? callbackUrl! : defaultTarget;
         return;
       }
       setSubmitError("Kuch gadbad ho gayi. Dobara try karo.");

@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 export const revalidate = 300; // 5 min cache
 
 export async function GET() {
+  const isBuild = process.env.npm_lifecycle_event === "build";
   try {
     const [totalStudents, totalSessionsAgg, activeNow] = await Promise.all([
       // Total verified students (not deleted)
@@ -35,11 +36,15 @@ export async function GET() {
     const totalMinutes = totalSessionsAgg._sum.durationMinutes ?? 0;
     const totalHours = Math.floor(totalMinutes / 60);
 
+    // Release connections immediately after build-time pre-render so workers don't hold the pool open.
+    if (isBuild) await prisma.$disconnect();
+
     return NextResponse.json({ totalStudents, totalHours, activeNow }, {
       headers: { "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600" },
     });
   } catch (e) {
     console.error("GET /api/public-stats:", e);
+    if (isBuild) await prisma.$disconnect();
     return NextResponse.json({ totalStudents: 0, totalHours: 0, activeNow: 0 });
   }
 }
