@@ -146,54 +146,39 @@ export async function addStudentToCalendarEvent(eventId: string, studentEmail: s
  * @param endTime Date object for event end
  * @returns Object containing the generated `calendarEventId` and `meetLink`
  */
-export async function createStudyRoomEvent(eventName: string, startTime: Date, endTime: Date): Promise<{ calendarEventId: string; meetLink: string } | null> {
+export async function createStudyRoomEvent(
+  eventName: string,
+  startTime: Date,
+  endTime: Date
+): Promise<{ calendarEventId: string; meetLink: string }> {
   const cal = await getCalendarClient();
-  if (!cal) return null;
+  if (!cal) throw new Error("Google Calendar credentials are not configured. Check GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, and GOOGLE_CALENDAR_ID in .env");
   const { client, calendarId: cid } = cal;
 
-  try {
-    const res = await client.events.insert({
-      calendarId: cid,
-      conferenceDataVersion: 1, // Crucial for generating a Meet link
-      requestBody: {
-        summary: eventName,
-        description: "Auto-generated Study Room for The Cyber Library",
-        start: { dateTime: startTime.toISOString() },
-        end: { dateTime: endTime.toISOString() },
-        conferenceData: {
-          createRequest: {
-            requestId: Math.random().toString(36).substring(7),
-            conferenceSolutionKey: { type: "hangoutsMeet" }
-          }
-        }
-      }
-    });
+  const res = await client.events.insert({
+    calendarId: cid,
+    conferenceDataVersion: 1,
+    requestBody: {
+      summary: eventName,
+      description: "Auto-generated Study Room for The Cyber Library",
+      start: { dateTime: startTime.toISOString() },
+      end: { dateTime: endTime.toISOString() },
+      conferenceData: {
+        createRequest: {
+          requestId: Math.random().toString(36).substring(7),
+          conferenceSolutionKey: { type: "hangoutsMeet" },
+        },
+      },
+    },
+  });
 
-    const hangoutLink = res.data.hangoutLink;
-    const eventId = res.data.id;
+  const hangoutLink = res.data.hangoutLink;
+  const eventId = res.data.id;
 
-    if (!hangoutLink || !eventId) {
-      throw new Error("Google API did not return a Meet link or Event ID.");
-    }
-
-    console.log(`Successfully created Calendar Event ${eventId} with Meet Link ${hangoutLink}`);
-    return {
-      calendarEventId: eventId,
-      meetLink: hangoutLink
-    };
-  } catch (error: unknown) {
-    console.error("Failed to create Google Calendar Event:");
-    let errorString = "";
-    if (typeof error === "object" && error !== null && "response" in error && (error as any).response?.data) {
-      errorString = JSON.stringify((error as any).response.data, null, 2);
-    } else {
-      errorString = String(error);
-    }
-    console.error(errorString);
-    try {
-      fs.writeFileSync("calendar-error.txt", `\n--- ERROR AT ${new Date().toISOString()} ---\n${errorString}\n`, { flag: 'a' });
-    } catch(e) {}
-    
-    return null;
+  if (!hangoutLink || !eventId) {
+    throw new Error("Google Calendar API responded successfully but did not return a Meet link. Ensure Google Meet is enabled for the impersonated account and the service account has domain-wide delegation.");
   }
+
+  console.log(`Successfully created Calendar Event ${eventId} with Meet Link ${hangoutLink}`);
+  return { calendarEventId: eventId, meetLink: hangoutLink };
 }

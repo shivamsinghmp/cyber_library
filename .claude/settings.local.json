@@ -97,7 +97,20 @@
       "Bash(npx --yes localtunnel --port 3000)",
       "Bash(curl *)",
       "Bash(node --env-file=.env -e ' *)",
-      "Bash(node -e \"require\\('sharp'\\)\")"
+      "Bash(node -e \"require\\('sharp'\\)\")",
+      "Bash(npx eslint *)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && grep -n \"requireAdmin\\\\|requireSuperAdmin\\\\|requireUser\" {}')",
+      "Bash(node -e \"require\\('dotenv'\\).config\\({path:'.env'}\\); console.log\\('RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.slice\\(0,15\\)+'...' : 'NOT SET'\\); console.log\\('RAZORPAY_KEY_SECRET:', process.env.RAZORPAY_KEY_SECRET ? 'SET \\(len='+process.env.RAZORPAY_KEY_SECRET.length+'\\)' : 'NOT SET'\\);\")",
+      "Bash(findstr /v \"SECRET\\\\|PASSWORD\\\\|KEY\\\\|TOKEN\\\\|PASS\\\\|PRIVATE\")",
+      "Bash(Select-Object -First 20)",
+      "Bash(node *)",
+      "Bash(git commit -m 'ci: update deploy workflow for DigitalOcean + fix PM2 paths *)",
+      "Bash(git commit *)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Shivam Singh\\\\Desktop\\\\Project\\\\cyber_library\\\\prisma\\\\migrations\\\\\" | Select-Object -Last 10 | Format-Table Name *)",
+      "PowerShell(grep *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Shivam Singh\\\\Desktop\\\\Project\\\\cyber_library\\\\prisma\\\\migrations\" | Where-Object { $_.Name -match \"module|audit|setting\" } | Format-Table Name)",
+      "PowerShell(cd \"C:\\\\Users\\\\Shivam Singh\\\\Desktop\\\\Project\\\\cyber_library\"; npx prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --shadow-database-url \"$env:DATABASE_URL\" 2>&1)",
+      "PowerShell(New-Item *)"
     ]
   }
 }

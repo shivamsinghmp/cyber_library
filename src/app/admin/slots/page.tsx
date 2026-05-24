@@ -54,6 +54,8 @@ function buildPayload(form: typeof defaultForm) {
   const today = new Date();
   const sd = new Date(today); sd.setHours(Number(startH), Number(startM), 0, 0);
   const ed = new Date(today); ed.setHours(Number(endH), Number(endM), 0, 0);
+  // Cross-midnight slot (e.g. 22:00–01:00) — push end to next day
+  if (ed <= sd) ed.setDate(ed.getDate() + 1);
   const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   return {
     name: form.name.trim(),

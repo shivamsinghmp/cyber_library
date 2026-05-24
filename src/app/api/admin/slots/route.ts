@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { createStudyRoomEvent } from "@/lib/google-calendar";
 import { generateRoomId } from "@/lib/roomId";
-import * as fs from "fs";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
 const SLOT_TYPES = ["STUDY", "MENTORSHIP", "MENTAL"] as const;
@@ -85,13 +84,14 @@ export async function POST(request: Request) {
       const sDate = new Date(parsed.data.startTime);
       const eDate = new Date(parsed.data.endTime);
       
-      const generated = await createStudyRoomEvent(`The Cyber Library: ${parsed.data.name}`, sDate, eDate);
-      if (generated) {
+      try {
+        const generated = await createStudyRoomEvent(`The Cyber Library: ${parsed.data.name}`, sDate, eDate);
         finalMeetLink = generated.meetLink;
         finalCalendarEventId = generated.calendarEventId;
-      } else {
-        fs.writeFileSync("calendar-error.txt", `Calendar Event Generation returned null for: ${parsed.data.name} at ${new Date().toISOString()}`, { flag: 'a' });
-        return NextResponse.json({ error: "Failed to generate Google Meet. Ensure Google Cloud credentials are set correctly in .env" }, { status: 500 });
+      } catch (meetErr: unknown) {
+        const detail = meetErr instanceof Error ? meetErr.message : String(meetErr);
+        console.error("Google Meet generation failed:", detail);
+        return NextResponse.json({ error: `Failed to generate Google Meet: ${detail}` }, { status: 500 });
       }
     }
 
