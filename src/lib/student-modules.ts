@@ -82,12 +82,16 @@ export async function canAccessModule(userId: string, moduleId: string): Promise
 
 /** Returns all per-student disabled module IDs for a given user. */
 export async function getStudentDisabledModules(userId: string): Promise<string[]> {
-  const { prisma } = await import("./prisma");
-  const rows = await prisma.studentModuleAccess.findMany({
-    where: { userId, disabled: true },
-    select: { moduleId: true },
-  });
-  return rows.map(r => r.moduleId);
+  try {
+    const { prisma } = await import("./prisma");
+    const rows = await prisma.studentModuleAccess.findMany({
+      where: { userId, disabled: true },
+      select: { moduleId: true },
+    });
+    return rows.map(r => r.moduleId);
+  } catch {
+    return [];
+  }
 }
 
 /** Set per-student disabled modules (replaces all existing overrides for that user). */

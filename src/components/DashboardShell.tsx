@@ -26,26 +26,31 @@ export async function DashboardShell({
 
   let allowedModules: string[] = [];
   if (role === "EMPLOYEE") {
-    const p = await prisma.employeePermission.findUnique({ where: { userId }});
-    if (p) allowedModules = p.modules;
+    try {
+      const p = await prisma.employeePermission.findUnique({ where: { userId }});
+      if (p) allowedModules = p.modules;
+    } catch {}
   }
 
   let emailUnverified = false;
   let userEmail = session.user.email ?? "";
   if (userId && userId !== "ENV_SUPERADMIN") {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { emailVerified: true, email: true },
-    });
-    if (dbUser) {
-      emailUnverified = !dbUser.emailVerified;
-      userEmail = dbUser.email ?? userEmail;
-    }
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { emailVerified: true, email: true },
+      });
+      if (dbUser) {
+        emailUnverified = !dbUser.emailVerified;
+        userEmail = dbUser.email ?? userEmail;
+      }
+    } catch {}
   }
 
   const disabledModules = isStudent && userId
     ? await Promise.all([getDisabledModules(), getStudentDisabledModules(userId)])
         .then(([global, student]) => [...new Set([...global, ...student])])
+        .catch(() => [] as string[])
     : [];
 
   return (
