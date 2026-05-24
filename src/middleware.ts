@@ -53,7 +53,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  const token = await getToken({ req: request, secret });
+  // NextAuth v5 uses "__Secure-authjs.session-token" on HTTPS and
+  // "authjs.session-token" on HTTP. Without secureCookie:true, getToken()
+  // defaults to the HTTP name and silently returns null on production HTTPS.
+  const secureCookie = request.url.startsWith("https://");
+  const token = await getToken({ req: request, secret, secureCookie });
 
   if (!token) {
     const login = new URL("/login", request.url);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -38,6 +38,23 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [logoUrl, setLogoUrl]         = useState<string | null>(null);
   const [siteTitle, setSiteTitle]     = useState("The Cyber Library");
+  const redirecting = useRef(false);
+
+  // If user is already logged in, redirect them to their dashboard
+  useEffect(() => {
+    getSession().then(session => {
+      if (!session?.user || redirecting.current) return;
+      redirecting.current = true;
+      const role = (session.user as { role?: string }).role ?? "STUDENT";
+      const isSafe = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//");
+      if (isSafe) { window.location.href = callbackUrl!; return; }
+      if (role === "ADMIN")      { window.location.href = "/admin"; return; }
+      if (role === "EMPLOYEE")   { window.location.href = "/staff"; return; }
+      if (role === "INFLUENCER") { window.location.href = "/affiliate"; return; }
+      if (role === "AUTHOR")     { window.location.href = "/author"; return; }
+      window.location.href = "/dashboard";
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch("/api/site-branding")
