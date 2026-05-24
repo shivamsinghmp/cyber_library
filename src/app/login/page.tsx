@@ -2,7 +2,7 @@
 
 import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,7 +25,6 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 function LoginForm() {
-  const router       = useRouter();
   const searchParams = useSearchParams();
   const registered   = searchParams.get("registered") === "1";
   const verified     = searchParams.get("verified") === "1";
@@ -91,15 +90,15 @@ function LoginForm() {
         return;
       }
       if (result?.ok) {
-        await router.refresh();
         try { await fetch("/api/auth/record-login", { method: "POST" }); } catch {}
         const session = await getSession();
         const role    = (session?.user as { role?: string } | undefined)?.role ?? "STUDENT";
-        if      (role === "ADMIN")      router.push("/admin");
-        else if (role === "EMPLOYEE")   router.push("/staff");
-        else if (role === "INFLUENCER") router.push("/affiliate");
-        else if (role === "AUTHOR")     router.push("/author");
-        else                            router.push("/dashboard");
+        let target = "/dashboard";
+        if      (role === "ADMIN")      target = "/admin";
+        else if (role === "EMPLOYEE")   target = "/staff";
+        else if (role === "INFLUENCER") target = "/affiliate";
+        else if (role === "AUTHOR")     target = "/author";
+        window.location.href = target;
         return;
       }
       setSubmitError("Kuch gadbad ho gayi. Dobara try karo.");
