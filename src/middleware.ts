@@ -1,8 +1,9 @@
-import { getToken } from "next-auth/jwt";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { authConfig } from "@/auth.config";
 
 const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author", "/api/admin", "/api/dashboard", "/api/staff", "/api/student", "/api/study", "/api/profile", "/api/user", "/api/feedback", "/api/rewards", "/api/razorpay", "/api/coupon", "/api/subscription"];
 
@@ -38,7 +39,9 @@ function applySecurityHeaders(res: NextResponse): NextResponse {
   return res;
 }
 
-export async function middleware(request: NextRequest) {
+const { auth } = NextAuth(authConfig);
+
+export default auth(async function middleware(request: NextRequest & { auth: { user?: { role?: string } } | null }) {
   const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith("/api/") && ratelimit) {
@@ -60,27 +63,15 @@ export async function middleware(request: NextRequest) {
 
   if (!isProtected(pathname)) return applySecurityHeaders(NextResponse.next());
 
-  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-  if (!secret) {
+  const session = request.auth;
+
+  if (!session?.user) {
     const login = new URL("/login", request.url);
     login.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(login);
   }
 
-  // Behind nginx reverse proxy, request.url is http:// even though client is HTTPS.
-  // Use x-forwarded-proto to correctly detect HTTPS so we look for the right cookie
-  // (__Secure-authjs.session-token vs authjs.session-token).
-  const proto = request.headers.get("x-forwarded-proto") ?? "";
-  const secureCookie = proto === "https" || request.url.startsWith("https://");
-  const token = await getToken({ req: request, secret, secureCookie });
-
-  if (!token) {
-    const login = new URL("/login", request.url);
-    login.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(login);
-  }
-
-  const role = (token.role as string) || "STUDENT";
+  const role = session.user.role || "STUDENT";
 
   if (pathname.startsWith("/dashboard")) {
     if (role === "ADMIN") return NextResponse.redirect(new URL("/admin", request.url));
@@ -121,7 +112,7 @@ export async function middleware(request: NextRequest) {
   }
 
   return applySecurityHeaders(NextResponse.next());
-}
+});
 
 export const config = {
   matcher: [
