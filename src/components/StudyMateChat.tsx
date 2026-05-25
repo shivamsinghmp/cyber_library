@@ -1,24 +1,51 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Paperclip, X, Coins, MessageCircle, Sparkles, RefreshCw } from "lucide-react";
+import { Send, Paperclip, X, Coins, Sparkles, RefreshCw, ShoppingCart } from "lucide-react";
+import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type ModelId =
+  | "gemini-2.5-flash" | "gemini-2.0-flash" | "gemini-1.5-pro" | "gemini-2.5-pro"
+  | "claude-haiku"     | "claude-sonnet"     | "claude-opus"
+  | "gpt-4o-mini"      | "gpt-4.1-mini"      | "gpt-4.1" | "gpt-4o"
+  | "gpt-o1-mini"      | "gpt-o1";
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
   hasImage?: boolean;
+  modelUsed?: ModelId;
+  coinsUsed?: number;
+  tokensUsed?: number;
 }
 
 interface Stats {
-  freeMessagesLeft: number;
   totalCoins: number;
   studentName: string | null;
   targetExam: string | null;
   currentStreak: number;
+  profileComplete: boolean;
+  configuredProviders?: { gemini: boolean; anthropic: boolean; openai: boolean };
 }
+
+const MODEL_META: Record<ModelId, { label: string; emoji: string; color: string; rate: number }> = {
+  "gemini-2.5-flash": { label: "Gemini 2.5 Flash", emoji: "⚡", color: "text-blue-500",   rate: 1  },
+  "gemini-2.0-flash": { label: "Gemini 2.0 Flash", emoji: "⚡", color: "text-blue-400",   rate: 1  },
+  "gemini-1.5-pro":   { label: "Gemini 1.5 Pro",   emoji: "🔵", color: "text-blue-600",   rate: 4  },
+  "gemini-2.5-pro":   { label: "Gemini 2.5 Pro",   emoji: "💎", color: "text-blue-700",   rate: 6  },
+  "claude-haiku":     { label: "Claude Haiku",      emoji: "🧠", color: "text-violet-500", rate: 3  },
+  "claude-sonnet":    { label: "Claude Sonnet",     emoji: "🧠", color: "text-violet-600", rate: 10 },
+  "claude-opus":      { label: "Claude Opus",       emoji: "👑", color: "text-violet-700", rate: 50 },
+  "gpt-4o-mini":      { label: "GPT-4o Mini",       emoji: "🤖", color: "text-emerald-500",rate: 1  },
+  "gpt-4.1-mini":     { label: "GPT-4.1 Mini",      emoji: "🤖", color: "text-emerald-500",rate: 2  },
+  "gpt-4.1":          { label: "GPT-4.1",           emoji: "🤖", color: "text-emerald-600",rate: 6  },
+  "gpt-4o":           { label: "GPT-4o",            emoji: "🤖", color: "text-emerald-700",rate: 7  },
+  "gpt-o1-mini":      { label: "GPT o1 Mini",       emoji: "🔬", color: "text-orange-500", rate: 9  },
+  "gpt-o1":           { label: "GPT o1",            emoji: "🔬", color: "text-orange-600", rate: 42 },
+};
 
 // ─── Quick prompts ────────────────────────────────────────────────────────────
 const QUICK_PROMPTS = [
@@ -35,7 +62,7 @@ function fmtTime(d: Date) { return d.toLocaleTimeString("en-IN", { hour: "2-digi
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function StudyMateChat() {
-  const [stats, setStats] = useState<Stats>({ freeMessagesLeft: 5, totalCoins: 0, studentName: null, targetExam: null, currentStreak: 0 });
+  const [stats, setStats] = useState<Stats>({ totalCoins: 0, studentName: null, targetExam: null, currentStreak: 0, profileComplete: true });
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +71,12 @@ export default function StudyMateChat() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [coinsError, setCoinsError] = useState<{ message: string; coinsNeeded: number; currentCoins: number } | null>(null);
+  const [qualityWarning, setQualityWarning] = useState<{
+    preferredModel: ModelId; preferredModelCoins: number;
+    fallbackModel: ModelId; fallbackModelCoins: number;
+    currentCoins: number;
+  } | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -56,17 +89,20 @@ export default function StudyMateChat() {
       .then((d: Stats | null) => {
         if (d) {
           setStats(d);
-          // Personalized greeting
-          const name = d.studentName ? ` ${d.studentName.split(" ")[0]}` : "";
-          const examStr = d.targetExam ? ` ${d.targetExam}` : "";
-          const examLine = examStr ? ` Main tumhara personal${examStr} AI buddy hoon!` : " Main tumhara AI study buddy hoon — UPSC, JEE, NEET, GATE, CAT, SSC — kisi bhi exam ke liye!";
-          const streakStr = d.currentStreak > 1 ? ` Aur ${d.currentStreak} din ki streak chal rahi hai — wah! 🔥` : "";
-          setMessages([{
-            id: genId(),
-            role: "assistant",
-            content: `Namaste${name}! 👋${examLine}\n\nBatao aaj kya padhna hai? Study plan chahiye, koi doubt hai, ya bas baat karni hai — main hoon yahan!${streakStr} 📚✨`,
-            timestamp: new Date(),
-          }]);
+          let greeting: string;
+          if (!d.profileComplete) {
+            // Onboarding: AI will ask for details — just show a warm welcome
+            greeting = "Namaste! 👋 Main hoon StudyMate AI — Cyber Library ka tumhara personal study buddy!\n\nPehle tumse thoda jaanna chahta hoon taaki main tumhari padhai mein sahi help kar sakoon. Batao...";
+          } else {
+            const name = d.studentName ? ` ${d.studentName.split(" ")[0]}` : "";
+            const examStr = d.targetExam ? ` ${d.targetExam}` : "";
+            const examLine = examStr
+              ? ` Main tumhara personal ${examStr} buddy hoon!`
+              : " Main tumhara AI study buddy hoon — JEE, NEET, UPSC, GATE, CAT, SSC — kisi bhi exam ke liye!";
+            const streakStr = d.currentStreak > 1 ? `\n\n🔥 ${d.currentStreak} din ki streak chal rahi hai — wah!` : "";
+            greeting = `Namaste${name}! 👋${examLine}\n\nBatao aaj kya padhna hai? Study plan chahiye, koi doubt hai, ya bas motivation chahiye — main hoon yahan! 📚✨${streakStr}`;
+          }
+          setMessages([{ id: genId(), role: "assistant", content: greeting, timestamp: new Date() }]);
         }
       })
       .catch(() => {
@@ -107,6 +143,8 @@ export default function StudyMateChat() {
     if ((!trimmed && !imageFile) || isLoading) return;
 
     setError(null);
+    setCoinsError(null);
+    setQualityWarning(null);
     setShowQuick(false);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
@@ -131,7 +169,9 @@ export default function StudyMateChat() {
     setIsLoading(true);
     removeImage();
 
-    const history = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
+    // Send last 20 messages only — older context costs coins without adding much value
+    const allMsgs = [...messages, userMsg];
+    const history = allMsgs.slice(-20).map((m) => ({ role: m.role, content: m.content }));
 
     try {
       const res = await fetch("/api/ai/studymate", {
@@ -144,8 +184,22 @@ export default function StudyMateChat() {
 
       if (!res.ok) {
         if (data.error === "coins_required") {
-          setError(data.message);
-          setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+          setCoinsError({
+            message: data.message ?? "Coins khatam ho gaye!",
+            coinsNeeded: data.coinsNeeded ?? 1,
+            currentCoins: data.currentCoins ?? 0,
+          });
+          return;
+        }
+
+        if (data.error === "quality_warning") {
+          setQualityWarning({
+            preferredModel: data.preferredModel,
+            preferredModelCoins: data.preferredModelCoins,
+            fallbackModel: data.fallbackModel,
+            fallbackModelCoins: data.fallbackModelCoins,
+            currentCoins: data.currentCoins,
+          });
           return;
         }
 
@@ -170,11 +224,20 @@ export default function StudyMateChat() {
         return;
       }
 
-      setMessages((prev) => [...prev, { id: genId(), role: "assistant", content: data.reply, timestamp: new Date() }]);
+      setMessages((prev) => [...prev, {
+        id: genId(),
+        role: "assistant",
+        content: data.reply,
+        timestamp: new Date(),
+        modelUsed: data.modelUsed as ModelId | undefined,
+        coinsUsed: data.coinsUsed,
+        tokensUsed: data.tokensUsed,
+      }]);
+      setCoinsError(null);
       setStats((prev) => ({
         ...prev,
-        freeMessagesLeft: data.freeMessagesLeft ?? prev.freeMessagesLeft,
         totalCoins: prev.totalCoins - (data.coinsUsed ?? 0),
+        profileComplete: data.profileComplete ?? prev.profileComplete,
       }));
     } catch {
       // Only real network errors reach here (fetch itself failed)
@@ -188,6 +251,40 @@ export default function StudyMateChat() {
       setIsLoading(false);
     }
   }, [isLoading, messages, imageFile, imagePreview]);
+
+  const handleAcceptLowerQuality = async () => {
+    if (!qualityWarning) return;
+    setQualityWarning(null);
+    setIsLoading(true);
+    const history = messages.slice(-20).map(m => ({ role: m.role, content: m.content }));
+    try {
+      const res = await fetch("/api/ai/studymate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history, acceptLowerQuality: true }),
+      });
+      const data = await res.json().catch(() => ({ error: "Parse error" }));
+      if (res.ok) {
+        setMessages(prev => [...prev, {
+          id: genId(), role: "assistant", content: data.reply,
+          timestamp: new Date(), modelUsed: data.modelUsed as ModelId | undefined,
+          coinsUsed: data.coinsUsed, tokensUsed: data.tokensUsed,
+        }]);
+        setCoinsError(null);
+        setStats(prev => ({
+          ...prev,
+          totalCoins: prev.totalCoins - (data.coinsUsed ?? 0),
+          profileComplete: data.profileComplete ?? prev.profileComplete,
+        }));
+      } else if (data.error === "coins_required") {
+        setCoinsError({ message: data.message, coinsNeeded: data.coinsNeeded, currentCoins: data.currentCoins });
+      }
+    } catch {
+      setError("Network error. Dobara try karo.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
@@ -215,15 +312,31 @@ export default function StudyMateChat() {
             {stats.currentStreak > 0 && ` • 🔥 ${stats.currentStreak} day streak`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-white rounded-full px-2.5 py-1 border border-[#C9BEFF]">
-            <MessageCircle className="w-3 h-3 text-[#6367FF]" />
-            <span className="text-[#1A1447] text-xs">{stats.freeMessagesLeft} free</span>
+        {/* Provider availability pills */}
+        {stats.configuredProviders && (
+          <div className="hidden sm:flex items-center gap-1">
+            {[
+              { key: "gemini" as const,    label: "G",  title: "Gemini"    },
+              { key: "anthropic" as const, label: "C",  title: "Claude"    },
+              { key: "openai" as const,    label: "G4", title: "GPT"       },
+            ].map(({ key, label, title }) => (
+              <span
+                key={key}
+                title={stats.configuredProviders![key] ? `${title} ready` : `${title} not configured`}
+                className={`text-[9px] font-black rounded-full px-1.5 py-0.5 border ${
+                  stats.configuredProviders![key]
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                    : "bg-gray-50 border-gray-200 text-gray-300 line-through"
+                }`}
+              >
+                {label}
+              </span>
+            ))}
           </div>
-          <div className="flex items-center gap-1 bg-white rounded-full px-2.5 py-1 border border-[#C9BEFF]">
-            <Coins className="w-3 h-3 text-amber-500" />
-            <span className="text-[#1A1447] text-xs">{stats.totalCoins}</span>
-          </div>
+        )}
+        <div className="flex items-center gap-1 bg-white rounded-full px-2.5 py-1 border border-[#C9BEFF]">
+          <Coins className="w-3 h-3 text-amber-500" />
+          <span className="text-[#1A1447] text-xs font-semibold">{stats.totalCoins}</span>
         </div>
         <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)] animate-pulse flex-shrink-0" />
       </div>
@@ -252,7 +365,20 @@ export default function StudyMateChat() {
                   <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
                 ))}
               </div>
-              <time className="text-[10px] text-[#6367FF]/60 px-1">{fmtTime(msg.timestamp)}</time>
+              <div className="flex items-center gap-1.5 px-1 flex-wrap">
+                <time className="text-[10px] text-[#6367FF]/60">{fmtTime(msg.timestamp)}</time>
+                {msg.role === "assistant" && msg.modelUsed && MODEL_META[msg.modelUsed] && (
+                  <span className={`text-[10px] font-semibold ${MODEL_META[msg.modelUsed].color}`}>
+                    {MODEL_META[msg.modelUsed].emoji} {MODEL_META[msg.modelUsed].label}
+                  </span>
+                )}
+                {msg.role === "assistant" && msg.tokensUsed != null && (
+                  <span className="text-[10px] text-[#6367FF]/50">{msg.tokensUsed.toLocaleString("en-IN")}t</span>
+                )}
+                {msg.role === "assistant" && msg.coinsUsed != null && msg.coinsUsed > 0 && (
+                  <span className="text-[10px] font-bold text-amber-600">• {msg.coinsUsed} 🪙</span>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -269,15 +395,96 @@ export default function StudyMateChat() {
           </div>
         )}
 
-        {/* Error */}
+        {/* Coins exhausted card */}
+        {coinsError && (
+          <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 flex flex-col gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0 text-lg">
+                🪙
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-amber-900">Coins Khatam!</p>
+                <p className="text-xs text-amber-700 mt-0.5">{coinsError.message}</p>
+                <div className="mt-2 flex items-center gap-3 text-xs">
+                  <span className="font-semibold text-amber-800">
+                    Chahiye: <strong>{coinsError.coinsNeeded} 🪙</strong>
+                  </span>
+                  <span className="text-amber-600">
+                    Paas mein: <strong>{coinsError.currentCoins} 🪙</strong>
+                  </span>
+                  <span className="text-red-600 font-bold">
+                    Shortfall: {coinsError.coinsNeeded - coinsError.currentCoins} 🪙
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href="/dashboard/wallet/buy-coins"
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-500 px-4 py-2.5 text-sm font-bold text-amber-900 transition-colors shadow-sm"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Coins Kharido
+              </Link>
+              <Link
+                href="/dashboard/wallet"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors"
+              >
+                <Coins className="h-3.5 w-3.5" />
+                Wallet
+              </Link>
+            </div>
+            <p className="text-[10px] text-amber-600/70 text-center">
+              Coins top-up ke baad wapas aao aur message dobara bhejo 🚀
+            </p>
+          </div>
+        )}
+
+        {/* Quality warning — premium model needed but not affordable */}
+        {qualityWarning && MODEL_META[qualityWarning.preferredModel] && MODEL_META[qualityWarning.fallbackModel] && (
+          <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 p-4 flex flex-col gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center shrink-0 text-lg">
+                {MODEL_META[qualityWarning.preferredModel].emoji}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-violet-900">
+                  Yeh question {MODEL_META[qualityWarning.preferredModel].label} maangta hai
+                </p>
+                <p className="text-xs text-violet-700 mt-0.5">
+                  Best quality ke liye <strong>{qualityWarning.preferredModelCoins} coins</strong> chahiye,
+                  {" "}tumhare paas sirf <strong>{qualityWarning.currentCoins} coins</strong> hain.
+                </p>
+                <p className="text-[10px] text-violet-500 mt-1">
+                  Quality mein compromise mat karo — coins buy karo aur premium answer pao.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href="/dashboard/wallet/buy-coins"
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition-colors shadow-sm"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Coins Kharido
+              </Link>
+              <button
+                onClick={handleAcceptLowerQuality}
+                disabled={isLoading}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-xs font-semibold text-violet-600 hover:bg-violet-50 transition-colors disabled:opacity-50"
+              >
+                <span>{MODEL_META[qualityWarning.fallbackModel].emoji}</span>
+                {MODEL_META[qualityWarning.fallbackModel].label} se lo
+                <span className="text-[10px] text-violet-400">({qualityWarning.fallbackModelCoins}🪙)</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Generic error */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-600 text-sm">
             {error}
-            {error.includes("coins") && (
-              <a href="/dashboard" className="block mt-1.5 text-amber-600 hover:text-amber-700 text-xs font-medium">
-                → Study room mein jaao coins kamao 🪙
-              </a>
-            )}
           </div>
         )}
 
@@ -347,9 +554,7 @@ export default function StudyMateChat() {
 
       {/* Footer */}
       <p className="px-4 py-1.5 bg-[#F5F4FF] text-[10px] text-[#6367FF]/50 text-center flex-shrink-0">
-        {stats.freeMessagesLeft > 0
-          ? `${stats.freeMessagesLeft} free messages aaj ke baaki • ${stats.totalCoins} coins`
-          : `Free messages khatam • 5 coins = 10 messages • Study room mein coins kamao`}
+        ⚡ Gemini=1🪙 • 🤖 GPT=1–2🪙 • 🧠 Claude Haiku=3🪙 • 👑 Opus=50🪙 per 1000 tokens • 1🪙 = ₹0.10
       </p>
     </div>
   );

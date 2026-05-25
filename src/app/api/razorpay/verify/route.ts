@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       razorpay_payment_id: z.string().min(1),
       razorpay_order_id:   z.string().min(1),
       razorpay_signature:  z.string().min(1),
-      type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION"]),
+      type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION", "COIN_PACK"]),
       ids:  z.array(z.string()).min(1),
       couponCode: z.string().optional(),
     });
@@ -100,6 +100,10 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ success: true, transactionId: transaction.transactionId });
     } catch (fulfillErr) {
+      // ALREADY_SUBSCRIBED — user paid but already has an active subscription (race condition)
+      if (fulfillErr instanceof Error && fulfillErr.message === "ALREADY_SUBSCRIBED") {
+        return NextResponse.json({ error: "Aapka subscription already active hai." }, { status: 409 });
+      }
       // P2002 = unique constraint violation — concurrent webhook fired simultaneously,
       // the first call already fulfilled this payment. Return success idempotently.
       if (fulfillErr && typeof fulfillErr === "object" && "code" in fulfillErr && (fulfillErr as { code: string }).code === "P2002") {

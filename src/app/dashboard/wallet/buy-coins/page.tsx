@@ -1,0 +1,299 @@
+"use client";
+
+import { useState } from "react";
+import { Coins, ArrowLeft, Zap, Star, Crown, Rocket, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { motion } from "framer-motion";
+
+declare global {
+  interface Window {
+    Razorpay: new (options: {
+      key: string;
+      amount: number;
+      order_id: string;
+      name: string;
+      description?: string;
+      handler: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
+      modal?: { ondismiss?: () => void };
+    }) => { open: () => void };
+  }
+}
+
+type Pack = {
+  id: string;
+  coins: number;
+  priceRupees: number;
+  label: string;
+  icon: typeof Zap;
+  color: string;
+  bg: string;
+  border: string;
+  badge?: string;
+  perCoin: string;
+};
+
+const PACKS: Pack[] = [
+  {
+    id: "COINS_100",
+    coins: 100,
+    priceRupees: 10,
+    label: "Starter Pack",
+    icon: Zap,
+    color: "text-sky-600",
+    bg: "bg-sky-50",
+    border: "border-sky-200",
+    perCoin: "₹0.10/coin",
+  },
+  {
+    id: "COINS_350",
+    coins: 350,
+    priceRupees: 30,
+    label: "Study Pack",
+    icon: Star,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    perCoin: "₹0.086/coin",
+    badge: "Popular",
+  },
+  {
+    id: "COINS_700",
+    coins: 700,
+    priceRupees: 55,
+    label: "Power Pack",
+    icon: Rocket,
+    color: "text-violet-600",
+    bg: "bg-violet-50",
+    border: "border-violet-200",
+    perCoin: "₹0.079/coin",
+    badge: "Save 21%",
+  },
+  {
+    id: "COINS_1500",
+    coins: 1500,
+    priceRupees: 100,
+    label: "Pro Pack",
+    icon: Crown,
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    perCoin: "₹0.067/coin",
+    badge: "Best Value",
+  },
+];
+
+function loadRazorpayScript(): Promise<void> {
+  if (typeof window !== "undefined" && window.Razorpay) return Promise.resolve();
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => resolve();
+    document.body.appendChild(script);
+  });
+}
+
+export default function BuyCoinsPage() {
+  const router = useRouter();
+  const [buying, setBuying] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ coins: number; label: string } | null>(null);
+
+  async function handleBuy(pack: Pack) {
+    setBuying(pack.id);
+    try {
+      const orderRes = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ type: "COIN_PACK", ids: [pack.id] }),
+      });
+      const orderData = await orderRes.json().catch(() => ({}));
+      if (!orderRes.ok) {
+        toast.error(orderData.error ?? "Failed to create order");
+        setBuying(null);
+        return;
+      }
+
+      const { orderId, keyId, amount } = orderData as { orderId: string; keyId: string; amount: number };
+
+      await loadRazorpayScript();
+      if (!window.Razorpay) {
+        toast.error("Payment gateway load nahi hua. Dobara try karo.");
+        setBuying(null);
+        return;
+      }
+
+      const rzp = new window.Razorpay({
+        key: keyId,
+        amount,
+        order_id: orderId,
+        name: "The Cyber Library",
+        description: `${pack.label} — ${pack.coins} coins`,
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                type: "COIN_PACK",
+                ids: [pack.id],
+              }),
+            });
+            if (verifyRes.ok) {
+              setSuccess({ coins: pack.coins, label: pack.label });
+            } else {
+              const d = await verifyRes.json().catch(() => ({}));
+              toast.error(d.error ?? "Payment verify nahi hua. Support se contact karo.");
+            }
+          } catch {
+            toast.error("Verification error. Support se contact karo.");
+          } finally {
+            setBuying(null);
+          }
+        },
+        modal: {
+          ondismiss: () => setBuying(null),
+        },
+      });
+      rzp.open();
+    } catch {
+      toast.error("Something went wrong");
+      setBuying(null);
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 text-center">
+        <motion.div
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", bounce: 0.5 }}
+          className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-amber-100 border-2 border-amber-300 shadow-lg"
+        >
+          <CheckCircle2 className="h-12 w-12 text-amber-500" />
+        </motion.div>
+        <h1 className="text-3xl font-black text-[var(--foreground)]">Coins Added!</h1>
+        <p className="mt-2 text-[var(--muted-text)]">
+          <strong className="text-amber-600">{success.coins.toLocaleString("en-IN")} coins</strong> aapke wallet mein add ho gaye.
+        </p>
+        <p className="mt-1 text-sm text-[var(--muted-text)]">{success.label} successfully purchased.</p>
+        <div className="mt-8 flex flex-col gap-3">
+          <Link
+            href="/dashboard/wallet"
+            className="w-full rounded-2xl bg-amber-400 hover:bg-amber-500 py-3 text-sm font-bold text-amber-900 shadow-md transition-all text-center"
+          >
+            Wallet Dekho
+          </Link>
+          <Link
+            href="/dashboard/studymate"
+            className="w-full rounded-2xl border border-[var(--cream-muted)] py-3 text-sm font-semibold text-[var(--body-text)] hover:bg-[var(--cream)] transition-colors text-center"
+          >
+            AI StudyMate Use Karo
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl px-3 pb-12">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Link
+          href="/dashboard/wallet"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--cream-muted)] bg-white hover:bg-[var(--cream)] transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 text-[var(--muted-text)]" />
+        </Link>
+        <div>
+          <h1 className="text-xl font-black text-[var(--foreground)]">Buy Coins</h1>
+          <p className="text-xs text-[var(--muted-text)]">AI StudyMate ke liye coins kharido</p>
+        </div>
+      </div>
+
+      {/* Value info */}
+      <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3">
+        <Coins className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-bold text-amber-900">1 coin = ₹0.10</p>
+          <p className="text-xs text-amber-700 mt-0.5">
+            Coins AI StudyMate chatbot pe use hote hain. Har model alag coins use karta hai — budget models mein sirf 1 coin/1000 tokens, Claude Opus premium mein 50 coins/1000 tokens.
+          </p>
+        </div>
+      </div>
+
+      {/* Pack grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {PACKS.map((pack, i) => {
+          const Icon = pack.icon;
+          const isLoading = buying === pack.id;
+          return (
+            <motion.div
+              key={pack.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.07 }}
+              className={`relative flex flex-col rounded-2xl border-2 ${pack.border} bg-white p-5 shadow-sm hover:shadow-md transition-shadow`}
+            >
+              {pack.badge && (
+                <span className={`absolute -top-2.5 right-4 rounded-full px-3 py-0.5 text-[10px] font-black uppercase tracking-wide ${pack.bg} ${pack.color} border ${pack.border}`}>
+                  {pack.badge}
+                </span>
+              )}
+
+              <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${pack.bg} border ${pack.border}`}>
+                <Icon className={`h-5 w-5 ${pack.color}`} />
+              </div>
+
+              <p className="text-xs font-bold text-[var(--muted-text)] uppercase tracking-wider">{pack.label}</p>
+
+              <div className="mt-1 flex items-end gap-2">
+                <span className="text-4xl font-black text-[var(--foreground)] tabular-nums leading-none">
+                  {pack.coins.toLocaleString("en-IN")}
+                </span>
+                <span className="mb-1 text-sm font-semibold text-[var(--muted-text)]">coins</span>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-black text-[var(--foreground)]">₹{pack.priceRupees}</p>
+                  <p className="text-[10px] text-[var(--muted-text)]">{pack.perCoin}</p>
+                </div>
+                <button
+                  onClick={() => handleBuy(pack)}
+                  disabled={!!buying}
+                  className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed ${pack.bg} ${pack.color} border ${pack.border}`}
+                >
+                  {isLoading ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Processing…
+                    </span>
+                  ) : (
+                    <>
+                      <Coins className="h-4 w-4" />
+                      Buy Now
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Footer note */}
+      <p className="mt-6 text-center text-[10px] text-[var(--muted-text)]">
+        Payment Razorpay ke through secured hai. Coins turant add ho jaate hain payment ke baad.
+      </p>
+    </div>
+  );
+}

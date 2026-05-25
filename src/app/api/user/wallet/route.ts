@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
+  try {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.user.id;
@@ -67,4 +68,8 @@ export async function GET(request: Request) {
       purchased: purchasedSet.has(p.id),
     })),
   });
+  } catch (e) {
+    console.error("GET /api/user/wallet:", e);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
 }

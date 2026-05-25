@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Coins, TrendingUp, TrendingDown, ShoppingBag, Sparkles,
   ChevronLeft, ChevronRight, Lock, CheckCircle2, ExternalLink,
-  Zap, Brain, BookOpen, Clock,
+  Zap, Brain, BookOpen, Clock, Gift, Flame, Star, Plus,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -45,10 +45,18 @@ const EARN_LABELS: Record<string, { label: string; icon: typeof Zap }> = {
   "TAB_AWAY_VIOLATION":       { label: "Tab Away Penalty", icon: TrendingDown },
 };
 
+const COIN_PACK_LABELS: Record<string, string> = {
+  COIN_PACK_COINS_100:  "Starter Pack (100 coins purchased)",
+  COIN_PACK_COINS_350:  "Study Pack (350 coins purchased)",
+  COIN_PACK_COINS_700:  "Power Pack (700 coins purchased)",
+  COIN_PACK_COINS_1500: "Pro Pack (1500 coins purchased)",
+};
+
 function formatReason(reason: string): string {
   if (reason.startsWith("AI_MSG_PAID"))  return "AI StudyMate (paid)";
   if (reason.startsWith("AI_MSG_FREE"))  return "AI StudyMate (free)";
   if (reason.startsWith("PURCHASE_PRODUCT_")) return "Course Unlocked";
+  if (COIN_PACK_LABELS[reason]) return COIN_PACK_LABELS[reason];
   return EARN_LABELS[reason]?.label ?? reason.replace(/_/g, " ");
 }
 
@@ -61,6 +69,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+type CheckinStatus = { checkedInToday: boolean; checkinCoins: number; streak: number };
 type Filter = "all" | "earned" | "spent";
 
 export default function WalletPage() {
@@ -69,6 +78,8 @@ export default function WalletPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(1);
   const [spending, setSpending] = useState<string | null>(null);
+  const [checkin, setCheckin] = useState<CheckinStatus | null>(null);
+  const [checkingIn, setCheckingIn] = useState(false);
 
   const fetchWallet = useCallback(async (f: Filter = filter, p: number = page) => {
     setLoading(true);
@@ -83,7 +94,13 @@ export default function WalletPage() {
     }
   }, [filter, page]);
 
-  useEffect(() => { fetchWallet(); }, []);
+  useEffect(() => {
+    fetchWallet();
+    fetch("/api/user/wallet/checkin", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setCheckin(d); })
+      .catch(() => {});
+  }, []);
 
   function changeFilter(f: Filter) {
     setFilter(f);
@@ -117,6 +134,23 @@ export default function WalletPage() {
     }
   }
 
+  async function handleCheckin() {
+    setCheckingIn(true);
+    try {
+      const res = await fetch("/api/user/wallet/checkin", { method: "POST", credentials: "include" });
+      const json = await res.json();
+      if (json.alreadyCheckedIn) { toast("Aaj already check-in kar chuke ho!"); return; }
+      if (!res.ok) { toast.error(json.error || "Check-in failed"); return; }
+      toast.success(`+${json.coins} coins! ${json.bonusCoins > 0 ? `+${json.bonusCoins} streak bonus!` : ""} 🎉`);
+      setCheckin({ checkedInToday: true, checkinCoins: json.coins, streak: json.streak });
+      fetchWallet(filter, page);
+    } catch {
+      toast.error("Check-in failed");
+    } finally {
+      setCheckingIn(false);
+    }
+  }
+
   const balance = data?.coinBalance ?? 0;
 
   return (
@@ -133,6 +167,12 @@ export default function WalletPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-semibold text-amber-900/80 uppercase tracking-widest">Coin Wallet</p>
+              <Link
+                href="/dashboard/wallet/buy-coins"
+                className="mt-1 inline-flex items-center gap-1 rounded-lg bg-amber-900/20 hover:bg-amber-900/30 px-2.5 py-1 text-[10px] font-bold text-amber-900 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Buy Coins
+              </Link>
               <div className="mt-2 flex items-end gap-2">
                 <Coins className="h-10 w-10 text-amber-800 mb-1" />
                 <p className="text-6xl font-black text-amber-900 tabular-nums leading-none">
@@ -170,6 +210,63 @@ export default function WalletPage() {
         </div>
       </motion.div>
 
+      {/* Daily Check-in Card */}
+      {checkin !== null && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`rounded-2xl p-5 flex items-center gap-4 border ${
+            checkin.checkedInToday
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-white border-[var(--border)]"
+          }`}
+        >
+          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-2xl ${
+            checkin.checkedInToday ? "bg-emerald-100" : "bg-amber-50 border border-amber-200"
+          }`}>
+            {checkin.checkedInToday ? "✅" : "🎁"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-[var(--foreground)]">
+              {checkin.checkedInToday ? "Aaj Check-in Ho Gaya!" : "Daily Check-in Bonus"}
+            </p>
+            <p className="text-sm text-[var(--cream-muted)]">
+              {checkin.checkedInToday
+                ? `Streak: ${checkin.streak} din 🔥 — Kal phir aana!`
+                : `+${checkin.checkinCoins} coins milenge • Current streak: ${checkin.streak} din`
+              }
+            </p>
+            {!checkin.checkedInToday && checkin.streak > 0 && (
+              <div className="mt-1 flex items-center gap-1">
+                {[7, 30].map((milestone) => (
+                  <span key={milestone} className={`text-[10px] font-bold rounded-full px-2 py-0.5 ${
+                    checkin.streak >= milestone ? "bg-amber-400 text-amber-900" : "bg-gray-100 text-gray-400"
+                  }`}>
+                    {milestone}d bonus
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {!checkin.checkedInToday && (
+            <button
+              onClick={handleCheckin}
+              disabled={checkingIn}
+              className="shrink-0 flex items-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-500 px-5 py-2.5 text-sm font-bold text-amber-900 shadow-md transition-all hover:shadow-lg disabled:opacity-60"
+            >
+              <Gift className="h-4 w-4" />
+              {checkingIn ? "Claiming…" : "Claim"}
+            </button>
+          )}
+          {checkin.checkedInToday && (
+            <div className="shrink-0 flex items-center gap-1.5 text-sm font-bold text-emerald-600">
+              <Flame className="h-4 w-4" />
+              {checkin.streak} din
+            </div>
+          )}
+        </motion.div>
+      )}
+
       {/* How to Earn */}
       <div className="rounded-2xl border border-[var(--border)] bg-white p-5">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-[var(--foreground)] uppercase tracking-wider">
@@ -177,11 +274,14 @@ export default function WalletPage() {
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
+            { label: "Daily Check-in", coins: checkin?.checkinCoins ?? 5, icon: Gift },
             { label: "25m Focus Session", coins: 25, icon: Zap },
             { label: "Correct Quiz Answer", coins: 1, icon: Brain },
             { label: "Complete Daily Task", coins: 1, icon: CheckCircle2 },
             { label: "Study Streak", coins: 1, icon: Sparkles },
             { label: "Pomodoro Cycle", coins: 2, icon: Clock },
+            { label: "7-Day Check-in Streak", coins: 20, icon: Flame },
+            { label: "30-Day Check-in Streak", coins: 100, icon: Star },
           ].map(({ label, coins, icon: Icon }) => (
             <div key={label} className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5">
               <Icon className="h-4 w-4 text-amber-500 shrink-0" />

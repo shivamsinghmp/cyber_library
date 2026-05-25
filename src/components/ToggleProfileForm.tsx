@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Phone, Target, FileText, Pencil, Camera, Mail, Calendar, BookOpen, Award, Check, AlertOctagon } from "lucide-react";
+import { User, Phone, Target, FileText, Pencil, Camera, Mail, Calendar, BookOpen, Award, Check, AlertOctagon, ShieldCheck, ShieldAlert, Loader2, KeyRound } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { ProfileDisplay } from "./ProfileDisplay";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const STUDY_GOALS = ["UPSC", "JEE", "NEET", "GATE", "CAT", "Other"];
 const TARGET_EXAMS = ["UPSC", "SSC", "JEE", "NEET", "GATE", "Coding", "Other"];
@@ -26,9 +27,12 @@ type Profile = {
   institution: string | null;
   bio: string | null;
   profilePicUrl: string | null;
+  email: string | null;
+  emailVerified: boolean;
 };
 
 export function ToggleProfileForm() {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,6 +48,12 @@ export function ToggleProfileForm() {
 
   const [whatsappError, setWhatsappError] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
+
+  // Email OTP verification state
+  const [otpStep, setOtpStep] = useState<"idle" | "sending" | "input" | "verifying" | "done">("idle");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpCooldown, setOtpCooldown] = useState(0);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -128,6 +138,65 @@ export function ToggleProfileForm() {
       toast.error(err instanceof Error ? err.message : "Failed to save profile", { id: toastId });
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Cooldown countdown for OTP resend
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const t = setTimeout(() => setOtpCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [otpCooldown]);
+
+  async function handleSendOtp() {
+    setOtpStep("sending");
+    setOtpError(null);
+    try {
+      const res = await fetch("/api/auth/verify-email/send-otp", { method: "POST", credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setOtpError(data.error ?? "OTP nahi bheja ja saka.");
+        setOtpStep("idle");
+        return;
+      }
+      if (data.alreadyVerified) {
+        setOtpStep("done");
+        setProfile((p) => p ? { ...p, emailVerified: true } : p);
+        router.refresh();
+        return;
+      }
+      setOtpStep("input");
+      setOtpCooldown(60);
+    } catch {
+      setOtpError("Network error. Dobara try karo.");
+      setOtpStep("idle");
+    }
+  }
+
+  async function handleConfirmOtp() {
+    if (otpCode.length !== 6) { setOtpError("6 digit OTP daalo."); return; }
+    setOtpStep("verifying");
+    setOtpError(null);
+    try {
+      const res = await fetch("/api/auth/verify-email/confirm-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: otpCode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setOtpError(data.error ?? "OTP galat hai.");
+        setOtpStep("input");
+        return;
+      }
+      setOtpStep("done");
+      setProfile((p) => p ? { ...p, emailVerified: true } : p);
+      toast.success("Email verify ho gaya!");
+      router.refresh();
+    } catch {
+      setOtpError("Network error. Dobara try karo.");
+      setOtpStep("input");
     }
   }
 
@@ -461,6 +530,94 @@ export function ToggleProfileForm() {
 
         </div> {/* Close DOM element `div.relative.p-6...` */}
       </div> {/* Close DOM element `div.relative.overflow-hidden...` */}
+
+      {/* ── Email Verification Card ── */}
+      {profile !== null && (
+        <div className="rounded-2xl border border-white/10 bg-black/40 shadow-xl backdrop-blur-xl overflow-hidden">
+          <div className="px-6 py-5 flex items-center gap-3 border-b border-white/5">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${profile.emailVerified || otpStep === "done" ? "bg-emerald-500/15" : "bg-amber-500/15"}`}>
+              {profile.emailVerified || otpStep === "done"
+                ? <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                : <ShieldAlert className="h-5 w-5 text-amber-400" />
+              }
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[var(--cream)]">Email Verification</p>
+              <p className="text-xs text-[var(--cream-muted)]">{profile.email ?? "—"}</p>
+            </div>
+            {(profile.emailVerified || otpStep === "done") && (
+              <span className="ml-auto rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-400">
+                Verified ✓
+              </span>
+            )}
+          </div>
+
+          {!profile.emailVerified && otpStep !== "done" && (
+            <div className="px-6 py-5 space-y-4">
+              {otpStep === "idle" && (
+                <>
+                  <p className="text-sm text-[var(--cream-muted)]">
+                    Aapka email abhi verify nahi hua hai. OTP bhejne ke liye neeche button dabao.
+                  </p>
+                  {otpError && <p className="text-xs text-red-400">{otpError}</p>}
+                  <button
+                    onClick={handleSendOtp}
+                    className="flex items-center gap-2 rounded-xl bg-amber-500/15 px-5 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/25"
+                  >
+                    <Mail className="h-4 w-4" />
+                    OTP Bhejo Meri Email Pe
+                  </button>
+                </>
+              )}
+
+              {otpStep === "sending" && (
+                <div className="flex items-center gap-2 text-sm text-[var(--cream-muted)]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  OTP bheja ja raha hai…
+                </div>
+              )}
+
+              {(otpStep === "input" || otpStep === "verifying") && (
+                <>
+                  <p className="text-sm text-[var(--cream-muted)]">
+                    <strong className="text-[var(--cream)]">{profile.email}</strong> pe 6-digit OTP bheja gaya hai. Neeche daalo:
+                  </p>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1 max-w-[200px]">
+                      <KeyRound className="absolute inset-y-0 left-3 my-auto h-4 w-4 text-[var(--cream-muted)]" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setOtpError(null); }}
+                        placeholder="000000"
+                        className="w-full rounded-xl border border-white/10 bg-black/50 py-2.5 pl-10 pr-4 text-sm font-mono font-bold tracking-[0.3em] text-[var(--cream)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/50"
+                      />
+                    </div>
+                    <button
+                      onClick={handleConfirmOtp}
+                      disabled={otpStep === "verifying" || otpCode.length !== 6}
+                      className="flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                    >
+                      {otpStep === "verifying" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Verify
+                    </button>
+                  </div>
+                  {otpError && <p className="text-xs text-red-400">{otpError}</p>}
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={otpCooldown > 0 || otpStep === "verifying"}
+                    className="text-xs text-[var(--cream-muted)] underline underline-offset-2 hover:text-[var(--cream)] disabled:opacity-40 disabled:no-underline"
+                  >
+                    {otpCooldown > 0 ? `OTP dobara bhejo (${otpCooldown}s)` : "OTP dobara bhejo"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }

@@ -24,7 +24,7 @@ export async function GET() {
 
     const [profile, userRec] = await Promise.all([
       prisma.profile.findUnique({ where: { userId } }),
-      prisma.user.findUnique({ where: { id: userId }, select: { role: true, name: true, email: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { role: true, name: true, email: true, emailVerified: true } }),
     ]);
     const userRole = userRec?.role ?? "STUDENT";
     const fieldDefinitions = await prisma.profileFieldDefinition.findMany({
@@ -36,6 +36,7 @@ export async function GET() {
       ...(profile ?? {}),
       fullName: profile?.fullName || userRec?.name || (userRec?.email ? userRec.email.split('@')[0] : null) || null,
       email: userRec?.email || null,
+      emailVerified: userRec?.emailVerified ? true : false,
       customFields,
       fieldDefinitions,
     });

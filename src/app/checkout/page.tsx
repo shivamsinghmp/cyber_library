@@ -4,8 +4,9 @@ import { useState, Suspense, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Tag, X, Ticket, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { Tag, X, Ticket, Clock, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useSubscription } from "@/hooks/useSubscription";
 import toast from "react-hot-toast";
 
 declare global {
@@ -66,6 +67,7 @@ function CheckoutForm() {
   const isSubscription = typeSubscription && (subPlan === "MONTHLY" || subPlan === "YEARLY");
 
   const { data: session, status } = useSession();
+  const { active: hasActiveSub, planType: activePlanType, endDate: activeEndDate, loading: subLoading } = useSubscription();
   const [enrolledSlotIds, setEnrolledSlotIds] = useState<Set<string>>(new Set());
   const [subsLoaded, setSubsLoaded] = useState(false);
 
@@ -377,6 +379,29 @@ function CheckoutForm() {
         <Link href="/study-room" className="mt-4 inline-block text-[var(--accent)] hover:underline">Browse Study Rooms</Link>
         <span className="mx-2 text-[var(--cream-muted)]">|</span>
         <Link href="/dashboard/subscription" className="inline-block text-[var(--accent)] hover:underline">My Subscription</Link>
+      </div>
+    );
+  }
+
+  if (isSubscription && !subLoading && hasActiveSub) {
+    const expiry = activeEndDate ? new Date(activeEndDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : null;
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
+          <CheckCircle className="h-9 w-9 text-emerald-500" />
+        </div>
+        <h2 className="mb-2 text-xl font-bold text-[var(--cream)]">Subscription Already Active</h2>
+        <p className="text-sm text-[var(--cream-muted)]">
+          Aapka {activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai
+          {expiry ? ` — ${expiry} tak valid hai` : ""}.
+          Dashboard use karte rahein!
+        </p>
+        <Link
+          href="/dashboard"
+          className="mt-6 inline-block rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-500"
+        >
+          Dashboard pe Jao
+        </Link>
       </div>
     );
   }

@@ -118,6 +118,13 @@ export async function POST(request: Request) {
         goal: goal ?? null,
         role: "STUDENT",
         studentId,
+        profile: {
+          create: {
+            fullName: name ?? null,
+            studyGoal: goal ?? null,
+            coinBalance: 0,
+          },
+        },
       },
       select: {
         id: true,

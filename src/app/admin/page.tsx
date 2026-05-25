@@ -5,7 +5,7 @@ import {
   IndianRupee, Users, Briefcase, Settings, HelpCircle,
   BookOpen, MessageSquare, Star, ShoppingBag, Megaphone,
   FileText, Tag, UserCheck, BarChart2, Mail, Activity,
-  AlertCircle, TrendingUp, Zap, Clock,
+  AlertCircle, TrendingUp, Zap, Clock, Brain,
 } from "lucide-react";
 import { AdminAnalyticsChart } from "./AdminAnalyticsChart";
 import { requireAdminModule } from "@/lib/permissions";
@@ -139,6 +139,7 @@ export default async function AdminDashboardPage() {
     { label: "Referrals",    icon: Zap,           href: "/admin/referrals",    desc: "Affiliate codes",              iconBg: "bg-orange-50",  iconColor: "text-orange-600" },
     { label: "Audit Logs",   icon: Activity,      href: "/admin/audit-logs",   desc: "System activity",              iconBg: "bg-slate-100",  iconColor: "text-slate-600" },
     { label: "Settings",     icon: Settings,      href: "/admin/settings",     desc: "Platform config",              iconBg: "bg-gray-100",   iconColor: "text-gray-600" },
+    { label: "AI Keys",      icon: Brain,         href: "/admin/ai-settings",  desc: "Gemini / Claude / OpenAI keys", iconBg: "bg-violet-50",  iconColor: "text-violet-600" },
   ];
 
   return (

@@ -32,6 +32,10 @@ export const APP_SETTING_KEYS = {
   PRICING_DATA:                   { label: "Pricing page data (JSON)",                            secret: false },
   RESEND_API_KEY:                 { label: "Resend API Key (for transactional emails)",           secret: true  },
   RESEND_FROM:                    { label: "Resend sender address (e.g. no-reply@cyberlib.in)",   secret: false },
+  CHECKIN_COINS:                  { label: "Daily Check-in Coins (default: 5)",                   secret: false },
+  GEMINI_API_KEY:                 { label: "Gemini API Key (Google AI Studio)",                    secret: true  },
+  ANTHROPIC_API_KEY:              { label: "Anthropic API Key (Claude AI)",                        secret: true  },
+  OPENAI_API_KEY:                 { label: "OpenAI API Key",                                       secret: true  },
 } as const;
 
 const SECRET_KEYS = new Set(

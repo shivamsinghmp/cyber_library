@@ -4,6 +4,13 @@ import { addStudentToCalendarEvent } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { sendPurchaseReceipt } from "@/lib/email";
 
+const COIN_PACKS: Record<string, { coins: number; priceRupees: number; label: string }> = {
+  COINS_100:  { coins: 100,  priceRupees: 10,  label: "Starter Pack"  },
+  COINS_350:  { coins: 350,  priceRupees: 30,  label: "Study Pack"    },
+  COINS_700:  { coins: 700,  priceRupees: 55,  label: "Power Pack"    },
+  COINS_1500: { coins: 1500, priceRupees: 100, label: "Pro Pack"      },
+};
+
 export async function fulfillOrder({
   userId,
   type,
@@ -13,7 +20,7 @@ export async function fulfillOrder({
   couponCode,
 }: {
   userId: string;
-  type: "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION";
+  type: "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION" | "COIN_PACK";
   ids: string[];
   amountRupees: number;
   paymentGatewayId?: string;
@@ -90,6 +97,21 @@ export async function fulfillOrder({
         });
       }
     }
+  } else if (type === "COIN_PACK") {
+    const packId = ids[0];
+    const pack = COIN_PACKS[packId];
+    if (pack) {
+      orderDetails = [{ name: `${pack.label} (${pack.coins} coins)`, price: amountRupees }];
+      await prisma.$transaction([
+        prisma.profile.update({
+          where: { userId },
+          data: { coinBalance: { increment: pack.coins } },
+        }),
+        prisma.studyCoinLog.create({
+          data: { userId, coins: pack.coins, reason: `COIN_PACK_${packId}` },
+        }),
+      ]);
+    }
   } else if (type === "SUBSCRIPTION") {
     // ids[0] = planType ("MONTHLY" | "YEARLY")
     const planType = ids[0] as "MONTHLY" | "YEARLY";
@@ -100,11 +122,14 @@ export async function fulfillOrder({
 
     orderDetails = [{ name: `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`, price: amountRupees }];
 
-    // Cancel any existing active subscription first
-    await prisma.userSubscription.updateMany({
-      where: { userId, status: "ACTIVE" },
-      data: { status: "CANCELLED" },
+    // Block duplicate: do not enroll if user already has an active subscription
+    const existingActive = await prisma.userSubscription.findFirst({
+      where: { userId, status: "ACTIVE", endDate: { gt: now } },
+      select: { id: true },
     });
+    if (existingActive) {
+      throw new Error("ALREADY_SUBSCRIBED");
+    }
 
     await prisma.userSubscription.create({
       data: {

@@ -211,6 +211,18 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
         <Menu className="h-5 w-5" />
       </button>
 
+      {/* Mobile coin balance pill */}
+      {totalCoins !== null && (
+        <Link
+          href="/dashboard/wallet"
+          onClick={() => setDrawerOpen(false)}
+          className="fixed right-4 top-4 z-30 flex h-10 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 shadow-sm md:hidden hover:bg-amber-100 transition-colors"
+        >
+          <Coins className="h-4 w-4 text-amber-500" />
+          <span className="text-xs font-black text-amber-700">{totalCoins.toLocaleString("en-IN")}</span>
+        </Link>
+      )}
+
       {/* Mobile overlay */}
       {drawerOpen && (
         <button

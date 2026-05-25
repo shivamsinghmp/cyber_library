@@ -7,8 +7,15 @@ import { fulfillOrder } from "@/lib/order-fulfillment";
 import { DEFAULT_PRICING } from "@/lib/pricing-defaults";
 import { rateLimit } from "@/lib/rate-limit";
 
+const COIN_PACKS: Record<string, { coins: number; priceRupees: number; label: string }> = {
+  COINS_100:  { coins: 100,  priceRupees: 10,  label: "Starter Pack"  },
+  COINS_350:  { coins: 350,  priceRupees: 30,  label: "Study Pack"    },
+  COINS_700:  { coins: 700,  priceRupees: 55,  label: "Power Pack"    },
+  COINS_1500: { coins: 1500, priceRupees: 100, label: "Pro Pack"      },
+};
+
 const bodySchema = z.object({
-  type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION"]),
+  type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION", "COIN_PACK"]),
   ids: z.array(z.string()).min(1),
   couponCode: z.string().optional(),
 });
@@ -47,7 +54,12 @@ export async function POST(request: Request) {
     }
 
     // 1. Calculate base amount from strictly trusted database tables
-    if (type === "CART") {
+    if (type === "COIN_PACK") {
+      const packId = ids[0];
+      const pack = COIN_PACKS[packId];
+      if (!pack) return NextResponse.json({ error: "Invalid coin pack" }, { status: 400 });
+      computedAmountRupees = pack.priceRupees;
+    } else if (type === "CART") {
       // Filter out already-enrolled slots to prevent double booking
       const existingSubs = await prisma.roomSubscription.findMany({
         where: { userId, studySlotId: { in: ids } },
@@ -84,6 +96,17 @@ export async function POST(request: Request) {
       const planType = ids[0] as "MONTHLY" | "YEARLY";
       if (planType !== "MONTHLY" && planType !== "YEARLY") {
         return NextResponse.json({ error: "Invalid plan type" }, { status: 400 });
+      }
+      // Block if user already has an active subscription
+      const activeSub = await prisma.userSubscription.findFirst({
+        where: { userId, status: "ACTIVE", endDate: { gt: new Date() } },
+        select: { planType: true, endDate: true },
+      });
+      if (activeSub) {
+        return NextResponse.json(
+          { error: `Aapka ${activeSub.planType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai. Expiry ke baad renew karein.` },
+          { status: 400 }
+        );
       }
       // Fetch authoritative price from DB — fall back to DEFAULT_PRICING only when DB has no entry
       const { getAppSetting } = await import("@/lib/app-settings");

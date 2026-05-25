@@ -269,12 +269,13 @@ function SignupContent() {
               </Field>
 
               {/* Mobile + OTP */}
-              <Field label="Mobile Number (WhatsApp)" error={errors.whatsappNumber?.message}>
+              <Field label="Mobile Number (WhatsApp)" error={errors.whatsappNumber?.message || (!otpSent && otpError ? otpError : undefined)}>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Phone className={ICON} style={{ color: "var(--muted-text)" }} />
                     <input {...register("whatsappNumber")} type="tel" placeholder="+91 9876543210"
-                      className={inputCls} style={inputStyle} disabled={otpVerified} />
+                      className={inputCls} style={inputStyle} disabled={otpVerified}
+                      onChange={() => { if (otpError) setOtpError(null); }} />
                   </div>
                   <button type="button" onClick={handleSendOtp}
                     disabled={sendingOtp || resendCooldown > 0 || otpVerified}

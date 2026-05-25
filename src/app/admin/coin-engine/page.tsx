@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { Coins, Check, AlertTriangle, Book, Search, User as UserIcon, Calendar as CalendarIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { Coins, Check, AlertTriangle, Book, Search, User as UserIcon, Calendar as CalendarIcon, TrendingUp, TrendingDown, Gift, Minus, Plus } from "lucide-react";
 
 type ActionReward = {
   actionKey: string;
@@ -30,6 +30,17 @@ export default function CoinEnginePage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
+  // Checkin coins setting
+  const [checkinCoins, setCheckinCoins] = useState(5);
+  const [checkinInput, setCheckinInput] = useState(5);
+  const [savingCheckin, setSavingCheckin] = useState(false);
+
+  // Manual Award State
+  const [awardUserId, setAwardUserId] = useState("");
+  const [awardAmount, setAwardAmount] = useState(0);
+  const [awardReason, setAwardReason] = useState("");
+  const [awarding, setAwarding] = useState(false);
+
   useEffect(() => {
     fetchRules();
     searchPassbook("");
@@ -40,12 +51,19 @@ export default function CoinEnginePage() {
     try {
       const res = await fetch("/api/admin/coin-engine");
       const data = await res.json();
-      if (res.ok && data.length > 0) {
-        const merged = DEFAULT_RULES.map(defaultRule => {
-          const found = data.find((r: any) => r.actionKey === defaultRule.actionKey);
-          return found ? { ...defaultRule, ...found } : defaultRule;
-        });
-        setRules(merged);
+      if (res.ok) {
+        const rulesArr = data.rules ?? data; // backwards compat
+        if (Array.isArray(rulesArr) && rulesArr.length > 0) {
+          const merged = DEFAULT_RULES.map(defaultRule => {
+            const found = rulesArr.find((r: any) => r.actionKey === defaultRule.actionKey);
+            return found ? { ...defaultRule, ...found } : defaultRule;
+          });
+          setRules(merged);
+        }
+        if (data.checkinCoins != null) {
+          setCheckinCoins(data.checkinCoins);
+          setCheckinInput(data.checkinCoins);
+        }
       }
     } catch {
       toast.error("Failed to fetch current coin rules.");
@@ -77,6 +95,54 @@ export default function CoinEnginePage() {
       toast.error("Failed to sync rules.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveCheckinCoins(e: React.FormEvent) {
+    e.preventDefault();
+    if (checkinInput < 1) { toast.error("Minimum 1 coin hona chahiye"); return; }
+    setSavingCheckin(true);
+    try {
+      const res = await fetch("/api/admin/coin-engine", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkinCoins: checkinInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Failed"); return; }
+      setCheckinCoins(data.checkinCoins);
+      toast.success(`Daily check-in coins updated to ${data.checkinCoins}`);
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSavingCheckin(false);
+    }
+  }
+
+  async function handleAward(e: React.FormEvent) {
+    e.preventDefault();
+    if (!awardUserId.trim() || !awardAmount || !awardReason.trim()) {
+      toast.error("Sabhi fields fill karo");
+      return;
+    }
+    setAwarding(true);
+    try {
+      const res = await fetch("/api/admin/coin-engine/award", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: awardUserId.trim(), amount: awardAmount, reason: awardReason.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Failed"); return; }
+      toast.success(`Done! New balance: ${data.newBalance} coins`);
+      setAwardUserId("");
+      setAwardAmount(0);
+      setAwardReason("");
+      searchPassbook("");
+    } catch {
+      toast.error("Failed to award coins");
+    } finally {
+      setAwarding(false);
     }
   }
 
@@ -175,6 +241,108 @@ export default function CoinEnginePage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Daily Check-in Coins Config */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+            <Coins className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-[var(--cream)]">Daily Check-in Coins</h2>
+            <p className="text-xs text-[var(--cream-muted)]">Student roz login karne pe kitne coins milenge — currently <strong>{checkinCoins}</strong> coins</p>
+          </div>
+        </div>
+        <form onSubmit={saveCheckinCoins} className="flex items-end gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">Coins per Day</label>
+            <div className="relative">
+              <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
+              <input
+                type="number"
+                min={1}
+                max={1000}
+                value={checkinInput}
+                onChange={(e) => setCheckinInput(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-36 rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2.5 text-xl font-black text-amber-500 outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-[var(--cream-muted)]">7-day streak = +20 · 30-day = +100</p>
+          </div>
+          <button
+            type="submit"
+            disabled={savingCheckin || checkinInput === checkinCoins}
+            className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-[var(--ink)] shadow-md transition-all hover:bg-amber-400 disabled:opacity-50 mb-5"
+          >
+            <Check className="h-4 w-4" />
+            {savingCheckin ? "Saving…" : "Save"}
+          </button>
+        </form>
+      </div>
+
+      {/* Manual Coin Award / Deduct */}
+      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+            <Gift className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-[var(--cream)]">Manual Coin Award / Deduct</h2>
+            <p className="text-xs text-[var(--cream-muted)]">Kisi bhi student ko directly coins do ya kaato — ledger sync rahega</p>
+          </div>
+        </div>
+        <form onSubmit={handleAward} className="grid gap-4 sm:grid-cols-4">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">User ID</label>
+            <input
+              type="text"
+              placeholder="Student ka User ID (DB)"
+              value={awardUserId}
+              onChange={(e) => setAwardUserId(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">
+              Amount <span className="text-red-400">(negative = deduct)</span>
+            </label>
+            <div className="relative">
+              <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
+              <input
+                type="number"
+                value={awardAmount || ""}
+                onChange={(e) => setAwardAmount(parseInt(e.target.value) || 0)}
+                placeholder="e.g. 50 or -10"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">Reason</label>
+            <input
+              type="text"
+              placeholder="e.g. Bonus, Contest win"
+              value={awardReason}
+              onChange={(e) => setAwardReason(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+            />
+          </div>
+          <div className="sm:col-span-4 flex justify-end">
+            <button
+              type="submit"
+              disabled={awarding || !awardUserId || !awardAmount || !awardReason}
+              className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all disabled:opacity-50 ${
+                awardAmount < 0
+                  ? "bg-red-100 text-red-700 hover:bg-red-200"
+                  : "bg-amber-400 text-amber-900 hover:bg-amber-500 shadow-md"
+              }`}
+            >
+              {awardAmount < 0 ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {awarding ? "Processing…" : awardAmount < 0 ? "Deduct Coins" : "Award Coins"}
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Passbook View */}

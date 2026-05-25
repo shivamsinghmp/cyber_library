@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import {
   Square, Timer, BookOpen, Flame, CalendarCheck,
   Zap, Trophy, ChevronRight, Play, Star, Target,
-  TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight,
+  TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight, Coins,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -36,6 +36,7 @@ type LeaderboardEntry = { rank: number; userId: string; name: string; totalMinut
 type TodoItem = { id: string; title: string; completedAt: string | null; taskDate: string; coins?: number };
 
 type GamificationData = { totalCoins: number; streakDays: number; longestStreakDays: number; lastStudyOn: string | null };
+type CoinSummary = { todayCoins: number; weekCoins: number };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,7 @@ export function DashboardContent({ userName }: { userName: string }) {
   const [stoppingSession, setStoppingSession] = useState(false);
   const [studiedDates, setStudiedDates] = useState<Set<string>>(new Set());
   const [weeklyHours, setWeeklyHours] = useState<{ label: string; hours: number; isToday?: boolean }[]>([]);
+  const [coinSummary, setCoinSummary] = useState<CoinSummary | null>(null);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -214,7 +216,8 @@ export function DashboardContent({ userName }: { userName: string }) {
       fetch("/api/dashboard/meet-addon", { credentials: "include" }).then(r => r.ok ? r.json() : null),
       fetch(`/api/study/streak-calendar?month=${month}`).then(r => r.ok ? r.json() : { studiedDates: [] }),
       fetch(`/api/dashboard/charts?from=${weekFrom}&to=${today}`, { credentials: "include" }).then(r => r.ok ? r.json() : null),
-    ]).then(([slots, subs, lb, todos, addon, calendar, charts]) => {
+      fetch("/api/user/wallet?filter=earned&page=1", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+    ]).then(([slots, subs, lb, todos, addon, calendar, charts, wallet]) => {
       if (slots.status === "fulfilled") setStudyRooms(Array.isArray(slots.value) ? slots.value : []);
       if (subs.status === "fulfilled")  setSubscribedRooms(Array.isArray(subs.value) ? subs.value : []);
 
@@ -238,6 +241,14 @@ export function DashboardContent({ userName }: { userName: string }) {
       if (calendar.status === "fulfilled") {
         const d = calendar.value as { studiedDates?: string[] };
         setStudiedDates(new Set(d.studiedDates ?? []));
+      }
+
+      if (wallet.status === "fulfilled" && wallet.value?.logs) {
+        const logs = wallet.value.logs as Array<{ coins: number; createdAt: string }>;
+        const weekAgoMs = Date.now() - 7 * 86_400_000;
+        const todayCoins = logs.filter(l => l.createdAt.slice(0, 10) === today && l.coins > 0).reduce((s, l) => s + l.coins, 0);
+        const weekCoins = logs.filter(l => new Date(l.createdAt).getTime() >= weekAgoMs && l.coins > 0).reduce((s, l) => s + l.coins, 0);
+        setCoinSummary({ todayCoins, weekCoins });
       }
 
       // Real weekly hours from charts API — no Math.random()
@@ -347,6 +358,12 @@ export function DashboardContent({ userName }: { userName: string }) {
                 <span className="text-[10px] font-bold text-purple-700">Rank #{myEntry.rank}</span>
               </div>
             )}
+            <Link href="/dashboard/wallet"
+              className="flex items-center gap-1.5 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100 transition-colors"
+            >
+              <Coins className="h-3.5 w-3.5 text-amber-600" />
+              <span className="text-[10px] font-bold text-amber-700">{totalCoins.toLocaleString("en-IN")} coins</span>
+            </Link>
           </div>
         </motion.div>
       </motion.div>
@@ -542,13 +559,24 @@ export function DashboardContent({ userName }: { userName: string }) {
 
           <div className="flex items-baseline gap-2 mb-1">
             <span className="text-3xl font-black text-amber-600">{totalCoins.toLocaleString("en-IN")}</span>
-            <span className="text-[10px] text-emerald-600 font-bold">+25 today</span>
+            {coinSummary !== null && coinSummary.todayCoins > 0 && (
+              <span className="text-[10px] text-emerald-600 font-bold">+{coinSummary.todayCoins} today</span>
+            )}
           </div>
 
           <div className="space-y-1.5 mb-4 text-[11px] bg-white/60 rounded-xl p-2.5 border border-amber-100">
-            <div className="flex justify-between"><span className="text-[var(--muted-text)]">Session done</span><span className="text-amber-600 font-bold">+25</span></div>
-            <div className="flex justify-between"><span className="text-[var(--muted-text)]">Todos done</span><span className="text-amber-600 font-bold">+{doneTodos}</span></div>
-            <div className="flex justify-between border-t border-amber-100 pt-1.5"><span className="text-[var(--muted-text)] font-semibold">This week</span><span className="text-amber-600 font-black">+142</span></div>
+            <div className="flex justify-between">
+              <span className="text-[var(--muted-text)]">Earned today</span>
+              <span className="text-amber-600 font-bold">{coinSummary !== null ? `+${coinSummary.todayCoins}` : "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--muted-text)]">Todos done</span>
+              <span className="text-amber-600 font-bold">+{doneTodos}</span>
+            </div>
+            <div className="flex justify-between border-t border-amber-100 pt-1.5">
+              <span className="text-[var(--muted-text)] font-semibold">This week</span>
+              <span className="text-amber-600 font-black">{coinSummary !== null ? `+${coinSummary.weekCoins}` : "—"}</span>
+            </div>
           </div>
 
           <p className="text-[10px] font-black uppercase tracking-wider text-[var(--muted-text)] mb-2">Badges</p>
