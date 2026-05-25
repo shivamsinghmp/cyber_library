@@ -20,6 +20,7 @@ jobs:
             set -e
             cd /var/www/cyber_library
             git pull origin main
+            rm -rf node_modules
             npm ci
             npx prisma generate
             npx prisma migrate deploy
