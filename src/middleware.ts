@@ -4,9 +4,9 @@ import type { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author", "/api/admin", "/api/dashboard", "/api/staff", "/api/student", "/api/study", "/api/profile", "/api/user", "/api/feedback", "/api/rewards"];
+const PROTECTED_PREFIXES = ["/admin", "/staff", "/dashboard", "/affiliate", "/author", "/api/author", "/api/admin", "/api/dashboard", "/api/staff", "/api/student", "/api/study", "/api/profile", "/api/user", "/api/feedback", "/api/rewards", "/api/razorpay", "/api/coupon", "/api/subscription"];
 
-const PUBLIC_API_EXCEPTIONS = ["/api/study/leaderboard"];
+const PUBLIC_API_EXCEPTIONS = ["/api/study/leaderboard", "/api/public"];
 
 function isProtected(pathname: string): boolean {
   if (PUBLIC_API_EXCEPTIONS.some((p) => pathname === p || pathname.startsWith(p + "/"))) return false;
@@ -23,6 +23,20 @@ const ratelimit = process.env.UPSTASH_REDIS_REST_URL
       analytics: true,
     })
   : null;
+
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Frame-Options": "SAMEORIGIN",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "X-DNS-Prefetch-Control": "on",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+};
+
+function applySecurityHeaders(res: NextResponse): NextResponse {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.headers.set(k, v);
+  return res;
+}
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -44,7 +58,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!isProtected(pathname)) return NextResponse.next();
+  if (!isProtected(pathname)) return applySecurityHeaders(NextResponse.next());
 
   const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
   if (!secret) {
@@ -53,10 +67,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  // NextAuth v5 uses "__Secure-authjs.session-token" on HTTPS and
-  // "authjs.session-token" on HTTP. Without secureCookie:true, getToken()
-  // defaults to the HTTP name and silently returns null on production HTTPS.
-  const secureCookie = request.url.startsWith("https://");
+  // Behind nginx reverse proxy, request.url is http:// even though client is HTTPS.
+  // Use x-forwarded-proto to correctly detect HTTPS so we look for the right cookie
+  // (__Secure-authjs.session-token vs authjs.session-token).
+  const proto = request.headers.get("x-forwarded-proto") ?? "";
+  const secureCookie = proto === "https" || request.url.startsWith("https://");
   const token = await getToken({ req: request, secret, secureCookie });
 
   if (!token) {
@@ -72,40 +87,40 @@ export async function middleware(request: NextRequest) {
     if (role === "EMPLOYEE") return NextResponse.redirect(new URL("/staff", request.url));
     if (role === "INFLUENCER") return NextResponse.redirect(new URL("/affiliate", request.url));
     if (role === "AUTHOR") return NextResponse.redirect(new URL("/author", request.url));
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   if (pathname.startsWith("/admin")) {
     if (role !== "ADMIN" && role !== "EMPLOYEE") return NextResponse.redirect(new URL("/dashboard", request.url));
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   if (pathname.startsWith("/staff")) {
     if (role !== "EMPLOYEE" && role !== "ADMIN") return NextResponse.redirect(new URL("/dashboard", request.url));
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   if (pathname.startsWith("/affiliate")) {
     if (role !== "INFLUENCER") return NextResponse.redirect(new URL("/dashboard", request.url));
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   if (pathname.startsWith("/author")) {
     if (role !== "AUTHOR") return NextResponse.redirect(new URL("/dashboard", request.url));
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   if (pathname.startsWith("/api/admin")) {
     if (role !== "ADMIN" && role !== "EMPLOYEE") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
   if (pathname.startsWith("/api/author")) {
     if (role !== "AUTHOR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    return NextResponse.next();
+    return applySecurityHeaders(NextResponse.next());
   }
 
-  return NextResponse.next();
+  return applySecurityHeaders(NextResponse.next());
 }
 
 export const config = {
@@ -131,5 +146,8 @@ export const config = {
     "/api/user/:path*",
     "/api/feedback/:path*",
     "/api/rewards/:path*",
+    "/api/razorpay/:path*",
+    "/api/coupon/:path*",
+    "/api/subscription/:path*",
   ],
 };
