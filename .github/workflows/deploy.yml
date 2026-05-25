@@ -27,3 +27,35 @@ jobs:
             npm run build
             pm2 reload ecosystem.config.js --update-env
             pm2 save
+
+      - name: Health check
+        run: |
+          echo "Waiting 30s for app to be ready..."
+          sleep 30
+
+          # Home page must return 200
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://cyberlib.in)
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Home page returned $STATUS (expected 200)"
+            exit 1
+          fi
+          echo "✅ Home page OK ($STATUS)"
+
+          # /dashboard must redirect to login (307), NOT to itself in a loop
+          DASH=$(curl -s -o /dev/null -w "%{http_code}" -L --max-redirs 1 https://cyberlib.in/dashboard)
+          if [ "$DASH" = "200" ] || [ "$DASH" = "307" ]; then
+            echo "✅ Dashboard redirect OK"
+          else
+            echo "❌ Dashboard returned unexpected status $DASH"
+            exit 1
+          fi
+
+          # Auth session endpoint must return 200
+          AUTH=$(curl -s -o /dev/null -w "%{http_code}" https://cyberlib.in/api/auth/session)
+          if [ "$AUTH" != "200" ]; then
+            echo "❌ /api/auth/session returned $AUTH (expected 200)"
+            exit 1
+          fi
+          echo "✅ Auth session OK"
+
+          echo "🚀 All health checks passed!"
