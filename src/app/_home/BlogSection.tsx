@@ -53,7 +53,7 @@ export function BlogSection({ blogs }: { blogs: Blog[] }) {
                 <div className="flex-1 p-8">
                   <div className="mb-4">
                     <span className="inline-flex rounded-full px-3 py-1 text-xs font-bold" style={{ background: "var(--accent-pale)", color: "var(--accent)" }}>
-                      {blog.publishedAt ? new Date(blog.publishedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
+                      {blog.publishedAt ? new Date(blog.publishedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
                     </span>
                   </div>
                   <h4 className="mb-3 line-clamp-2 text-xl font-bold transition-colors group-hover:text-[var(--accent)]" style={{ color: "var(--foreground)" }}>{blog.title}</h4>
