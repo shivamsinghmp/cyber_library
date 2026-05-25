@@ -13,15 +13,16 @@ export function EmailVerifyBanner({ email }: { email: string }) {
       <div className="flex-1 min-w-0 text-sm font-semibold">
         <span className="mr-1">Email verify nahi hua hai!</span>
         <span className="font-normal opacity-90 hidden sm:inline">
-          OTP se{" "}
-          <strong className="ml-0.5">{email}</strong> verify karo — Profile mein jao.
+          Profile mein jaake{" "}
+          <strong className="ml-0.5">{email}</strong>{" "}
+          ko OTP se verify karo.
         </span>
       </div>
 
       <Link
         href="/dashboard/profile"
         className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-extrabold text-red-600 hover:bg-red-50 transition-colors">
-        Verify Karo →
+        Profile Mein Jao →
       </Link>
     </div>
   );
