@@ -32,8 +32,6 @@ function LoginForm() {
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [resendingLink, setResendingLink] = useState(false);
-  const [resendDone, setResendDone] = useState(false);
   const [loginAs, setLoginAs]         = useState<string>("STUDENT");
   const [showPassword, setShowPassword] = useState(false);
   const [logoUrl, setLogoUrl]         = useState<string | null>(null);
@@ -73,23 +71,9 @@ function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  async function handleResendLink(email: string) {
-    setResendingLink(true);
-    try {
-      await fetch("/api/auth/verify-email/resend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      setResendDone(true);
-    } catch {}
-    finally { setResendingLink(false); }
-  }
-
   async function onSubmit(data: FormData) {
     setSubmitError(null);
     setUnverifiedEmail(null);
-    setResendDone(false);
     try {
       const result = await signIn("credentials", {
         email: data.email, password: data.password, loginAsRole: loginAs, redirect: false,
@@ -309,25 +293,15 @@ function LoginForm() {
                 {errors.password && <p className="text-xs font-semibold text-red-500">{errors.password.message}</p>}
               </div>
 
-              {/* Unverified email error */}
+              {/* Unverified email — guide to OTP in profile */}
               {unverifiedEmail && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-2">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
                   <p className="text-sm font-semibold text-amber-700">
-                    Email verify nahi hua hai. Pehle verify karo.
+                    Email verify nahi hua hai.
                   </p>
-                  {resendDone ? (
-                    <p className="text-xs font-medium text-emerald-600">
-                      ✅ Naya link bhej diya! Inbox check karo.
-                    </p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleResendLink(unverifiedEmail)}
-                      disabled={resendingLink}
-                      className="text-xs font-bold underline text-amber-700 disabled:opacity-50">
-                      {resendingLink ? "Bhej rahe hain…" : "Verification link dobara bhejo →"}
-                    </button>
-                  )}
+                  <p className="text-xs text-amber-600">
+                    Login karo — Dashboard pe Profile mein jaake OTP se verify kar sakte ho.
+                  </p>
                 </div>
               )}
 
