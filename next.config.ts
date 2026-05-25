@@ -1,7 +1,17 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { execSync } from "child_process";
+
+const gitHash = (() => {
+  try {
+    return execSync("git rev-parse --short HEAD").toString().trim();
+  } catch {
+    return Date.now().toString();
+  }
+})();
 
 const nextConfig: NextConfig = {
+  generateBuildId: async () => gitHash,
   // Fix the workspace root detection warning from multiple lockfiles
   outputFileTracingRoot: path.join(__dirname),
 
@@ -38,6 +48,16 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
+      // Never cache HTML pages — browser must always fetch fresh HTML after deploy
+      {
+        source: "/:path((?!_next/static|_next/image|favicon\\.ico).*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+        ],
+      },
       // Cache public static files for 7 days
       {
         source: "/(.*)\\.(ico|png|jpg|jpeg|svg|gif|webp|avif|woff|woff2|ttf|otf)",
