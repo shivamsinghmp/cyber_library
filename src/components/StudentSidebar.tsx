@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -250,7 +250,7 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
               {(logoUrl?.trim() && logoUrl.startsWith("http")) ? (
                 <img src={logoUrl} alt={siteTitle} className="h-10 w-10 object-contain rounded-xl" />
               ) : (
-                <Image src={logoUrl?.trim() || "/logo.svg"} alt={siteTitle} width={40} height={40} className="object-contain" />
+                <Image src={logoUrl?.trim() || "/logo.png"} alt={siteTitle} width={40} height={40} className="object-contain" />
               )}
             </div>
             <span className="text-sm font-bold text-[var(--foreground)] truncate">{siteTitle}</span>

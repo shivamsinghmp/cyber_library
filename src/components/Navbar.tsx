@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -75,7 +75,7 @@ export function Navbar({ initialLogoUrl, initialTitle, initialTagline }: NavbarP
   }
   if (pathname.startsWith("/meet-addon")) dashboardLink = "/meet-addon/panel";
 
-  const logoSrc      = logoUrl?.trim() || "/logo.svg";
+  const logoSrc      = logoUrl?.trim() || "/logo.png";
   const isExtLogo    = logoSrc.startsWith("http");
 
   const isActive = (href: string) =>

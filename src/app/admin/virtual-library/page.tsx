@@ -105,10 +105,10 @@ export default function AdminVirtualLibraryPage() {
             type="text"
             value={values.SITE_LOGO_URL}
             onChange={(e) => setValue("SITE_LOGO_URL", e.target.value)}
-            placeholder="/logo.svg or https://..."
+            placeholder="/logo.png or https://..."
             className="admin-input"
           />
-          <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Shown in navbar, login, sidebar. Empty = /logo.svg</p>
+          <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Shown in navbar, login, sidebar. Empty = /logo.png</p>
         </div>
 
         <div>

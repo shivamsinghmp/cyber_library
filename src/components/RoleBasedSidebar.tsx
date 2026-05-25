@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -197,7 +197,7 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
     setExpandedCats((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const logoSrc = logoUrl?.trim() || "/logo.svg";
+  const logoSrc = logoUrl?.trim() || "/logo.png";
   const isExternalLogo = logoSrc.startsWith("http");
 
   if (status === "loading") {

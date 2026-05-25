@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -187,7 +187,7 @@ function AddonPanel() {
 
       {/* Header */}
       <div style={s.header}>
-        <img src="/logo.svg" alt="" style={{ height: 20, width: 20, borderRadius: 5 }} />
+        <img src="/logo.png" alt="" style={{ height: 20, width: 20, borderRadius: 5 }} />
         <span style={s.brand}>The Cyber Library</span>
         {token && <button style={s.logoutBtn} onClick={logout}>Logout</button>}
       </div>

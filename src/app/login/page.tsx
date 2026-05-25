@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
@@ -63,7 +63,7 @@ function LoginForm() {
       }).catch(() => {});
   }, []);
 
-  const logoSrc      = logoUrl?.trim() || "/logo.svg";
+  const logoSrc      = logoUrl?.trim() || "/logo.png";
   const isExternalLogo = logoSrc.startsWith("http");
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({

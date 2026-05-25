@@ -60,7 +60,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ transa
           {/* Header — gradient */}
           <div className="px-10 py-8 text-center" style={{ background: "linear-gradient(135deg,#1e1b4b 0%,#3730a3 60%,#4c1d95 100%)" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="The Cyber Library" width={64} height={64} className="mx-auto rounded-2xl mb-4" />
+            <img src="/logo.png" alt="The Cyber Library" width={64} height={64} className="mx-auto rounded-2xl mb-4" />
             <p className="text-[11px] font-bold tracking-[4px] uppercase text-indigo-300 mb-1">The Cyber Library</p>
             <p className="text-[11px] tracking-[3px] text-indigo-500 opacity-70">LEARN · GROW · CONNECT</p>
           </div>

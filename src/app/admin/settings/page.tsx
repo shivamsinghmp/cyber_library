@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -93,7 +93,7 @@ const ENV_GROUPS: EnvGroup[] = [
       { key: "SITE_TITLE",       example: "The Cyber Library" },
       { key: "SITE_TAGLINE",     example: "Live 24/7 Focus Hub & Study Rooms" },
       { key: "SITE_HEADLINE",    example: "Study Smarter. Together." },
-      { key: "SITE_LOGO_URL",    example: "https://cdn.example.com/logo.svg", note: "Leave empty for /logo.svg" },
+      { key: "SITE_LOGO_URL",    example: "https://cdn.example.com/logo.png", note: "Leave empty for /logo.png" },
       { key: "SITE_FAVICON_URL", example: "https://cdn.example.com/favicon.ico" },
     ],
   },

@@ -1,7 +1,6 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Suspense } from "react";
 import { getAppSetting } from "@/lib/app-settings";
-import { auth } from "@/auth";
 import { Facebook, Instagram, Twitter, Github, Youtube } from "lucide-react";
 import { FooterNewsletterForm } from "./FooterNewsletterForm";
 
@@ -90,7 +89,7 @@ function FooterInner({ config }: { config: FooterConfig }) {
             <div className="flex items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logo.svg"
+                src="/logo.png"
                 alt="The Cyber Library"
                 width={36}
                 height={36}
@@ -196,8 +195,6 @@ async function FooterLoader() {
 }
 
 export async function Footer() {
-  const session = await auth();
-  if (session?.user) return null;
   return (
     <Suspense fallback={<FooterInner config={DEFAULT_FOOTER} />}>
       <FooterLoader />

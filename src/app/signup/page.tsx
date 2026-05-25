@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
@@ -74,7 +74,7 @@ function SignupContent() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  const logoSrc      = logoUrl?.trim() || "/logo.svg";
+  const logoSrc      = logoUrl?.trim() || "/logo.png";
   const isExternalLogo = logoSrc.startsWith("http");
 
   const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormData>({

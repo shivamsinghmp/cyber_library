@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+﻿import { prisma } from "./prisma";
 import { decrypt, encrypt } from "./encrypt";
 
 export const APP_SETTING_KEYS = {
@@ -8,12 +8,13 @@ export const APP_SETTING_KEYS = {
   GOOGLE_SERVICE_ACCOUNT_EMAIL:   { label: "Google Service Account Email",                       secret: false },
   GOOGLE_PRIVATE_KEY:             { label: "Google Private Key (PEM)",                           secret: true  },
   GOOGLE_CALENDAR_ID:             { label: "Google Calendar ID",                                 secret: false },
+  GOOGLE_CALENDAR_OWNER_EMAIL:    { label: "Google Calendar Owner Email (Workspace user to impersonate)", secret: false },
   NEXTAUTH_URL:                   { label: "NextAuth URL (optional)",                            secret: false },
   ANNOUNCEMENT:                   { label: "Announcement banner (site-wide)",                    secret: false },
   SUPPORT_WHATSAPP_NUMBER:        { label: "Support WhatsApp number (e.g. 919876543210)",        secret: false },
   SUPPORT_EMAIL:                  { label: "Support email",                                      secret: false },
   WHATSAPP_GROUP_LINK:            { label: "WhatsApp group join link",                           secret: false },
-  SITE_LOGO_URL:                  { label: "Site logo URL (leave empty for default /logo.svg)",  secret: false },
+  SITE_LOGO_URL:                  { label: "Site logo URL (leave empty for default /logo.png)",  secret: false },
   SITE_FAVICON_URL:               { label: "Favicon URL (browser tab icon)",                     secret: false },
   SITE_TITLE:                     { label: "Site title (browser tab, SEO)",                      secret: false },
   SITE_TAGLINE:                   { label: "Site tagline",                                       secret: false },

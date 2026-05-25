@@ -27,6 +27,7 @@ import { SessionProvider } from "@/components/SessionProvider";
 import { CartProvider } from "@/context/CartContext";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
 import { Footer } from "@/components/Footer";
+import FooterOnHomeOnly from "@/components/FooterOnHomeOnly";
 import { AnnouncementBannerWrapper } from "@/components/AnnouncementBannerWrapper";
 import { TrafficTracker } from "@/components/TrafficTracker";
 import { Toaster } from "react-hot-toast";
@@ -80,9 +81,9 @@ export async function generateMetadata(): Promise<Metadata> {
       description: siteDescription,
     },
     icons: {
-      icon: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
-      shortcut: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
-      apple: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
+      icon: settings.SITE_FAVICON_URL?.trim() || "/favicon.png",
+      shortcut: settings.SITE_FAVICON_URL?.trim() || "/favicon.png",
+      apple: settings.SITE_FAVICON_URL?.trim() || "/favicon.png",
     },
   };
 }
@@ -152,7 +153,7 @@ export default async function RootLayout({
               <main className="flex-1 flex flex-col">
                 {children}
               </main>
-              <Footer />
+              <FooterOnHomeOnly><Footer /></FooterOnHomeOnly>
             </CartProvider>
           </SessionProvider>
         </SmoothScroll>

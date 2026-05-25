@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Email via Resend API only.
  * RESEND_API_KEY and RESEND_FROM must be set in .env.
  * Every sent email is logged to EmailLog with resendId for webhook tracking.
@@ -82,6 +82,15 @@ async function sendAndLog({
 }
 
 // ─── Template helpers ──────────────────────────────────────────────────────────
+
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
 
 function applyVars(template: string, vars: Record<string, string>): string {
   return Object.entries(vars).reduce(
@@ -192,6 +201,7 @@ export async function sendMagicLinkEmail(to: string, verifyUrl: string, name?: s
 // ─── Purchase Receipt ──────────────────────────────────────────────────────────
 
 type ReceiptItem = { name: string; price: number };
+type EnrolledRoom = { name: string; timeLabel: string; meetLink: string | null };
 
 export async function sendPurchaseReceipt({
   to,
@@ -203,6 +213,7 @@ export async function sendPurchaseReceipt({
   planType,
   membershipStart,
   membershipEnd,
+  enrolledRooms,
 }: {
   to: string;
   customerName?: string | null;
@@ -213,13 +224,15 @@ export async function sendPurchaseReceipt({
   planType?: "MONTHLY" | "YEARLY" | null;
   membershipStart?: Date | null;
   membershipEnd?: Date | null;
+  enrolledRooms?: EnrolledRoom[] | null;
 }) {
   const siteUrl    = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberlib.in";
-  const logoUrl    = `${siteUrl}/logo.svg`;
+  const logoUrl    = `${siteUrl}/logo.png`;
   const receiptUrl = `${siteUrl}/dashboard/receipt/${transactionId}`;
   const isSubscription = !!planType;
 
-  const firstName = customerName?.split(" ")[0] ?? "Student";
+  const firstName = escHtml(customerName?.split(" ")[0] ?? "Student");
+  const safeEmail = escHtml(to);
   const date      = new Date().toLocaleString("en-IN", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
   const fmtDate = (d: Date) =>
@@ -333,7 +346,7 @@ export async function sendPurchaseReceipt({
           </tr>
           <tr>
             <td style="color:#6b7280;padding:3px 0;">Email</td>
-            <td style="font-weight:600;color:#111827;text-align:right;">${to}</td>
+            <td style="font-weight:600;color:#111827;text-align:right;">${safeEmail}</td>
           </tr>
         </table>
       </div>
@@ -344,6 +357,27 @@ export async function sendPurchaseReceipt({
           View & Download Receipt →
         </a>
       </div>
+
+      ${enrolledRooms && enrolledRooms.length > 0 ? `
+      <!-- Study Room Meet Links -->
+      <div style="margin:0 0 24px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px 20px;">
+        <p style="margin:0 0 12px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#16a34a;">Your Study Rooms</p>
+        ${enrolledRooms.map(r => {
+          const safeName = escHtml(r.name);
+          const safeTime = escHtml(r.timeLabel);
+          const safeLink = r.meetLink && /^https:\/\//i.test(r.meetLink) ? escHtml(r.meetLink) : null;
+          return `
+        <div style="margin-bottom:12px;padding:12px 14px;background:#ffffff;border:1px solid #d1fae5;border-radius:10px;">
+          <p style="margin:0 0 2px;font-size:14px;font-weight:700;color:#111827;">${safeName}</p>
+          <p style="margin:0 0 10px;font-size:12px;color:#6b7280;">${safeTime}</p>
+          ${safeLink
+            ? `<a href="${safeLink}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;">Join Google Meet →</a>`
+            : `<span style="font-size:12px;color:#9ca3af;">Meet link will be shared soon</span>`
+          }
+        </div>`;
+        }).join("")}
+        <p style="margin:8px 0 0;font-size:11px;color:#15803d;">✓ Aap in sessions mein auto-admit ho jayenge. Google Calendar invite bhi bheja ja raha hai.</p>
+      </div>` : ""}
 
       ${isSubscription ? `
       <!-- What's included -->
