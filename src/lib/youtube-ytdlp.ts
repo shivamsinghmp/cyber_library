@@ -1,43 +1,20 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { writeFile, unlink } from "fs/promises";
-import { tmpdir } from "os";
-import { join } from "path";
-import { randomBytes } from "crypto";
 
 const execFileAsync = promisify(execFile);
 
 const IS_WIN = process.platform === "win32";
 
-// Convert "NAME=VALUE; NAME2=VALUE2" cookie string to Netscape cookie file format
-function toNetscapeCookies(cookieStr: string): string {
-  const lines = ["# Netscape HTTP Cookie File", ""];
-  for (const part of cookieStr.split(";")) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const name  = trimmed.slice(0, eq).trim();
-    const value = trimmed.slice(eq + 1).trim();
-    // domain  domain_initial_dot  path  secure  expiry  name  value
-    lines.push(`.youtube.com\tTRUE\t/\tTRUE\t0\t${name}\t${value}`);
-    lines.push(`.google.com\tTRUE\t/\tTRUE\t0\t${name}\t${value}`);
-  }
-  return lines.join("\n");
-}
-
-function buildArgs(videoId: string, cookieFile?: string): { bin: string; args: string[] } {
+function buildArgs(videoId: string, cookies?: string | null): { bin: string; args: string[] } {
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const cookieArgs = cookies?.trim()
+    ? ["--add-header", `Cookie:${cookies.trim()}`]
+    : [];
 
   if (IS_WIN) {
     return {
       bin:  "python",
-      args: [
-        "-m", "yt_dlp",
-        "--dump-json", "--no-playlist", "--no-warnings",
-        ...(cookieFile ? ["--cookies", cookieFile] : []),
-        ytUrl,
-      ],
+      args: ["-m", "yt_dlp", "--dump-json", "--no-playlist", "--no-warnings", ...cookieArgs, ytUrl],
     };
   }
 
@@ -47,8 +24,7 @@ function buildArgs(videoId: string, cookieFile?: string): { bin: string; args: s
     args: [
       "--dump-json", "--no-playlist", "--no-warnings",
       "--js-runtimes", `nodejs:${nodeBin}`,
-      "--extractor-args", "youtube:player_client=android_vr,android",
-      ...(cookieFile ? ["--cookies", cookieFile] : []),
+      ...cookieArgs,
       ytUrl,
     ],
   };
@@ -89,14 +65,7 @@ export async function getYTStreamInfoViaYtDlp(
   videoId: string,
   cookies?: string | null,
 ): Promise<YtDlpStreamInfo> {
-  // Write cookies to a temp Netscape file if provided
-  let cookieFile: string | undefined;
-  if (cookies?.trim()) {
-    cookieFile = join(tmpdir(), `yt-cookies-${randomBytes(8).toString("hex")}.txt`);
-    await writeFile(cookieFile, toNetscapeCookies(cookies), { mode: 0o600 });
-  }
-
-  const { bin, args } = buildArgs(videoId, cookieFile);
+  const { bin, args } = buildArgs(videoId, cookies);
 
   let stdout: string;
   try {
@@ -104,8 +73,6 @@ export async function getYTStreamInfoViaYtDlp(
   } catch (e: unknown) {
     const stderr = (e as { stderr?: string }).stderr ?? (e as Error).message;
     throw new Error(stderr.trim().slice(0, 300));
-  } finally {
-    if (cookieFile) unlink(cookieFile).catch(() => {});
   }
 
   const jsonLine = stdout.split("\n").find(l => l.trim().startsWith("{"));
