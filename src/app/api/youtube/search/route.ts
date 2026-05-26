@@ -16,7 +16,12 @@ export async function GET(request: Request) {
   try {
     const res = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(q)}&key=${apiKey}&maxResults=10&relevanceLanguage=hi`,
-      { next: { revalidate: 300 } }
+      {
+        next: { revalidate: 300 },
+        // Server-side fetches have no Referer by default, which causes YouTube to
+        // reject requests when the API key has HTTP-referrer restrictions configured.
+        headers: { Referer: "https://cyberlib.in/" },
+      }
     );
 
     if (!res.ok) {
