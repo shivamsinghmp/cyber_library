@@ -1,12 +1,37 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-// Windows: python module; Linux: absolute path (pm2 may not have /usr/local/bin in PATH)
-const YTDLP_CMD = process.platform === "win32"
-  ? "python -m yt_dlp"
-  : "/usr/local/bin/yt-dlp";
+const IS_WIN = process.platform === "win32";
+
+// On Linux server: find node binary for yt-dlp JS runtime (needed for n-param decode)
+function buildArgs(videoId: string): { bin: string; args: string[] } {
+  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+  if (IS_WIN) {
+    return {
+      bin:  "python",
+      args: [
+        "-m", "yt_dlp",
+        "--dump-json", "--no-playlist", "--no-warnings",
+        ytUrl,
+      ],
+    };
+  }
+
+  // Linux: use yt-dlp binary, pass node as JS runtime so n-param is decoded
+  const nodeBin = process.execPath; // path to the node binary running this server
+  return {
+    bin:  "/usr/local/bin/yt-dlp",
+    args: [
+      "--dump-json", "--no-playlist", "--no-warnings",
+      "--js-runtimes", `nodejs:${nodeBin}`,
+      "--extractor-args", "youtube:player_client=android_vr,android",
+      ytUrl,
+    ],
+  };
+}
 
 interface YtDlpFormat {
   url:     string;
@@ -40,22 +65,20 @@ export type YtDlpStreamInfo = {
 };
 
 export async function getYTStreamInfoViaYtDlp(videoId: string): Promise<YtDlpStreamInfo> {
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
-  const cmd = `${YTDLP_CMD} --dump-json --no-playlist --no-warnings "${url}"`;
+  const { bin, args } = buildArgs(videoId);
 
-  const { stdout } = await execAsync(cmd, { timeout: 25_000 });
+  const { stdout } = await execFileAsync(bin, args, { timeout: 30_000 });
 
-  // yt-dlp may print warnings before the JSON line
   const jsonLine = stdout.split("\n").find(l => l.trim().startsWith("{"));
-  if (!jsonLine) throw new Error("yt-dlp returned no JSON");
+  if (!jsonLine) throw new Error("yt-dlp returned no JSON output");
 
   const info: YtDlpInfo = JSON.parse(jsonLine);
 
-  const title          = info.title          ?? "Unknown Track";
-  const author         = info.uploader       ?? info.channel ?? "Unknown";
-  const thumbnail      = info.thumbnail      ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-  const durationSeconds = info.duration      ?? 0;
-  const isLive         = !!info.is_live;
+  const title           = info.title        ?? "Unknown Track";
+  const author          = info.uploader     ?? info.channel ?? "Unknown";
+  const thumbnail       = info.thumbnail    ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  const durationSeconds = info.duration     ?? 0;
+  const isLive          = !!info.is_live;
 
   if (isLive) {
     return { title, author, thumbnail, durationSeconds: 0, isLive: true, hlsUrl: info.manifest_url };
