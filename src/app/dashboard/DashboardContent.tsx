@@ -403,6 +403,32 @@ export function DashboardContent({ userName }: { userName: string }) {
           );
         }
 
+        // Room-only enrolled users: show simple enrolled badge, no expiry logic
+        if (subscription.planType === "ROOM") {
+          return (
+            <motion.div variants={anim.container} initial="hidden" animate="show">
+              <motion.div variants={anim.item}
+                className="card p-4 flex items-center gap-3 border-emerald-200/60 bg-emerald-50/40"
+              >
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: "linear-gradient(135deg,#059669,#10b981)" }}>
+                  <Crown className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-bold text-[var(--foreground)]">
+                    Study Room Enrolled
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white"
+                      style={{ background: "linear-gradient(135deg,#059669,#10b981)" }}>
+                      ACTIVE
+                    </span>
+                  </p>
+                  <p className="text-xs text-[var(--muted-text)]">You are enrolled in a study room</p>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        }
+
         const end = new Date(subscription.endDate!);
         const daysLeft = Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
         const isExpiringSoon = daysLeft <= 7;

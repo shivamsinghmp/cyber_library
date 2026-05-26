@@ -383,7 +383,7 @@ function CheckoutForm() {
     );
   }
 
-  if (isSubscription && !subLoading && hasActiveSub) {
+  if (isSubscription && !subLoading && hasActiveSub && activePlanType !== "ROOM") {
     const expiry = activeEndDate ? new Date(activeEndDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : null;
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">

@@ -164,6 +164,9 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Room-enrolled users: no expiry banner needed
+  if (planType === "ROOM") return <>{children}</>;
+
   // Active subscription — show remaining days hint
   const daysLeft = endDate
     ? Math.max(0, Math.ceil((new Date(endDate).getTime() - Date.now()) / 86_400_000))
