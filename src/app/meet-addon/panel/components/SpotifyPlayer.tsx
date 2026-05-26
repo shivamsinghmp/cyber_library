@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Music2, RotateCcw } from "lucide-react";
+import { X, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const YT_STORAGE_KEY = "vl_yt_music_url";
@@ -47,7 +47,6 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
   const [ytInput, setYtInput] = useState("");
   const [ytEmbed, setYtEmbed] = useState<string | null>(null);
   const [ytError, setYtError] = useState("");
-  const [compact, setCompact] = useState(false);
 
   useEffect(() => {
     try {
@@ -88,59 +87,50 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
               <span className="text-xs font-bold text-white">Study Music</span>
             </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCompact((c) => !c)}
-                title={compact ? "Expand" : "Compact"}
-                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <Music2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Player */}
+          {/* Audio-only player — video clipped, only controls visible */}
           {ytEmbed && (
-            <iframe
-              key={ytEmbed}
-              src={ytEmbed}
-              width="340"
-              height={compact ? 120 : 200}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              allowFullScreen
-              className="block w-full border-0"
-              title="YouTube Study Music"
-            />
+            <div style={{ height: 56, overflow: "hidden", background: "#111" }}>
+              <iframe
+                key={ytEmbed}
+                src={ytEmbed}
+                width={340}
+                height={200}
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                allowFullScreen
+                className="block border-0"
+                style={{ marginTop: -144 }}
+                title="YouTube Study Music"
+              />
+            </div>
           )}
 
           {/* Presets */}
-          {!compact && (
-            <div className="px-3 pt-2 pb-1.5" style={{ background: "#111" }}>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5">Study Playlists</p>
-              <div className="flex flex-wrap gap-1.5">
-                {YT_PRESETS.map((p) => (
-                  <button
-                    key={p.label}
-                    onClick={() => applyYt(p.url)}
-                    title={p.desc}
-                    className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-white/60 hover:bg-white/10 hover:text-white hover:border-white/25 transition-all"
-                  >
-                    {p.emoji} {p.label}
-                  </button>
-                ))}
-              </div>
+          <div className="px-3 pt-2 pb-1.5" style={{ background: "#111" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5">Study Playlists</p>
+            <div className="flex flex-wrap gap-1.5">
+              {YT_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  onClick={() => applyYt(p.url)}
+                  title={p.desc}
+                  className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-white/60 hover:bg-white/10 hover:text-white hover:border-white/25 transition-all"
+                >
+                  {p.emoji} {p.label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           {/* Custom URL */}
-          {!compact && (
-            <form
+          <form
               onSubmit={(e) => { e.preventDefault(); applyYt(ytInput); }}
               className="px-3 pb-3 pt-2 border-t border-white/5"
               style={{ background: "#111" }}
@@ -163,8 +153,7 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
               </div>
               {ytError && <p className="mt-1 text-[10px] text-red-400">{ytError}</p>}
               <p className="mt-1.5 text-[9px] text-white/20">Koi bhi YouTube video ya playlist URL — no login required</p>
-            </form>
-          )}
+          </form>
         </motion.div>
       )}
     </AnimatePresence>
