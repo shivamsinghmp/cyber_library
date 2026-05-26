@@ -39,14 +39,20 @@ export const MODULE_BY_ID   = new Map(STUDENT_MODULES.map(m => [m.id,   m]));
 
 const DB_KEY = "STUDENT_MODULES_DISABLED";
 
+// In-process cache for disabled modules list (TTL: 2 minutes)
+let _disabledCache: { value: string[]; expiresAt: number } | null = null;
+const DISABLED_CACHE_TTL_MS = 2 * 60 * 1000;
+
 /** Returns list of disabled module IDs from DB (server-side only). */
 export async function getDisabledModules(): Promise<string[]> {
+  if (_disabledCache && Date.now() < _disabledCache.expiresAt) return _disabledCache.value;
   try {
     const { prisma } = await import("./prisma");
     const row = await prisma.appSetting.findUnique({ where: { key: DB_KEY } });
-    if (!row?.valueEncrypted) return [];
-    const parsed = JSON.parse(row.valueEncrypted);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = row?.valueEncrypted ? JSON.parse(row.valueEncrypted) : [];
+    const value = Array.isArray(parsed) ? parsed : [];
+    _disabledCache = { value, expiresAt: Date.now() + DISABLED_CACHE_TTL_MS };
+    return value;
   } catch {
     return [];
   }
@@ -61,6 +67,7 @@ export async function setDisabledModules(ids: string[]): Promise<void> {
     create: { key: DB_KEY, valueEncrypted: value, iv: null },
     update: { valueEncrypted: value },
   });
+  _disabledCache = null;
 }
 
 /**

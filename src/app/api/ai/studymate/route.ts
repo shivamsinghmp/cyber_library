@@ -3,7 +3,7 @@ import { requireModule } from "@/lib/api-helpers";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { z } from "zod";
-import { getAppSetting } from "@/lib/app-settings";
+import { batchGetAppSettings } from "@/lib/app-settings";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const CACHE_TTL_PROFILE = 300;
@@ -77,12 +77,12 @@ function estimateCoins(messages: Array<{ content: string }>, model: ModelId): nu
 
 // Fetch AI keys: env takes priority, then DB-stored (admin-configured)
 async function getAiKeys() {
-  const [gemini, anthropic, openai] = await Promise.all([
-    getAppSetting("GEMINI_API_KEY"),
-    getAppSetting("ANTHROPIC_API_KEY"),
-    getAppSetting("OPENAI_API_KEY"),
-  ]);
-  return { gemini: gemini || null, anthropic: anthropic || null, openai: openai || null };
+  const settings = await batchGetAppSettings(["GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]);
+  return {
+    gemini:    settings["GEMINI_API_KEY"]    || null,
+    anthropic: settings["ANTHROPIC_API_KEY"] || null,
+    openai:    settings["OPENAI_API_KEY"]    || null,
+  };
 }
 
 // Which models are available based on configured API keys
@@ -553,7 +553,23 @@ export async function GET() {
     if (auth.error) return auth.error;
     const userId = auth.user.id;
 
-    const [coins, profile, keys] = await Promise.all([getCoins(userId), getProfile(userId), getAiKeys()]);
+    // Single DB query for profile + coins, parallel with AI key lookup
+    const [profileRow, keys] = await Promise.all([
+      prisma.profile.findUnique({
+        where: { userId },
+        select: { coinBalance: true, fullName: true, targetExam: true, targetYear: true, studyGoal: true, totalStudyHours: true, currentStreak: true },
+      }),
+      getAiKeys(),
+    ]);
+    const coins = profileRow?.coinBalance ?? 0;
+    const profile = {
+      name: profileRow?.fullName ?? null,
+      targetExam: profileRow?.targetExam ?? null,
+      targetYear: profileRow?.targetYear ?? null,
+      studyGoal: profileRow?.studyGoal ?? null,
+      totalStudyHours: profileRow?.totalStudyHours ?? 0,
+      currentStreak: profileRow?.currentStreak ?? 0,
+    };
 
     const available = getAvailableModels(keys);
 
