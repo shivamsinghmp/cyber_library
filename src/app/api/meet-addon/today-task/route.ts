@@ -108,13 +108,18 @@ export async function POST(request: NextRequest) {
       data: { completedAt: new Date() },
     });
 
-    await prisma.studyCoinLog.create({
-      data: {
-        userId: payload.userId,
-        reason: "TODO_COMPLETED",
-        coins: await getCoinDelta("TODO_COMPLETED"),
-      },
-    });
+    const coins = await getCoinDelta("TODO_COMPLETED");
+    if (coins !== 0) {
+      await prisma.$transaction([
+        prisma.studyCoinLog.create({
+          data: { userId: payload.userId, reason: "TODO_COMPLETED", coins },
+        }),
+        prisma.profile.update({
+          where: { userId: payload.userId },
+          data: { totalPoints: { increment: coins } },
+        }),
+      ]);
+    }
 
     if (isFirstCompletionToday) {
       await applyStudyStreakForQualifyingDay(payload.userId);
