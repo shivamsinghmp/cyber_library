@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Play, Pause, SkipForward, SkipBack, RotateCcw } from "lucide-react";
+import { X, Play, Pause, SkipForward, SkipBack, Search, Plus, Trash2, ListMusic, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── YouTube IFrame API types ───────────────────────────────────────────────────
@@ -19,17 +19,29 @@ interface YTPlayer {
 
 declare global {
   interface Window {
-    YT?: {
-      Player: new (el: HTMLElement, opts: object) => YTPlayer;
-      PlayerState: { PLAYING: number; PAUSED: number; ENDED: number; BUFFERING: number };
-    };
+    YT?: { Player: new (el: HTMLElement, opts: object) => YTPlayer };
     onYouTubeIframeAPIReady?: () => void;
   }
 }
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-const YT_STORAGE_KEY  = "vl_yt_music_url";
-const DEFAULT_VIDEO   = "5qap5aO4i9A";
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface SearchResult {
+  videoId: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+}
+
+interface PlaylistItem {
+  videoId: string;
+  title: string;
+  thumbnail: string;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const YT_STORAGE_KEY   = "vl_yt_music_url";
+const PLAYLIST_KEY     = "vl_custom_music_playlist";
+const DEFAULT_VIDEO    = "5qap5aO4i9A";
 
 const YT_PRESETS = [
   { label: "Lofi Girl",    emoji: "🎵", desc: "Beats to relax/study to",  videoId: "5qap5aO4i9A" },
@@ -40,37 +52,47 @@ const YT_PRESETS = [
   { label: "Deep Ambient", emoji: "🌌", desc: "Space ambient for focus",   videoId: "77ZozI0rw7w" },
 ];
 
-function parseYouTubeUrl(url: string): { videoId?: string; listId?: string } | null {
-  try {
-    const u = new URL(url.trim());
-    let videoId: string | undefined;
-    let listId:  string | undefined;
-    if (u.hostname === "youtu.be") {
-      videoId = u.pathname.slice(1).split("?")[0] || undefined;
-    } else if (u.hostname.includes("youtube.com")) {
-      videoId = u.searchParams.get("v")    || undefined;
-      listId  = u.searchParams.get("list") || undefined;
-    }
-    if (!videoId && !listId) return null;
-    return { videoId, listId };
-  } catch { return null; }
+function ytThumb(videoId: string) {
+  return `https://i.ytimg.com/vi/${videoId}/default.jpg`;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
+type Tab = "presets" | "search" | "playlist";
 type Props = { isOpen: boolean; onClose: () => void };
 
 export function SpotifyPlayer({ isOpen, onClose }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef    = useRef<YTPlayer | null>(null);
   const readyRef     = useRef(false);
+  const plCtxRef     = useRef<{ items: PlaylistItem[]; index: number } | null>(null);
 
-  const [isPlaying,   setIsPlaying]   = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [trackTitle,  setTrackTitle]  = useState("");
-  const [activePreset,setActivePreset]= useState("Lofi Girl");
-  const [apiReady,    setApiReady]    = useState(false);
-  const [urlInput,    setUrlInput]    = useState("");
-  const [urlError,    setUrlError]    = useState("");
+  // Player state
+  const [isPlaying,    setIsPlaying]    = useState(false);
+  const [isBuffering,  setIsBuffering]  = useState(false);
+  const [trackTitle,   setTrackTitle]   = useState("");
+  const [thumbnail,    setThumbnail]    = useState<string | null>(null);
+  const [apiReady,     setApiReady]     = useState(false);
+
+  // UI state
+  const [tab,          setTab]          = useState<Tab>("presets");
+  const [activePreset, setActivePreset] = useState("Lofi Girl");
+  const [plIdx,        setPlIdx]        = useState(-1);
+
+  // Search state
+  const [query,        setQuery]        = useState("");
+  const [results,      setResults]      = useState<SearchResult[]>([]);
+  const [searching,    setSearching]    = useState(false);
+  const [searchErr,    setSearchErr]    = useState("");
+
+  // Custom playlist
+  const [playlist, setPlaylist] = useState<PlaylistItem[]>(() => {
+    try { return JSON.parse(localStorage.getItem(PLAYLIST_KEY) ?? "[]") as PlaylistItem[]; } catch { return []; }
+  });
+
+  const savePlaylist = (items: PlaylistItem[]) => {
+    setPlaylist(items);
+    try { localStorage.setItem(PLAYLIST_KEY, JSON.stringify(items)); } catch {}
+  };
 
   // ── Init YouTube IFrame API ──────────────────────────────────────────────
   useEffect(() => {
@@ -79,45 +101,43 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
     const initPlayer = () => {
       if (!containerRef.current || playerRef.current) return;
 
-      // Restore saved URL or fall back to default
       let videoId = DEFAULT_VIDEO;
-      let listId: string | undefined;
       try {
         const saved = localStorage.getItem(YT_STORAGE_KEY);
-        if (saved) {
-          const p = parseYouTubeUrl(saved);
-          if (p?.videoId) videoId = p.videoId;
-          if (p?.listId)  listId  = p.listId;
-        }
+        if (saved) videoId = saved;
       } catch {}
 
       playerRef.current = new window.YT!.Player(containerRef.current, {
-        width: 320,
-        height: 180,
-        videoId: listId ? undefined : videoId,
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          rel: 0,
-          modestbranding: 1,
-          ...(listId ? { list: listId, listType: "playlist" } : {}),
-        },
+        width: 320, height: 180,
+        videoId,
+        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1 },
         events: {
-          onReady: () => {
-            readyRef.current = true;
-            setApiReady(true);
-          },
+          onReady: () => { readyRef.current = true; setApiReady(true); },
           onStateChange: (e: { data: number; target: YTPlayer }) => {
-            setIsPlaying(e.data === 1);   // PLAYING
-            setIsBuffering(e.data === 3); // BUFFERING
+            setIsPlaying(e.data === 1);
+            setIsBuffering(e.data === 3);
             if (e.data === 1) {
-              // Title may not be available immediately — small delay
               setTimeout(() => {
                 try {
                   const d = e.target.getVideoData();
                   if (d?.title) setTrackTitle(d.title);
                 } catch {}
               }, 600);
+            }
+            // Auto-advance custom playlist on ENDED
+            if (e.data === 0 && plCtxRef.current) {
+              const { items, index } = plCtxRef.current;
+              if (index < items.length - 1) {
+                const next = index + 1;
+                plCtxRef.current = { items, index: next };
+                setPlIdx(next);
+                setThumbnail(items[next].thumbnail);
+                setTrackTitle(items[next].title);
+                e.target.loadVideoById(items[next].videoId);
+              } else {
+                plCtxRef.current = null;
+                setPlIdx(-1);
+              }
             }
           },
         },
@@ -127,12 +147,11 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
     if (window.YT?.Player) {
       initPlayer();
     } else {
-      // Chain onto any existing callback (e.g. if two players on same page)
       const prev = window.onYouTubeIframeAPIReady;
       window.onYouTubeIframeAPIReady = () => { prev?.(); initPlayer(); };
       if (!document.getElementById("yt-api-script")) {
         const s = document.createElement("script");
-        s.id  = "yt-api-script";
+        s.id = "yt-api-script";
         s.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(s);
       }
@@ -141,38 +160,87 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
     return () => {
       try { playerRef.current?.destroy(); } catch {}
       playerRef.current = null;
-      readyRef.current  = false;
+      readyRef.current = false;
     };
   }, []);
 
-  const loadContent = useCallback((videoId?: string, listId?: string) => {
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  const playVideo = useCallback((videoId: string, title: string, thumb: string) => {
     if (!playerRef.current || !readyRef.current) return;
-    if (listId)       playerRef.current.loadPlaylist({ list: listId, listType: "playlist" });
-    else if (videoId) playerRef.current.loadVideoById(videoId);
+    playerRef.current.loadVideoById(videoId);
+    setTrackTitle(title);
+    setThumbnail(thumb);
+    setActivePreset("");
+    plCtxRef.current = null;
+    setPlIdx(-1);
+    try { localStorage.setItem(YT_STORAGE_KEY, videoId); } catch {}
   }, []);
 
-  const handlePreset = (preset: (typeof YT_PRESETS)[number]) => {
-    setActivePreset(preset.label);
-    setUrlInput(`https://youtube.com/watch?v=${preset.videoId}`);
-    setUrlError("");
-    loadContent(preset.videoId);
-    try { localStorage.setItem(YT_STORAGE_KEY, `https://youtube.com/watch?v=${preset.videoId}`); } catch {}
+  const playFromPlaylist = useCallback((items: PlaylistItem[], index: number) => {
+    if (!playerRef.current || !readyRef.current) return;
+    const item = items[index];
+    plCtxRef.current = { items, index };
+    setPlIdx(index);
+    setThumbnail(item.thumbnail);
+    setTrackTitle(item.title);
+    setActivePreset("");
+    playerRef.current.loadVideoById(item.videoId);
+  }, []);
+
+  const handlePreset = (p: (typeof YT_PRESETS)[number]) => {
+    setActivePreset(p.label);
+    plCtxRef.current = null;
+    setPlIdx(-1);
+    setThumbnail(ytThumb(p.videoId));
+    if (playerRef.current && readyRef.current) {
+      playerRef.current.loadVideoById(p.videoId);
+      setTrackTitle(p.label);
+    }
+    try { localStorage.setItem(YT_STORAGE_KEY, p.videoId); } catch {}
   };
 
-  const handleCustomUrl = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = parseYouTubeUrl(urlInput);
-    if (!parsed) { setUrlError("Valid YouTube URL daalo (video ya playlist)"); return; }
-    setUrlError("");
-    setActivePreset("");
-    loadContent(parsed.videoId, parsed.listId);
-    try { localStorage.setItem(YT_STORAGE_KEY, urlInput); } catch {}
+  const handleSearch = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!query.trim()) return;
+    setSearching(true);
+    setSearchErr("");
+    try {
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query.trim())}`);
+      const data = await res.json() as { results?: SearchResult[]; error?: string };
+      if (!res.ok) {
+        setSearchErr(data.error ?? "Search failed");
+        setResults([]);
+      } else {
+        setResults(data.results ?? []);
+      }
+    } catch {
+      setSearchErr("Network error. Dobara try karo.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const addToPlaylist = (item: SearchResult) => {
+    setPlaylist(prev => {
+      if (prev.some(p => p.videoId === item.videoId)) return prev;
+      const updated = [...prev, { videoId: item.videoId, title: item.title, thumbnail: item.thumbnail }];
+      try { localStorage.setItem(PLAYLIST_KEY, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  };
+
+  const removeFromPlaylist = (videoId: string) => {
+    savePlaylist(playlist.filter(p => p.videoId !== videoId));
+    if (plCtxRef.current) {
+      const newItems = playlist.filter(p => p.videoId !== videoId);
+      plCtxRef.current = { ...plCtxRef.current, items: newItems };
+    }
   };
 
   const togglePlay = () => {
     if (!playerRef.current) return;
     if (isPlaying) playerRef.current.pauseVideo();
-    else           playerRef.current.playVideo();
+    else playerRef.current.playVideo();
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -191,11 +259,11 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
             animate={{ opacity: 1, scale: 1,    y: 0   }}
             exit={{    opacity: 0, scale: 0.85, y: -10 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed top-4 right-16 z-[8999] w-[310px] rounded-2xl overflow-hidden"
-            style={{ background: "#0F0F0F", boxShadow: "0 8px 40px rgba(255,0,0,0.18), 0 2px 8px rgba(0,0,0,0.6)" }}
+            className="fixed top-4 right-16 z-[8999] w-[340px] rounded-2xl overflow-hidden flex flex-col"
+            style={{ background: "#0F0F0F", boxShadow: "0 8px 40px rgba(255,0,0,0.18), 0 2px 8px rgba(0,0,0,0.6)", maxHeight: "90dvh" }}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10" style={{ background: "#1a1a1a" }}>
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10 flex-shrink-0" style={{ background: "#1a1a1a" }}>
               <div className="flex items-center gap-2">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="#FF0000">
                   <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
@@ -207,105 +275,218 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
               </button>
             </div>
 
-            {/* Now Playing */}
-            <div className="px-4 py-3 flex items-center gap-3" style={{ background: "#111" }}>
-              {/* Animated bars */}
-              <div className="flex items-end gap-[3px] h-7 w-7 shrink-0">
-                {[0, 1, 2, 3].map((i) => (
-                  <motion.div
-                    key={i}
-                    className="flex-1 rounded-full bg-red-500"
-                    animate={isPlaying
-                      ? { height: ["30%", "100%", "55%", "85%", "30%"] }
-                      : { height: "12%" }}
-                    transition={isPlaying
-                      ? { duration: 0.75, repeat: Infinity, delay: i * 0.18, ease: "easeInOut" }
-                      : { duration: 0.3 }}
-                    style={{ minHeight: 3 }}
-                  />
-                ))}
-              </div>
+            {/* ── Now Playing ── */}
+            <div className="px-3 py-3 flex items-center gap-3 flex-shrink-0" style={{ background: "#111" }}>
+              {thumbnail
+                ? <img src={thumbnail} alt="" className="w-12 h-9 rounded-md object-cover shrink-0 border border-white/10" />
+                : (
+                  <div className="flex items-end gap-[3px] h-7 w-12 shrink-0">
+                    {[0, 1, 2, 3].map((i) => (
+                      <motion.div key={i} className="flex-1 rounded-full bg-red-500"
+                        animate={isPlaying ? { height: ["30%","100%","55%","85%","30%"] } : { height: "12%" }}
+                        transition={isPlaying ? { duration: 0.75, repeat: Infinity, delay: i * 0.18, ease: "easeInOut" } : { duration: 0.3 }}
+                        style={{ minHeight: 3 }}
+                      />
+                    ))}
+                  </div>
+                )}
               <div className="flex-1 min-w-0">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-0.5">
                   {isBuffering ? "Loading..." : isPlaying ? "Now Playing" : apiReady ? "Paused" : "Starting..."}
                 </p>
-                <p className="text-sm font-semibold text-white/90 truncate leading-tight">
+                <p className="text-xs font-semibold text-white/90 truncate leading-tight">
                   {trackTitle || activePreset || "Study Music"}
                 </p>
               </div>
+              {thumbnail && isPlaying && (
+                <div className="flex items-end gap-[2px] h-5 shrink-0">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div key={i} className="w-1 rounded-full bg-red-500"
+                      animate={{ height: ["30%","100%","50%","30%"] }}
+                      transition={{ duration: 0.7, repeat: Infinity, delay: i * 0.2, ease: "easeInOut" }}
+                      style={{ minHeight: 3 }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Playback controls */}
-            <div className="flex items-center justify-center gap-5 py-3 border-t border-b border-white/5" style={{ background: "#111" }}>
-              <button
-                onClick={() => playerRef.current?.previousVideo()}
-                disabled={!apiReady}
-                className="p-2 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20"
-                title="Previous"
-              >
+            {/* ── Controls ── */}
+            <div className="flex items-center justify-center gap-5 py-2.5 border-t border-b border-white/5 flex-shrink-0" style={{ background: "#111" }}>
+              <button onClick={() => {
+                if (plCtxRef.current && plCtxRef.current.index > 0) {
+                  playFromPlaylist(plCtxRef.current.items, plCtxRef.current.index - 1);
+                } else {
+                  playerRef.current?.previousVideo();
+                }
+              }} disabled={!apiReady} className="p-2 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20">
                 <SkipBack className="w-4 h-4" />
               </button>
-              <button
-                onClick={togglePlay}
-                disabled={!apiReady}
-                className="w-11 h-11 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 text-white transition-all disabled:opacity-40 shadow-lg shadow-red-500/30 active:scale-95"
-              >
-                {isPlaying
-                  ? <Pause className="w-5 h-5" />
-                  : <Play  className="w-5 h-5 ml-0.5" />}
+              <button onClick={togglePlay} disabled={!apiReady}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 text-white transition-all disabled:opacity-40 shadow-lg shadow-red-500/30 active:scale-95">
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
               </button>
-              <button
-                onClick={() => playerRef.current?.nextVideo()}
-                disabled={!apiReady}
-                className="p-2 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20"
-                title="Next"
-              >
+              <button onClick={() => {
+                if (plCtxRef.current && plCtxRef.current.index < plCtxRef.current.items.length - 1) {
+                  playFromPlaylist(plCtxRef.current.items, plCtxRef.current.index + 1);
+                } else {
+                  playerRef.current?.nextVideo();
+                }
+              }} disabled={!apiReady} className="p-2 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20">
                 <SkipForward className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Presets */}
-            <div className="px-3 pt-2.5 pb-2" style={{ background: "#111" }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/25 mb-1.5">Study Playlists</p>
-              <div className="flex flex-wrap gap-1.5">
-                {YT_PRESETS.map((p) => (
-                  <button
-                    key={p.label}
-                    onClick={() => handlePreset(p)}
-                    title={p.desc}
-                    className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-all ${
-                      activePreset === p.label
-                        ? "border-red-500/50 bg-red-500/15 text-red-400"
-                        : "border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white hover:border-white/20"
-                    }`}
-                  >
-                    {p.emoji} {p.label}
-                  </button>
-                ))}
-              </div>
+            {/* ── Tabs ── */}
+            <div className="flex border-b border-white/10 flex-shrink-0" style={{ background: "#1a1a1a" }}>
+              {(["presets", "search", "playlist"] as Tab[]).map((t) => (
+                <button key={t} onClick={() => setTab(t)}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1 ${
+                    tab === t ? "text-red-400 border-b-2 border-red-500" : "text-white/30 hover:text-white/60"
+                  }`}>
+                  {t === "presets" && "Presets"}
+                  {t === "search" && <><Search className="w-3 h-3" /> Search</>}
+                  {t === "playlist" && <><ListMusic className="w-3 h-3" /> Playlist {playlist.length > 0 && <span className="bg-red-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center">{playlist.length}</span>}</>}
+                </button>
+              ))}
             </div>
 
-            {/* Custom URL */}
-            <form onSubmit={handleCustomUrl} className="px-3 pb-3 pt-2 border-t border-white/5" style={{ background: "#111" }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-white/25 mb-1.5">Custom URL</p>
-              <div className="flex gap-1.5">
-                <input
-                  type="url"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  placeholder="https://youtube.com/watch?v=..."
-                  className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-white placeholder:text-white/20 outline-none focus:border-red-500/50 transition-colors"
-                />
-                <button type="submit" className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white hover:opacity-80 transition-opacity" style={{ background: "#FF0000" }}>
-                  Go
-                </button>
-                <button type="button" onClick={() => handlePreset(YT_PRESETS[0])} title="Reset to default" className="shrink-0 rounded-lg bg-white/5 border border-white/10 p-1.5 text-white/30 hover:text-white/60 transition-colors">
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              {urlError && <p className="mt-1 text-[10px] text-red-400">{urlError}</p>}
-              <p className="mt-1.5 text-[9px] text-white/15">Koi bhi YouTube video ya playlist URL paste karo</p>
-            </form>
+            {/* ── Tab content ── */}
+            <div className="overflow-y-auto flex-1" style={{ background: "#111" }}>
+
+              {/* Presets tab */}
+              {tab === "presets" && (
+                <div className="px-3 py-2.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {YT_PRESETS.map((p) => (
+                      <button key={p.label} onClick={() => handlePreset(p)} title={p.desc}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold transition-all ${
+                          activePreset === p.label
+                            ? "border-red-500/50 bg-red-500/15 text-red-400"
+                            : "border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white hover:border-white/20"
+                        }`}>
+                        {p.emoji} {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Search tab */}
+              {tab === "search" && (
+                <div className="flex flex-col">
+                  <form onSubmit={handleSearch} className="flex gap-1.5 px-3 pt-2.5 pb-2">
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Lofi study, jazz, piano..."
+                      className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors"
+                    />
+                    <button type="submit" disabled={searching || !query.trim()}
+                      className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold text-white transition-opacity disabled:opacity-40 flex items-center gap-1"
+                      style={{ background: "#FF0000" }}>
+                      {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                    </button>
+                  </form>
+
+                  {searchErr && (
+                    <p className="px-3 pb-2 text-[10px] text-red-400">{searchErr}</p>
+                  )}
+
+                  {results.length === 0 && !searching && !searchErr && (
+                    <p className="px-3 pb-3 text-[10px] text-white/20 text-center">Search karo — results yahan aayenge</p>
+                  )}
+
+                  <div className="divide-y divide-white/5">
+                    {results.map((r) => (
+                      <div key={r.videoId} className="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 transition-colors group">
+                        <img src={r.thumbnail} alt="" className="w-12 h-9 rounded object-cover shrink-0 border border-white/10" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white/90 truncate leading-tight">{r.title}</p>
+                          <p className="text-[10px] text-white/30 truncate">{r.channel}</p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button onClick={() => playVideo(r.videoId, r.title, r.thumbnail)} disabled={!apiReady}
+                            title="Play" className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30">
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => addToPlaylist(r)}
+                            title="Playlist mein add karo"
+                            disabled={playlist.some(p => p.videoId === r.videoId)}
+                            className="p-1.5 rounded-lg text-white/40 hover:text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed">
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Playlist tab */}
+              {tab === "playlist" && (
+                <div className="flex flex-col">
+                  {playlist.length === 0 ? (
+                    <div className="py-8 text-center text-white/20 text-xs px-4">
+                      <ListMusic className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      Search mein koi bhi song ko <strong>+</strong> se add karo
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between px-3 pt-2 pb-1">
+                        <button onClick={() => playFromPlaylist(playlist, 0)} disabled={!apiReady}
+                          className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors disabled:opacity-30">
+                          <Play className="w-3 h-3" /> Play All
+                        </button>
+                        <button onClick={() => { savePlaylist([]); plCtxRef.current = null; setPlIdx(-1); }}
+                          className="text-[10px] text-white/20 hover:text-red-400 transition-colors flex items-center gap-1">
+                          <Trash2 className="w-3 h-3" /> Clear All
+                        </button>
+                      </div>
+                      <div className="divide-y divide-white/5">
+                        {playlist.map((item, i) => (
+                          <div key={item.videoId}
+                            className={`flex items-center gap-2.5 px-3 py-2 transition-colors group ${plIdx === i ? "bg-red-500/10" : "hover:bg-white/5"}`}>
+                            <div className="relative shrink-0">
+                              <img src={item.thumbnail} alt="" className="w-12 h-9 rounded object-cover border border-white/10" />
+                              {plIdx === i && isPlaying && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
+                                  <div className="flex items-end gap-[2px] h-4">
+                                    {[0,1,2].map(j => (
+                                      <motion.div key={j} className="w-0.5 rounded-full bg-red-400"
+                                        animate={{ height: ["30%","100%","50%","30%"] }}
+                                        transition={{ duration: 0.6, repeat: Infinity, delay: j * 0.15, ease: "easeInOut" }}
+                                        style={{ minHeight: 2 }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs font-semibold truncate leading-tight ${plIdx === i ? "text-red-400" : "text-white/80"}`}>{item.title}</p>
+                              <p className="text-[10px] text-white/25">{i + 1} / {playlist.length}</p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button onClick={() => playFromPlaylist(playlist, i)} disabled={!apiReady}
+                                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30">
+                                <Play className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => removeFromPlaylist(item.videoId)}
+                                className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
