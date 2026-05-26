@@ -4,8 +4,9 @@
  * Works without cookies for non-restricted content (study music, lofi, etc.).
  */
 
-const ANDROID_VERSION = "17.36.4";
-const INNERTUBE_URL   = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+const ANDROID_VERSION  = "19.09.37";
+const ANDROID_API_KEY  = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
+const INNERTUBE_URL    = `https://www.youtube.com/youtubei/v1/player?key=${ANDROID_API_KEY}&prettyPrint=false`;
 
 type ITFormat = {
   itag?: number;
@@ -52,11 +53,12 @@ export async function getYTStreamInfo(
   signal?: AbortSignal,
 ): Promise<YTStreamInfo> {
   const headers: Record<string, string> = {
-    "Content-Type":            "application/json",
-    "User-Agent":              `com.google.android.youtube/${ANDROID_VERSION} (Linux; U; Android 11) gzip`,
-    "X-YouTube-Client-Name":   "3",
+    "Content-Type":             "application/json",
+    "User-Agent":               `com.google.android.youtube/${ANDROID_VERSION} (Linux; U; Android 11) gzip`,
+    "X-YouTube-Client-Name":    "3",
     "X-YouTube-Client-Version": ANDROID_VERSION,
-    "Accept-Language":         "en-US,en;q=0.9",
+    "X-Goog-Api-Key":           ANDROID_API_KEY,
+    "Accept-Language":          "en-US,en;q=0.9",
     ...(cookies ? { Cookie: cookies } : {}),
   };
 
