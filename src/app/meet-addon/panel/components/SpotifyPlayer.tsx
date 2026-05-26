@@ -122,12 +122,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
     if (knownThumb) setThumbnail(knownThumb);
 
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("vl_meet_addon_token") : null;
-
-      // Fetch metadata (title, thumbnail, author, isLive, hlsUrl for live streams)
-      const res  = await fetch(`/api/youtube/audio?videoId=${encodeURIComponent(videoId)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res  = await fetch(`/api/youtube/audio?videoId=${encodeURIComponent(videoId)}`);
       const data = await res.json() as AudioResponse;
 
       if (!res.ok || data.error) {
@@ -181,8 +176,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
         }
       } else {
         // VOD — stream proxied through our server to avoid YouTube CDN blocks
-        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
-        audio.src = `/api/youtube/stream?videoId=${encodeURIComponent(videoId)}${tokenParam}`;
+        audio.src = `/api/youtube/stream?videoId=${encodeURIComponent(videoId)}`;
         audio.load();
         tryPlay();
       }
@@ -301,10 +295,8 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
     if (!query.trim()) return;
     setSearching(true); setSearchErr("");
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("vl_meet_addon_token") : null;
-      const res   = await fetch(`/api/youtube/search?q=${encodeURIComponent(query.trim())}`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      const data  = await res.json() as { results?: SearchResult[]; error?: string };
+      const res  = await fetch(`/api/youtube/search?q=${encodeURIComponent(query.trim())}`);
+      const data = await res.json() as { results?: SearchResult[]; error?: string };
       if (!res.ok) { setSearchErr(data.error ?? "Search failed"); setResults([]); }
       else         { setResults(data.results ?? []); }
     } catch { setSearchErr("Network error. Dobara try karo."); }

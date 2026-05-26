@@ -1,6 +1,4 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/auth";
-import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getAppSetting } from "@/lib/app-settings";
 import ytdl from "@distube/ytdl-core";
 
@@ -70,20 +68,6 @@ function buildProxyResponse(upstream: Response, mimeType: string): Response {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-
-  // Auth: header OR ?token= query param (<audio src> can't set headers).
-  const authHeader  = request.headers.get("authorization");
-  const bearerToken =
-    (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null) ??
-    searchParams.get("token") ??
-    null;
-
-  const addonUser = bearerToken ? verifyMeetAddonToken(bearerToken) : null;
-  if (!addonUser) {
-    const session = await auth();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
-  }
-
   const videoId = searchParams.get("videoId")?.trim();
   if (!videoId || !/^[a-zA-Z0-9_-]{8,15}$/.test(videoId)) {
     return new Response("Invalid videoId", { status: 400 });

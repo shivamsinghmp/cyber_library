@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getAppSetting } from "@/lib/app-settings";
 import ytdl from "@distube/ytdl-core";
 
@@ -20,15 +18,6 @@ function buildOpts(cookies?: string | null) {
 }
 
 export async function GET(request: NextRequest) {
-  const authHeader  = request.headers.get("authorization");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  const addonUser   = bearerToken ? verifyMeetAddonToken(bearerToken) : null;
-
-  if (!addonUser) {
-    const session = await auth();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
   const videoId = searchParams.get("videoId")?.trim();
 
