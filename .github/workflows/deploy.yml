@@ -25,7 +25,8 @@ jobs:
             cd /var/www/cyber_library
             git checkout -- .
             git pull origin main
-            pip3 install --upgrade yt-dlp --quiet
+            curl -sSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+            chmod a+rx /usr/local/bin/yt-dlp
             rm -rf node_modules
             npm ci
             npx prisma generate
