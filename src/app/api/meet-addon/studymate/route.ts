@@ -113,35 +113,43 @@ export async function POST(request: NextRequest) {
       parts: [{ text: m.content }],
     }));
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 25_000);
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: geminiContents,
-          generationConfig: { maxOutputTokens: 800, temperature: 0.7 },
-        }),
-      }
-    ).finally(() => clearTimeout(timer));
+    const geminiBody = JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: geminiContents,
+      generationConfig: { maxOutputTokens: 800, temperature: 0.7 },
+    });
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error("[meet-addon/studymate] Gemini error:", res.status, errBody);
+    // Retry up to 2 times on 429 with exponential backoff (1s, 2s)
+    let res: Response | null = null;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 1000));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 25_000);
+      res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: geminiBody,
+        }
+      ).finally(() => clearTimeout(timer));
+      if (res.status !== 429) break;
+    }
+
+    if (!res!.ok) {
+      const errBody = await res!.text();
+      console.error("[meet-addon/studymate] Gemini error:", res!.status, errBody);
       let apiMsg = errBody.slice(0, 300);
       try { apiMsg = (JSON.parse(errBody) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
-      let userMsg = `Gemini error (${res.status}): ${apiMsg}`;
-      if (res.status === 429) userMsg = "AI quota limit ho gayi. Thodi der baad try karo.";
-      if (res.status === 403) userMsg = "Gemini API key invalid ya expired hai. Admin panel mein key check karo.";
-      if (res.status === 404) userMsg = "Gemini model available nahi hai. Admin se contact karo.";
+      let userMsg = `Gemini error (${res!.status}): ${apiMsg}`;
+      if (res!.status === 429) userMsg = "Abhi bahut log AI use kar rahe hain. 30 second baad dobara try karo 🙏";
+      if (res!.status === 403) userMsg = "Gemini API key invalid ya expired hai. Admin panel mein key check karo.";
+      if (res!.status === 404) userMsg = "Gemini model available nahi hai. Admin se contact karo.";
       return NextResponse.json({ error: userMsg }, { status: 502, headers: cors });
     }
 
-    const data = await res.json();
+    const data = await res!.json();
     const reply: string = data.candidates?.[0]?.content?.parts
       ?.filter((p: { text?: string }) => p.text)
       ?.map((p: { text: string }) => p.text)
