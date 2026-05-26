@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Sparkles, RotateCcw, Bot } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,38 +17,52 @@ const QUICK_PROMPTS = [
   "Kal ka revision plan",
 ];
 
+const RETRY_SECONDS = 30;
+
 type Props = {
   isOpen: boolean;
   onClose: () => void;
 };
 
 export function AIChatBot({ isOpen, onClose }: Props) {
-  const [messages,   setMessages]   = useState<Message[]>([]);
-  const [input,      setInput]      = useState("");
-  const [loading,    setLoading]    = useState(false);
-  const [freeLeft,   setFreeLeft]   = useState<number | null>(null);
+  const [messages,       setMessages]       = useState<Message[]>([]);
+  const [input,          setInput]          = useState("");
+  const [loading,        setLoading]        = useState(false);
+  const [freeLeft,       setFreeLeft]       = useState<number | null>(null);
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
+  const pendingRetryMsgs = useRef<Message[] | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Focus input when opened
   useEffect(() => {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 150);
   }, [isOpen]);
 
-  async function send(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
-    setInput("");
+  // Countdown ticker — auto-retry when it reaches 0
+  useEffect(() => {
+    if (retryCountdown === null) return;
+    if (retryCountdown <= 0) {
+      const msgs = pendingRetryMsgs.current;
+      pendingRetryMsgs.current = null;
+      setRetryCountdown(null);
+      if (msgs) {
+        setMessages((prev) => prev.slice(0, -1)); // remove the rate-limit error bubble
+        callApi(msgs);
+      }
+      return;
+    }
+    const t = setTimeout(() => setRetryCountdown((c) => (c ?? 1) - 1), 1000);
+    return () => clearTimeout(t);
+  // callApi is defined with useCallback below and is stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryCountdown]);
 
-    const newMessages: Message[] = [...messages, { role: "user", content: trimmed }];
-    setMessages(newMessages);
+  const callApi = useCallback(async (msgs: Message[]) => {
     setLoading(true);
-
     try {
       const res = await fetch("/api/meet-addon/studymate", {
         method: "POST",
@@ -56,21 +70,32 @@ export function AIChatBot({ isOpen, onClose }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: msgs }),
       });
 
       const data = await res.json().catch(() => ({ error: "Response parse error" }));
 
       if (!res.ok) {
-        const errMsg = data.error === "coins_required"
-          ? (data.message ?? "Coins khatam ho gaye! Study room mein jaao coins kamao 🪙")
-          : res.status === 401
-            ? "Session expire ho gayi. Panel se logout karke dobara login karo."
-            : res.status === 503 || data.error === "AI not configured"
-              ? "StudyMate AI abhi available nahi hai. Admin se contact karo."
-              : res.status === 504 || data.error?.includes("timed out")
-                ? "AI timeout ho gayi. Thodi der baad try karo."
-                : data.error || `Error ${res.status}. Dobara try karo.`;
+        if (data.retryable) {
+          pendingRetryMsgs.current = msgs;
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: `${data.error ?? "Abhi bahut log AI use kar rahe hain 🙏"} — ${RETRY_SECONDS}s mein auto-retry hoga.` },
+          ]);
+          setRetryCountdown(RETRY_SECONDS);
+          return;
+        }
+
+        const errMsg =
+          data.error === "coins_required"
+            ? (data.message ?? "Coins khatam ho gaye! Study room mein jaao coins kamao 🪙")
+            : res.status === 401
+              ? "Session expire ho gayi. Panel se logout karke dobara login karo."
+              : res.status === 503 || data.error === "AI not configured"
+                ? "StudyMate AI abhi available nahi hai. Admin se contact karo."
+                : res.status === 504 || data.error?.includes("timed out")
+                  ? "AI timeout ho gayi. Thodi der baad try karo."
+                  : data.error || `Error ${res.status}. Dobara try karo.`;
 
         setMessages((prev) => [...prev, { role: "assistant", content: errMsg }]);
       } else {
@@ -85,6 +110,20 @@ export function AIChatBot({ isOpen, onClose }: Props) {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    // Cancel any pending auto-retry
+    setRetryCountdown(null);
+    pendingRetryMsgs.current = null;
+    setInput("");
+
+    const newMessages: Message[] = [...messages, { role: "user", content: trimmed }];
+    setMessages(newMessages);
+    await callApi(newMessages);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -97,6 +136,8 @@ export function AIChatBot({ isOpen, onClose }: Props) {
   function clearChat() {
     setMessages([]);
     setFreeLeft(null);
+    setRetryCountdown(null);
+    pendingRetryMsgs.current = null;
   }
 
   return (
@@ -228,6 +269,25 @@ export function AIChatBot({ isOpen, onClose }: Props) {
                     />
                   ))}
                 </div>
+              </motion.div>
+            )}
+
+            {/* Auto-retry countdown banner */}
+            {retryCountdown !== null && !loading && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-center gap-2 py-1"
+              >
+                <span className="text-[10px] text-amber-400/70">
+                  🔄 Auto-retry in {retryCountdown}s
+                </span>
+                <button
+                  onClick={() => { setRetryCountdown(null); pendingRetryMsgs.current = null; }}
+                  className="text-[10px] text-white/30 hover:text-white/60 underline transition-colors"
+                >
+                  cancel
+                </button>
               </motion.div>
             )}
 
