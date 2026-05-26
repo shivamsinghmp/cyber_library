@@ -7,32 +7,20 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ── YouTube IFrame API types ──────────────────────────────────────────────────
-interface YTPlayer {
-  playVideo(): void;
-  pauseVideo(): void;
-  nextVideo(): void;
-  previousVideo(): void;
-  getPlayerState(): number;
-  getVideoData(): { title: string; author: string };
-  getCurrentTime(): number;
-  getDuration(): number;
-  seekTo(seconds: number, allowSeekAhead: boolean): void;
-  loadVideoById(id: string): void;
-  loadPlaylist(opts: { list: string; listType: string }): void;
-  destroy(): void;
-}
-
-declare global {
-  interface Window {
-    YT?: { Player: new (el: HTMLElement, opts: object) => YTPlayer };
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface SearchResult  { videoId: string; title: string; channel: string; thumbnail: string }
 interface PlaylistItem  { videoId: string; title: string; thumbnail: string }
+interface AudioResponse {
+  isLive:    boolean;
+  url?:      string;
+  hlsUrl?:   string;
+  mimeType?: string;
+  title:     string;
+  author:    string;
+  thumbnail: string;
+  duration:  number;
+  error?:    string;
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const YT_STORAGE_KEY = "vl_yt_music_url";
@@ -83,19 +71,18 @@ type Props = {
 };
 
 export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef    = useRef<YTPlayer | null>(null);
-  const readyRef     = useRef(false);
-  const plCtxRef     = useRef<{ items: PlaylistItem[]; index: number } | null>(null);
-  const progressRef  = useRef<HTMLDivElement>(null);
+  const audioRef    = useRef<HTMLAudioElement | null>(null);
+  const hlsRef      = useRef<unknown>(null);
+  const plCtxRef    = useRef<{ items: PlaylistItem[]; index: number } | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   // Player state
   const [isPlaying,   setIsPlaying]   = useState(false);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [isReady,     setIsReady]     = useState(false);
   const [trackTitle,  setTrackTitle]  = useState("");
   const [channel,     setChannel]     = useState("");
   const [thumbnail,   setThumbnail]   = useState<string | null>(null);
-  const [apiReady,    setApiReady]    = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration,    setDuration]    = useState(0);
 
@@ -119,114 +106,162 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
     try { localStorage.setItem(PLAYLIST_KEY, JSON.stringify(items)); } catch {}
   };
 
-  // ── Init YouTube IFrame API ───────────────────────────────────────────────
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const initPlayer = () => {
-      if (!containerRef.current || playerRef.current) return;
-      let videoId = DEFAULT_VIDEO;
-      try { const s = localStorage.getItem(YT_STORAGE_KEY); if (s) videoId = s; } catch {}
+  // ── Load track (fetch stream URL, attach to <audio>) ─────────────────────
+  const loadTrack = useCallback(async (videoId: string, knownTitle?: string, knownThumb?: string) => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-      playerRef.current = new window.YT!.Player(containerRef.current, {
-        width: 320, height: 180, videoId,
-        // audio-only experience: video is hidden in a 2×2 clipped container
-        playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1, playsinline: 1 },
-        events: {
-          onReady: () => { readyRef.current = true; setApiReady(true); },
-          onStateChange: (e: { data: number; target: YTPlayer }) => {
-            const playing = e.data === 1;
-            setIsPlaying(playing);
-            onPlayingChange?.(playing);
-            setIsBuffering(e.data === 3);
-            if (e.data === 1) {
-              setTimeout(() => {
-                try {
-                  const d = e.target.getVideoData();
-                  if (d?.title) setTrackTitle(d.title);
-                  if (d?.author) setChannel(d.author);
-                } catch {}
-              }, 600);
-            }
-            if (e.data === 0 && plCtxRef.current) {
-              const { items, index } = plCtxRef.current;
-              if (index < items.length - 1) {
-                const next = index + 1;
-                plCtxRef.current = { items, index: next };
-                setPlIdx(next);
-                setThumbnail(items[next].thumbnail);
-                setTrackTitle(items[next].title);
-                e.target.loadVideoById(items[next].videoId);
-              } else { plCtxRef.current = null; setPlIdx(-1); }
-            }
-          },
-        },
+    setIsBuffering(true);
+    setCurrentTime(0);
+    setDuration(0);
+    if (knownTitle) setTrackTitle(knownTitle);
+    if (knownThumb) setThumbnail(knownThumb);
+
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("vl_meet_addon_token") : null;
+      const res   = await fetch(`/api/youtube/audio?videoId=${encodeURIComponent(videoId)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-    };
+      const data = await res.json() as AudioResponse;
 
-    if (window.YT?.Player) { initPlayer(); }
-    else {
-      const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => { prev?.(); initPlayer(); };
-      if (!document.getElementById("yt-api-script")) {
-        const s = document.createElement("script");
-        s.id = "yt-api-script"; s.src = "https://www.youtube.com/iframe_api";
-        document.head.appendChild(s);
+      if (!res.ok || data.error) {
+        setIsBuffering(false);
+        return;
       }
+
+      setTrackTitle(data.title);
+      setChannel(data.author);
+      setThumbnail(data.thumbnail);
+      if (!data.isLive && data.duration > 0) setDuration(data.duration);
+
+      // Tear down previous HLS instance
+      const prevHls = hlsRef.current as { destroy?: () => void } | null;
+      if (prevHls?.destroy) { prevHls.destroy(); }
+      hlsRef.current = null;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+
+      if (data.isLive && data.hlsUrl) {
+        const { default: Hls } = await import("hls.js");
+        if (Hls.isSupported()) {
+          const hls = new Hls({ enableWorker: false });
+          hlsRef.current = hls;
+          hls.loadSource(data.hlsUrl);
+          hls.attachMedia(audio);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            audio.play().catch(() => {});
+          });
+        } else if (audio.canPlayType("application/vnd.apple.mpegurl")) {
+          // Native HLS — Safari
+          audio.src = data.hlsUrl;
+          audio.load();
+          audio.play().catch(() => {});
+        }
+      } else if (data.url) {
+        audio.src = data.url;
+        audio.load();
+        audio.play().catch(() => {});
+      }
+
+      try { localStorage.setItem(YT_STORAGE_KEY, videoId); } catch {}
+    } catch {
+      setIsBuffering(false);
     }
-    return () => {
-      try { playerRef.current?.destroy(); } catch {}
-      playerRef.current = null; readyRef.current = false;
-    };
   }, []);
 
-  // ── Poll time/duration ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isPlaying) return;
-    const id = setInterval(() => {
-      if (!playerRef.current || !readyRef.current) return;
-      try {
-        setCurrentTime(playerRef.current.getCurrentTime());
-        setDuration(playerRef.current.getDuration());
-      } catch {}
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isPlaying]);
+  // Keep a ref so event handlers inside the mount effect always call the latest version
+  const loadTrackRef = useRef(loadTrack);
+  useEffect(() => { loadTrackRef.current = loadTrack; }, [loadTrack]);
 
-  // ── Seek on progress bar click ────────────────────────────────────────────
+  // ── Mount: create <audio>, wire events, load last/default track ───────────
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "auto";
+    audioRef.current = audio;
+    setIsReady(true);
+
+    const onPlay     = () => { setIsPlaying(true);  setIsBuffering(false); onPlayingChange?.(true); };
+    const onPause    = () => { setIsPlaying(false); onPlayingChange?.(false); };
+    const onWaiting  = () => setIsBuffering(true);
+    const onCanPlay  = () => setIsBuffering(false);
+    const onTimeUpdate    = () => setCurrentTime(audio.currentTime);
+    const onDurationChange = () => { if (isFinite(audio.duration)) setDuration(audio.duration); };
+    const onEnded = () => {
+      if (plCtxRef.current) {
+        const { items, index } = plCtxRef.current;
+        if (index < items.length - 1) {
+          const next = index + 1;
+          plCtxRef.current = { items, index: next };
+          setPlIdx(next);
+          loadTrackRef.current(items[next].videoId, items[next].title, items[next].thumbnail);
+        } else {
+          plCtxRef.current = null;
+          setPlIdx(-1);
+        }
+      }
+    };
+
+    audio.addEventListener("play",           onPlay);
+    audio.addEventListener("pause",          onPause);
+    audio.addEventListener("waiting",        onWaiting);
+    audio.addEventListener("stalled",        onWaiting);
+    audio.addEventListener("canplay",        onCanPlay);
+    audio.addEventListener("playing",        onCanPlay);
+    audio.addEventListener("timeupdate",     onTimeUpdate);
+    audio.addEventListener("durationchange", onDurationChange);
+    audio.addEventListener("ended",          onEnded);
+
+    let videoId = DEFAULT_VIDEO;
+    try { const s = localStorage.getItem(YT_STORAGE_KEY); if (s) videoId = s; } catch {}
+    loadTrackRef.current(videoId);
+
+    return () => {
+      audio.removeEventListener("play",           onPlay);
+      audio.removeEventListener("pause",          onPause);
+      audio.removeEventListener("waiting",        onWaiting);
+      audio.removeEventListener("stalled",        onWaiting);
+      audio.removeEventListener("canplay",        onCanPlay);
+      audio.removeEventListener("playing",        onCanPlay);
+      audio.removeEventListener("timeupdate",     onTimeUpdate);
+      audio.removeEventListener("durationchange", onDurationChange);
+      audio.removeEventListener("ended",          onEnded);
+      audio.pause();
+      const hls = hlsRef.current as { destroy?: () => void } | null;
+      if (hls?.destroy) hls.destroy();
+      hlsRef.current  = null;
+      audioRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Seek ─────────────────────────────────────────────────────────────────
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!playerRef.current || !readyRef.current || duration <= 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const target = pct * duration;
-    playerRef.current.seekTo(target, true);
-    setCurrentTime(target);
+    const audio = audioRef.current;
+    if (!audio || duration <= 0) return;
+    const rect  = e.currentTarget.getBoundingClientRect();
+    const pct   = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = pct * duration;
+    setCurrentTime(audio.currentTime);
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const playVideo = useCallback((videoId: string, title: string, thumb: string) => {
-    if (!playerRef.current || !readyRef.current) return;
-    playerRef.current.loadVideoById(videoId);
-    setTrackTitle(title); setThumbnail(thumb);
     setActivePreset(""); plCtxRef.current = null; setPlIdx(-1);
-    try { localStorage.setItem(YT_STORAGE_KEY, videoId); } catch {}
-  }, []);
+    loadTrack(videoId, title, thumb);
+  }, [loadTrack]);
 
   const playFromPlaylist = useCallback((items: PlaylistItem[], index: number) => {
-    if (!playerRef.current || !readyRef.current) return;
     const item = items[index];
     plCtxRef.current = { items, index };
-    setPlIdx(index); setThumbnail(item.thumbnail); setTrackTitle(item.title); setActivePreset("");
-    playerRef.current.loadVideoById(item.videoId);
-  }, []);
+    setPlIdx(index); setActivePreset("");
+    loadTrack(item.videoId, item.title, item.thumbnail);
+  }, [loadTrack]);
 
   const handlePreset = (p: typeof YT_PRESETS[number]) => {
     setActivePreset(p.label); plCtxRef.current = null; setPlIdx(-1);
     setThumbnail(ytThumb(p.videoId)); setChannel("");
-    if (playerRef.current && readyRef.current) {
-      playerRef.current.loadVideoById(p.videoId);
-      setTrackTitle(p.label);
-    }
-    try { localStorage.setItem(YT_STORAGE_KEY, p.videoId); } catch {}
+    loadTrack(p.videoId, p.label, ytThumb(p.videoId));
   };
 
   const handleSearch = async (e?: React.FormEvent) => {
@@ -259,9 +294,21 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
   };
 
   const togglePlay = () => {
-    if (!playerRef.current) return;
-    if (isPlaying) playerRef.current.pauseVideo();
-    else           playerRef.current.playVideo();
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) audio.pause();
+    else           audio.play().catch(() => {});
+  };
+
+  const skipPrev = () => {
+    if (plCtxRef.current && plCtxRef.current.index > 0)
+      playFromPlaylist(plCtxRef.current.items, plCtxRef.current.index - 1);
+    else if (audioRef.current) audioRef.current.currentTime = 0;
+  };
+
+  const skipNext = () => {
+    if (plCtxRef.current && plCtxRef.current.index < plCtxRef.current.items.length - 1)
+      playFromPlaylist(plCtxRef.current.items, plCtxRef.current.index + 1);
   };
 
   const displayName = trackTitle || activePreset || "Study Music";
@@ -271,11 +318,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Hidden YouTube player — 2×2 clip keeps Chrome from suspending the iframe */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, width: 2, height: 2, overflow: "hidden", pointerEvents: "none", zIndex: 1 }}>
-        <div ref={containerRef} style={{ width: 320, height: 180 }} />
-      </div>
-
       {/* ── Full player popup ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {isOpen && (
@@ -290,20 +332,18 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
 
             {/* ── NOW PLAYING CARD ── */}
             <div className="relative flex-shrink-0 overflow-hidden" style={{ minHeight: 200 }}>
-              {/* Blurred album-art background */}
               {thumbnail && (
                 <div className="absolute inset-0 scale-110"
                   style={{ backgroundImage: `url(${thumbnail})`, backgroundSize: "cover", backgroundPosition: "center", filter: "blur(18px) brightness(0.35)" }}
                 />
               )}
-              {/* Dark gradient if no thumbnail */}
               <div className="absolute inset-0"
                 style={{ background: thumbnail
                   ? "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.65) 100%)"
                   : "linear-gradient(135deg,#1a0a0a 0%,#0a0a1a 100%)" }}
               />
 
-              {/* Header row */}
+              {/* Header */}
               <div className="relative z-10 flex items-center justify-between px-4 pt-3 pb-1">
                 <div className="flex items-center gap-2">
                   <Music2 className="w-3.5 h-3.5 text-white/50" />
@@ -335,7 +375,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                       </div>
                     )
                   }
-                  {/* Playing pulse ring */}
                   {isPlaying && thumbnail && (
                     <motion.div className="absolute inset-0 rounded-2xl border-2 border-red-500/40 pointer-events-none"
                       animate={{ scale: [1, 1.08], opacity: [0.5, 0] }}
@@ -349,7 +388,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
               <div className="relative z-10 px-4 pb-4 text-center">
                 <p className="text-sm font-bold text-white leading-tight truncate mb-0.5">{displayName}</p>
                 {channel && <p className="text-[10px] text-white/40 truncate">{channel}</p>}
-                {/* Status pill */}
                 <div className="flex justify-center mt-2">
                   {isBuffering
                     ? <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
@@ -365,7 +403,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                             <EqBars playing count={3} color="#34d399" size="sm" />
                             Now Playing
                           </span>
-                        : apiReady
+                        : isReady
                           ? <span className="text-[9px] font-bold text-white/20 bg-white/5 px-2 py-0.5 rounded-full">Paused</span>
                           : <span className="text-[9px] font-bold text-white/20 bg-white/5 px-2 py-0.5 rounded-full">Starting…</span>
                   }
@@ -375,7 +413,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
 
             {/* ── PROGRESS BAR ── */}
             <div className="px-4 pt-3 pb-1 flex-shrink-0" style={{ background: "#0f0f0f" }}>
-              {/* Clickable seek bar */}
               <div ref={progressRef}
                 onClick={handleSeek}
                 className={`relative h-1.5 rounded-full bg-white/[0.08] overflow-hidden mb-1.5 ${duration > 0 ? "cursor-pointer hover:opacity-80" : ""}`}
@@ -387,7 +424,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                       transition={{ duration: 0.8, ease: "linear" }}
                     />
                 }
-                {/* Scrubber thumb */}
                 {duration > 0 && !isLive && (
                   <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md border border-white/20 pointer-events-none"
                     style={{ left: `calc(${progress * 100}% - 6px)` }} />
@@ -401,18 +437,12 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
 
             {/* ── CONTROLS ── */}
             <div className="flex items-center justify-center gap-6 py-3 flex-shrink-0" style={{ background: "#0f0f0f" }}>
-              <button
-                onClick={() => plCtxRef.current && plCtxRef.current.index > 0
-                  ? playFromPlaylist(plCtxRef.current.items, plCtxRef.current.index - 1)
-                  : playerRef.current?.previousVideo()
-                }
-                disabled={!apiReady}
+              <button onClick={skipPrev} disabled={!isReady}
                 className="p-2 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all disabled:opacity-20 active:scale-90">
                 <SkipBack className="w-5 h-5" />
               </button>
 
-              {/* Main play button */}
-              <button onClick={togglePlay} disabled={!apiReady}
+              <button onClick={togglePlay} disabled={!isReady}
                 className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-all disabled:opacity-40 active:scale-90"
                 style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)", boxShadow: isPlaying ? "0 0 24px rgba(239,68,68,0.6), 0 4px 16px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.4)" }}
               >
@@ -424,12 +454,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                 }
               </button>
 
-              <button
-                onClick={() => plCtxRef.current && plCtxRef.current.index < plCtxRef.current.items.length - 1
-                  ? playFromPlaylist(plCtxRef.current.items, plCtxRef.current.index + 1)
-                  : playerRef.current?.nextVideo()
-                }
-                disabled={!apiReady}
+              <button onClick={skipNext} disabled={!isReady}
                 className="p-2 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-all disabled:opacity-20 active:scale-90">
                 <SkipForward className="w-5 h-5" />
               </button>
@@ -452,7 +477,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
             {/* ── TAB CONTENT ── */}
             <div className="overflow-y-auto flex-1 scrollbar-hide" style={{ background: "#0a0a0a", maxHeight: 220 }}>
 
-              {/* Presets */}
               {tab === "presets" && (
                 <div className="px-3 py-3 flex flex-wrap gap-2">
                   {YT_PRESETS.map(p => (
@@ -468,7 +492,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                 </div>
               )}
 
-              {/* Search */}
               {tab === "search" && (
                 <div className="flex flex-col">
                   <form onSubmit={handleSearch} className="flex gap-1.5 px-3 pt-3 pb-2">
@@ -494,7 +517,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                           <p className="text-[9px] text-white/25 truncate">{r.channel}</p>
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0">
-                          <button onClick={() => playVideo(r.videoId, r.title, r.thumbnail)} disabled={!apiReady}
+                          <button onClick={() => playVideo(r.videoId, r.title, r.thumbnail)} disabled={!isReady}
                             className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20">
                             <Play className="w-3.5 h-3.5" />
                           </button>
@@ -509,7 +532,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                 </div>
               )}
 
-              {/* Playlist */}
               {tab === "playlist" && (
                 <div className="flex flex-col">
                   {playlist.length === 0
@@ -522,7 +544,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                     : (
                       <>
                         <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
-                          <button onClick={() => playFromPlaylist(playlist, 0)} disabled={!apiReady}
+                          <button onClick={() => playFromPlaylist(playlist, 0)} disabled={!isReady}
                             className="flex items-center gap-1.5 text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors disabled:opacity-30">
                             <Play className="w-3 h-3" /> Play All
                           </button>
@@ -548,7 +570,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                                 <p className="text-[9px] text-white/20">{i + 1} / {playlist.length}</p>
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
-                                <button onClick={() => playFromPlaylist(playlist, i)} disabled={!apiReady}
+                                <button onClick={() => playFromPlaylist(playlist, i)} disabled={!isReady}
                                   className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-20">
                                   <Play className="w-3.5 h-3.5" />
                                 </button>
@@ -581,7 +603,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
             className="fixed bottom-0 left-0 right-0 z-[8998]"
             style={{ background: "#0a0a0a", borderTop: "1px solid rgba(239,68,68,0.2)", boxShadow: "0 -4px 24px rgba(0,0,0,0.6)" }}
           >
-            {/* Progress top edge */}
             <div className="h-[2px] bg-white/[0.04]">
               {isLive
                 ? <motion.div className="h-full bg-red-500" animate={{ opacity: [1,0.3,1] }} transition={{ duration: 1.4, repeat: Infinity }} style={{ width: "100%" }} />
@@ -590,7 +611,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
             </div>
 
             <div className="flex items-center gap-3 px-3 py-2.5 cursor-pointer" onClick={onOpen}>
-              {/* Art or EQ */}
               {thumbnail
                 ? (
                   <div className="relative shrink-0 w-10 h-10 rounded-xl overflow-hidden border border-white/10">
@@ -608,7 +628,6 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                 )
               }
 
-              {/* Track info */}
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white/90 truncate leading-tight">{displayName}</p>
                 <p className="text-[9px] font-mono text-white/30 mt-0.5">
@@ -621,10 +640,9 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                 </p>
               </div>
 
-              {/* Play/Pause */}
               <button
                 onClick={e => { e.stopPropagation(); togglePlay(); }}
-                disabled={!apiReady}
+                disabled={!isReady}
                 className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white transition-all disabled:opacity-40 active:scale-90"
                 style={{ background: "linear-gradient(135deg,#ef4444,#dc2626)", boxShadow: "0 2px 12px rgba(239,68,68,0.4)" }}
               >

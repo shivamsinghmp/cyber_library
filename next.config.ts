@@ -117,7 +117,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
-              "connect-src 'self' https://www.youtube.com https://s.ytimg.com",
+              "connect-src 'self' https://www.youtube.com https://s.ytimg.com https://*.googlevideo.com",
               "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
               "frame-ancestors https://*.meet.google.com https://meet.google.com 'self'",
               "object-src 'none'",
