@@ -1,10 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getAppSetting } from "@/lib/app-settings";
 
-export async function GET(request: Request) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(request: NextRequest) {
+  // Accept both session cookies (dashboard) and Bearer tokens (Meet Add-on panel)
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const addonUser = bearerToken ? verifyMeetAddonToken(bearerToken) : null;
+
+  if (!addonUser) {
+    const session = await auth();
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();

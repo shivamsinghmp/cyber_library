@@ -205,7 +205,10 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
     setSearching(true);
     setSearchErr("");
     try {
-      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query.trim())}`);
+      const token = typeof window !== "undefined" ? localStorage.getItem("vl_meet_addon_token") : null;
+      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query.trim())}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json() as { results?: SearchResult[]; error?: string };
       if (!res.ok) {
         setSearchErr(data.error ?? "Search failed");
