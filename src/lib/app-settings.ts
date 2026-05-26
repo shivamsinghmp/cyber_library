@@ -38,6 +38,7 @@ export const APP_SETTING_KEYS = {
   ANTHROPIC_API_KEY:              { label: "Anthropic API Key (Claude AI)",                        secret: true  },
   OPENAI_API_KEY:                 { label: "OpenAI API Key",                                       secret: true  },
   YOUTUBE_API_KEY:                { label: "YouTube Data API v3 Key (for music search)",            secret: true  },
+  YOUTUBE_COOKIES:                { label: "YouTube Cookies (for music player bot-detection bypass)", secret: true  },
 } as const;
 
 const SECRET_KEYS = new Set(

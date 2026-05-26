@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Brain, ChevronLeft, CheckCircle, AlertCircle,
-  Eye, EyeOff, Save, Loader2, ExternalLink, FlaskConical,
+  Eye, EyeOff, Save, Loader2, ExternalLink, FlaskConical, Music2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -89,18 +89,45 @@ export default function AiSettingsPage() {
   const [testing, setTesting] = useState<Record<string, boolean>>({});
   const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
+  // YouTube cookies (for music player bot-detection bypass)
+  const [ytCookies,      setYtCookies]      = useState("");
+  const [ytCookiesSaved, setYtCookiesSaved] = useState(false);
+  const [ytCookiesSaving, setYtCookiesSaving] = useState(false);
+
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/settings", { credentials: "include" });
       if (!res.ok) return;
       const data: AllStatus = await res.json();
       setStatus(data);
+      setYtCookiesSaved(!!data["YOUTUBE_COOKIES"]?.hasValue);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  async function handleSaveYtCookies() {
+    setYtCookiesSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: "YOUTUBE_COOKIES", value: ytCookies.trim() || null }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(d.error ?? "Save failed"); return; }
+      toast.success(ytCookies.trim() ? "YouTube cookies saved" : "YouTube cookies removed");
+      setYtCookies("");
+      await fetchStatus();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setYtCookiesSaving(false);
+    }
+  }
 
   async function handleTest(id: ProviderConfig["id"]) {
     const providerMap: Record<string, string> = {
@@ -304,6 +331,70 @@ export default function AiSettingsPage() {
           </div>
         );
       })}
+
+      {/* YouTube Cookies card */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3 bg-red-50">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-red-600">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-200 bg-white text-xs font-black text-red-600">
+              <Music2 className="h-3.5 w-3.5" />
+            </span>
+            YouTube Cookies (Music Player)
+          </h2>
+        </div>
+        <div className="p-5 space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin" /> Checking…
+            </div>
+          ) : ytCookiesSaved ? (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+              <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span className="text-sm font-semibold text-emerald-700">Cookies configured — music player bot-detection bypass active</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+              <span className="text-sm font-semibold text-amber-700">No cookies — YouTube bot-detection se music fail ho sakta hai</span>
+            </div>
+          )}
+          <p className="text-xs text-gray-500">
+            Meet Add-on music player YouTube se audio stream karta hai. YouTube ka bot-detection server requests block karta hai.
+            Fix: Chrome mein YouTube kholo → F12 → Application → Cookies → https://www.youtube.com →
+            saare cookies copy karo (naam=value; format mein) aur yahan paste karo.
+          </p>
+          <textarea
+            rows={4}
+            value={ytCookies}
+            onChange={e => setYtCookies(e.target.value)}
+            placeholder={ytCookiesSaved ? "Naye cookies paste karo (purane replace honge)" : "VISITOR_INFO1_LIVE=xxx; YSC=yyy; CONSENT=YES+...; ..."}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-xs font-mono text-gray-900 outline-none focus:border-red-400 focus:bg-white transition resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleSaveYtCookies}
+              disabled={ytCookiesSaving}
+              className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-red-50 text-red-600 border border-red-200 hover:opacity-80"
+            >
+              {ytCookiesSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Cookies
+            </button>
+            {ytCookiesSaved && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirm("YouTube cookies remove kar doge? Music player fail ho sakta hai.")) return;
+                  setYtCookies("");
+                  handleSaveYtCookies();
+                }}
+                className="text-xs text-red-500 hover:underline"
+              >
+                Remove cookies
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Info note */}
       <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 text-xs text-gray-500 space-y-1">
