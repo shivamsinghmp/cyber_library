@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Brain, ChevronLeft, CheckCircle, AlertCircle,
-  Eye, EyeOff, Save, Loader2, ExternalLink,
+  Eye, EyeOff, Save, Loader2, ExternalLink, FlaskConical,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -84,8 +84,10 @@ export default function AiSettingsPage() {
     OPENAI_API_KEY: "",
     YOUTUBE_API_KEY: "",
   });
-  const [show, setShow] = useState<Record<string, boolean>>({});
-  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [show,    setShow]    = useState<Record<string, boolean>>({});
+  const [saving,  setSaving]  = useState<Record<string, boolean>>({});
+  const [testing, setTesting] = useState<Record<string, boolean>>({});
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -99,6 +101,31 @@ export default function AiSettingsPage() {
   }, []);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  async function handleTest(id: ProviderConfig["id"]) {
+    const providerMap: Record<string, string> = {
+      GEMINI_API_KEY: "gemini", ANTHROPIC_API_KEY: "anthropic", OPENAI_API_KEY: "openai",
+    };
+    const provider = providerMap[id];
+    if (!provider) { toast.error("Test not supported for this key"); return; }
+    setTesting(t => ({ ...t, [id]: true }));
+    setTestResult(r => ({ ...r, [id]: { ok: false, msg: "" } }));
+    try {
+      const value = values[id].trim() || undefined;
+      const res = await fetch("/api/admin/ai-settings/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ provider, ...(value ? { value } : {}) }),
+      });
+      const d = await res.json() as { ok: boolean; message?: string; error?: string };
+      setTestResult(r => ({ ...r, [id]: { ok: d.ok, msg: d.ok ? (d.message ?? "Valid ✓") : (d.error ?? "Failed") } }));
+    } catch {
+      setTestResult(r => ({ ...r, [id]: { ok: false, msg: "Network error" } }));
+    } finally {
+      setTesting(t => ({ ...t, [id]: false }));
+    }
+  }
 
   async function handleSave(id: ProviderConfig["id"]) {
     const value = values[id].trim();
@@ -148,10 +175,13 @@ export default function AiSettingsPage() {
 
       {/* Provider cards */}
       {PROVIDERS.map((p) => {
-        const configured = status[p.id]?.hasValue ?? false;
-        const isSaving = saving[p.id] ?? false;
-        const isShown = show[p.id] ?? false;
-        const val = values[p.id] ?? "";
+        const configured  = status[p.id]?.hasValue ?? false;
+        const isSaving    = saving[p.id]  ?? false;
+        const isTesting   = testing[p.id] ?? false;
+        const isShown     = show[p.id]    ?? false;
+        const val         = values[p.id]  ?? "";
+        const testRes     = testResult[p.id];
+        const canTest     = p.id !== "YOUTUBE_API_KEY";
 
         return (
           <div key={p.id} className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden shadow-sm">
@@ -213,6 +243,21 @@ export default function AiSettingsPage() {
                     {isShown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {canTest && (
+                  <button
+                    onClick={() => handleTest(p.id)}
+                    disabled={isTesting || isSaving}
+                    title="Test key validity"
+                    className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-gray-100 text-gray-600 border border-gray-200 hover:opacity-80"
+                  >
+                    {isTesting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FlaskConical className="h-4 w-4" />
+                    )}
+                    Test
+                  </button>
+                )}
                 <button
                   onClick={() => handleSave(p.id)}
                   disabled={isSaving}
@@ -226,6 +271,20 @@ export default function AiSettingsPage() {
                   Save
                 </button>
               </div>
+
+              {/* Test result */}
+              {testRes?.msg && (
+                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${
+                  testRes.ok
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}>
+                  {testRes.ok
+                    ? <CheckCircle className="h-4 w-4 shrink-0" />
+                    : <AlertCircle className="h-4 w-4 shrink-0" />}
+                  {testRes.msg}
+                </div>
+              )}
 
               {/* Remove link */}
               {configured && (
