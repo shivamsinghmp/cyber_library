@@ -41,7 +41,15 @@ export async function GET(request: NextRequest) {
     const data = await res.json() as {
       items?: Array<{
         id: { videoId?: string };
-        snippet: { title: string; channelTitle: string; thumbnails: { default: { url: string } } };
+        snippet: {
+          title: string;
+          channelTitle: string;
+          thumbnails: {
+            default?: { url: string };
+            medium?:  { url: string };
+            high?:    { url: string };
+          };
+        };
       }>;
     };
 
@@ -51,7 +59,10 @@ export async function GET(request: NextRequest) {
         videoId:   item.id.videoId!,
         title:     item.snippet.title,
         channel:   item.snippet.channelTitle,
-        thumbnail: item.snippet.thumbnails.default.url,
+        thumbnail: item.snippet.thumbnails.medium?.url
+          ?? item.snippet.thumbnails.high?.url
+          ?? item.snippet.thumbnails.default?.url
+          ?? `https://i.ytimg.com/vi/${item.id.videoId}/mqdefault.jpg`,
       }));
 
     return NextResponse.json({ results });

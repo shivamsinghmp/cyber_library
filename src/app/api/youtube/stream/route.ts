@@ -2,13 +2,12 @@ import { NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getAppSetting } from "@/lib/app-settings";
-import ytdl from "@distube/ytdl-core";
+import { getYTStreamInfo } from "@/lib/youtube-innertube";
 
 export const dynamic = "force-dynamic";
 export const runtime  = "nodejs";
 
-// Module-level cache — persists across requests in the same PM2 process.
-// YouTube audio URLs are valid ~6h; we cache for 4h to stay safe.
+// Module-level URL cache — YouTube CDN URLs are valid ~6h; cache for 4h.
 const streamCache = new Map<string, {
   url:           string;
   mimeType:      string;
@@ -16,43 +15,28 @@ const streamCache = new Map<string, {
   expiresAt:     number;
 }>();
 
-function buildYtdlOpts(cookies?: string | null) {
-  return {
-    requestOptions: {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        ...(cookies ? { cookie: cookies } : {}),
-      },
-    },
-  };
-}
-
 async function resolveStreamUrl(videoId: string, cookies?: string | null, force = false) {
   const hit = streamCache.get(videoId);
   if (!force && hit && Date.now() < hit.expiresAt) return hit;
 
-  const opts = buildYtdlOpts(cookies);
-  const infoPromise = ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, opts);
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("ytdl timeout — YouTube ne respond nahi kiya")), 15_000)
-  );
-  const info = await Promise.race([infoPromise, timeout]);
-  const formats = ytdl.filterFormats(info.formats, "audioonly");
-  if (!formats.length) throw new Error("No audio-only format found");
+  const controller = new AbortController();
+  const timer      = setTimeout(() => controller.abort(), 15_000);
 
-  const sorted = formats.sort((a, b) => (b.audioBitrate ?? 0) - (a.audioBitrate ?? 0));
-  // Prefer webm/opus; fall back to highest-bitrate format
-  const best = sorted.find(f => f.mimeType?.includes("webm")) ?? sorted[0];
+  try {
+    const info = await getYTStreamInfo(videoId, cookies, controller.signal);
+    if (!info.url) throw new Error("No stream URL returned");
 
-  const entry = {
-    url:           best.url,
-    mimeType:      best.mimeType ?? "audio/webm",
-    contentLength: best.contentLength ?? null,
-    expiresAt:     Date.now() + 4 * 60 * 60 * 1000,
-  };
-  streamCache.set(videoId, entry);
-  return entry;
+    const entry = {
+      url:           info.url,
+      mimeType:      info.mimeType ?? "audio/webm",
+      contentLength: info.contentLength ?? null,
+      expiresAt:     Date.now() + 4 * 60 * 60 * 1000,
+    };
+    streamCache.set(videoId, entry);
+    return entry;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function buildProxyResponse(upstream: Response, mimeType: string): Response {
@@ -71,8 +55,7 @@ function buildProxyResponse(upstream: Response, mimeType: string): Response {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
-  // Auth via header OR ?token= query param.
-  // <audio src="..."> cannot set request headers, so token goes in query string.
+  // Auth: header OR ?token= (audio element src can't set headers).
   const authHeader  = request.headers.get("authorization");
   const bearerToken =
     (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null) ??
@@ -92,10 +75,10 @@ export async function GET(request: NextRequest) {
 
   const rangeHeader = request.headers.get("range");
 
-  const fetchWithRange = async (url: string) =>
+  const fetchWithRange = (url: string) =>
     fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 11; Pixel 4 XL) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Mobile Safari/537.36",
         "Referer":    "https://www.youtube.com/",
         "Origin":     "https://www.youtube.com",
         ...(rangeHeader ? { Range: rangeHeader } : {}),
@@ -108,7 +91,7 @@ export async function GET(request: NextRequest) {
     let { url, mimeType } = await resolveStreamUrl(videoId, cookies);
     let upstream = await fetchWithRange(url);
 
-    // If URL is stale (403/410), clear cache and retry once with a fresh URL
+    // CDN URL expired (403/410) → flush cache and re-resolve once
     if (upstream.status === 403 || upstream.status === 410) {
       streamCache.delete(videoId);
       ({ url, mimeType } = await resolveStreamUrl(videoId, cookies, true));
@@ -116,17 +99,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (!upstream.ok && upstream.status !== 206) {
-      console.error("[youtube/stream] Upstream", upstream.status, "for", videoId);
-      return new Response("Stream unavailable", { status: 502 });
+      console.error("[youtube/stream] CDN error", upstream.status, "for", videoId);
+      return new Response(`Stream unavailable (CDN ${upstream.status})`, { status: 502 });
     }
 
     return buildProxyResponse(upstream, mimeType);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Stream failed";
     console.error("[youtube/stream] Error for", videoId, ":", msg);
-    const friendly = msg.includes("Sign in") || msg.includes("bot")
-      ? "YouTube bot-detection blocked the request. Set YOUTUBE_COOKIES in admin settings."
-      : msg;
-    return new Response(friendly, { status: 500 });
+    return new Response(msg, { status: 500 });
   }
 }
