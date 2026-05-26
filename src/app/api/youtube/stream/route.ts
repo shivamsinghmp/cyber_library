@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { getAppSetting } from "@/lib/app-settings";
+import { getYTStreamInfo } from "@/lib/youtube-innertube";
 import ytdl from "@distube/ytdl-core";
 
 export const dynamic = "force-dynamic";
 export const runtime  = "nodejs";
 
-// Module-level cache — YouTube CDN URLs (with decoded `n` param) are valid ~6h; cache 4h.
+// Cache InnerTube-resolved stream URLs (~4h CDN validity)
 const streamCache = new Map<string, {
   url:           string;
   mimeType:      string;
@@ -13,11 +14,20 @@ const streamCache = new Map<string, {
   expiresAt:     number;
 }>();
 
-function buildOpts(cookies?: string | null) {
+async function resolveViaInnerTube(videoId: string, cookies?: string | null) {
+  const info = await getYTStreamInfo(videoId, cookies);
+  return {
+    url:           info.url!,
+    mimeType:      info.mimeType ?? "audio/webm",
+    contentLength: info.contentLength ?? null,
+  };
+}
+
+function buildYtdlOpts(cookies?: string | null) {
   return {
     requestOptions: {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9",
         ...(cookies ? { cookie: cookies } : {}),
       },
@@ -25,30 +35,40 @@ function buildOpts(cookies?: string | null) {
   };
 }
 
-// ytdl.getInfo() decodes the YouTube `n` challenge parameter inside the CDN URL.
-// Without this decoding the CDN returns 403. Raw InnerTube API calls don't do this.
+async function resolveViaYtdl(videoId: string, cookies?: string | null) {
+  const infoPromise = ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, buildYtdlOpts(cookies));
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("ytdl timeout")), 15_000)
+  );
+  const info    = await Promise.race([infoPromise, timeout]);
+  const formats = ytdl.filterFormats(info.formats, "audioonly");
+  if (!formats.length) throw new Error("No audio-only format found");
+  const sorted = formats.sort((a, b) => (b.audioBitrate ?? 0) - (a.audioBitrate ?? 0));
+  const best   = sorted.find(f => f.mimeType?.includes("webm")) ?? sorted[0];
+  return {
+    url:           best.url,
+    mimeType:      best.mimeType ?? "audio/webm",
+    contentLength: best.contentLength ?? null,
+  };
+}
+
 async function resolveStreamUrl(videoId: string, cookies?: string | null, force = false) {
   const hit = streamCache.get(videoId);
   if (!force && hit && Date.now() < hit.expiresAt) return hit;
 
-  const infoPromise = ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, buildOpts(cookies));
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error("ytdl timeout")), 15_000)
-  );
-  const info = await Promise.race([infoPromise, timeout]);
+  // InnerTube ANDROID first — bypasses bot-detection
+  try {
+    const r = await resolveViaInnerTube(videoId, cookies);
+    const entry = { ...r, expiresAt: Date.now() + 4 * 60 * 60 * 1000 };
+    streamCache.set(videoId, entry);
+    return entry;
+  } catch (e) {
+    console.warn("[youtube/stream] InnerTube failed, falling back to ytdl:", (e as Error).message);
+  }
 
-  const formats = ytdl.filterFormats(info.formats, "audioonly");
-  if (!formats.length) throw new Error("No audio-only format found");
-
-  const sorted = formats.sort((a, b) => (b.audioBitrate ?? 0) - (a.audioBitrate ?? 0));
-  const best   = sorted.find(f => f.mimeType?.includes("webm")) ?? sorted[0];
-
-  const entry = {
-    url:           best.url,           // n-param already decoded by ytdl
-    mimeType:      best.mimeType ?? "audio/webm",
-    contentLength: best.contentLength ?? null,
-    expiresAt:     Date.now() + 4 * 60 * 60 * 1000,
-  };
+  // ytdl fallback — decodes n-param but may get bot-detected
+  const r = await resolveViaYtdl(videoId, cookies);
+  const entry = { ...r, expiresAt: Date.now() + 4 * 60 * 60 * 1000 };
   streamCache.set(videoId, entry);
   return entry;
 }
@@ -91,7 +111,7 @@ export async function GET(request: NextRequest) {
     let { url, mimeType } = await resolveStreamUrl(videoId, cookies);
     let upstream = await fetchWithRange(url);
 
-    // CDN URL expired → clear cache, re-resolve, retry once
+    // CDN URL expired or n-param issue → clear cache, re-resolve, retry once
     if (upstream.status === 403 || upstream.status === 410) {
       streamCache.delete(videoId);
       ({ url, mimeType } = await resolveStreamUrl(videoId, cookies, true));

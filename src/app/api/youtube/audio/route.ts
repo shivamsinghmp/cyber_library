@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAppSetting } from "@/lib/app-settings";
-import ytdl from "@distube/ytdl-core";
+import { getYTStreamInfo } from "@/lib/youtube-innertube";
 
 export const dynamic = "force-dynamic";
 export const runtime  = "nodejs";
-
-function buildOpts(cookies?: string | null) {
-  return {
-    requestOptions: {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        ...(cookies ? { cookie: cookies } : {}),
-      },
-    },
-  };
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -27,51 +15,34 @@ export async function GET(request: NextRequest) {
 
   try {
     const cookies = await getAppSetting("YOUTUBE_COOKIES");
+    const info = await getYTStreamInfo(videoId, cookies);
 
-    const infoPromise = ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, buildOpts(cookies));
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("YouTube response timeout. Dobara try karo.")), 15_000)
-    );
-    const info    = await Promise.race([infoPromise, timeout]);
-    const details = info.videoDetails;
-
-    const title     = details.title;
-    const author    = details.author.name;
-    const thumbnail = details.thumbnails.at(-1)?.url
-      ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
-    const isLiveNow = (details as { liveBroadcastDetails?: { isLiveNow?: boolean } })
-      .liveBroadcastDetails?.isLiveNow === true;
-
-    if (isLiveNow) {
-      const hlsFormat = info.formats.find(f => f.isHLS && f.url);
-      if (!hlsFormat?.url) {
-        return NextResponse.json({ error: "Live stream format not available" }, { status: 404 });
-      }
-      return NextResponse.json({ isLive: true, hlsUrl: hlsFormat.url, title, author, thumbnail, duration: 0 });
+    if (info.isLive) {
+      return NextResponse.json({
+        isLive: true,
+        hlsUrl: info.hlsUrl,
+        title:  info.title,
+        author: info.author,
+        thumbnail: info.thumbnail,
+        duration: 0,
+      });
     }
-
-    const audioFormats = ytdl.filterFormats(info.formats, "audioonly");
-    if (!audioFormats.length) {
-      return NextResponse.json({ error: "No audio format found" }, { status: 404 });
-    }
-
-    const sorted = audioFormats.sort((a, b) => (b.audioBitrate ?? 0) - (a.audioBitrate ?? 0));
-    const best   = sorted.find(f => f.mimeType?.includes("webm")) ?? sorted[0];
 
     return NextResponse.json({
       isLive:   false,
-      url:      best.url,
-      mimeType: best.mimeType ?? "audio/webm",
-      title, author, thumbnail,
-      duration: parseInt(details.lengthSeconds, 10),
+      url:      info.url,
+      mimeType: info.mimeType,
+      title:    info.title,
+      author:   info.author,
+      thumbnail: info.thumbnail,
+      duration: info.durationSeconds,
     });
   } catch (err) {
     const raw = err instanceof Error ? err.message : "Unknown error";
     console.error("[youtube/audio] videoId:", videoId, "→", raw);
 
-    const msg = raw.toLowerCase().includes("sign in") || raw.toLowerCase().includes("bot")
-      ? "YouTube bot-detection active hai. Admin → AI Settings mein YouTube Cookies configure karo."
+    const msg = raw.toLowerCase().includes("sign in") || raw.toLowerCase().includes("age")
+      ? "Age-restricted video — YouTube Cookies configure karo Admin → AI Settings mein."
       : raw.includes("timeout") || raw.includes("Timeout")
         ? "YouTube response timeout. Dobara try karo."
         : raw.slice(0, 200);
