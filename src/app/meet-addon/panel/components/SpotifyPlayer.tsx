@@ -149,6 +149,16 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
       audio.removeAttribute("src");
       audio.load();
 
+      const tryPlay = () => {
+        audio.play().catch((e: Error) => {
+          // NotAllowedError = autoplay blocked — user must click play manually, that's fine
+          if (e.name !== "NotAllowedError") {
+            setIsBuffering(false);
+            setStreamError("Playback failed — play button dabao");
+          }
+        });
+      };
+
       if (data.isLive && data.hlsUrl) {
         // Live stream — use hls.js (Chrome) or native HLS (Safari)
         const { default: Hls } = await import("hls.js");
@@ -157,14 +167,14 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
           hlsRef.current = hls;
           hls.loadSource(data.hlsUrl);
           hls.attachMedia(audio);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => { audio.play().catch(() => {}); });
+          hls.on(Hls.Events.MANIFEST_PARSED, () => { tryPlay(); });
           hls.on(Hls.Events.ERROR, (_: unknown, d: { fatal?: boolean }) => {
             if (d.fatal) { setIsBuffering(false); setStreamError("Live stream error"); }
           });
         } else if (audio.canPlayType("application/vnd.apple.mpegurl")) {
           audio.src = data.hlsUrl;
           audio.load();
-          audio.play().catch(() => {});
+          tryPlay();
         } else {
           setIsBuffering(false);
           setStreamError("Live stream not supported in this browser");
@@ -174,7 +184,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
         const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
         audio.src = `/api/youtube/stream?videoId=${encodeURIComponent(videoId)}${tokenParam}`;
         audio.load();
-        audio.play().catch(() => {});
+        tryPlay();
       }
 
       try { localStorage.setItem(YT_STORAGE_KEY, videoId); } catch {}
@@ -318,8 +328,15 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (isPlaying) audio.pause();
-    else           audio.play().catch(() => {});
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch((e: Error) => {
+        if (e.name !== "NotAllowedError") {
+          setStreamError("Playback failed — dobara try karo");
+        }
+      });
+    }
   };
 
   const skipPrev = () => {

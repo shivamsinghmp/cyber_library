@@ -15,11 +15,24 @@ const streamCache = new Map<string, {
   expiresAt:     number;
 }>();
 
+const YTDL_OPTS = {
+  requestOptions: {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  },
+};
+
 async function resolveStreamUrl(videoId: string, force = false) {
   const hit = streamCache.get(videoId);
   if (!force && hit && Date.now() < hit.expiresAt) return hit;
 
-  const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
+  const infoPromise = ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, YTDL_OPTS);
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("ytdl timeout — YouTube ne respond nahi kiya")), 15_000)
+  );
+  const info = await Promise.race([infoPromise, timeout]);
   const formats = ytdl.filterFormats(info.formats, "audioonly");
   if (!formats.length) throw new Error("No audio-only format found");
 

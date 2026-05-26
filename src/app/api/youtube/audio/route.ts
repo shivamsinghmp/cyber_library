@@ -23,8 +23,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid videoId" }, { status: 400 });
   }
 
+  const YTDL_OPTS = {
+    requestOptions: {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    },
+  };
+
   try {
-    const info    = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
+    const infoPromise = ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`, YTDL_OPTS);
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("YouTube ne respond nahi kiya. Dobara try karo.")), 15_000)
+    );
+    const info    = await Promise.race([infoPromise, timeout]);
     const details = info.videoDetails;
 
     const title     = details.title;
