@@ -65,17 +65,13 @@ export function invalidateAppSettingCache(key?: keyof typeof APP_SETTING_KEYS) {
   else _cache.clear();
 }
 
-/** Get value for a key: env first, then in-process cache, then DB. */
+/** Get value for a key: in-process cache first, then DB. (env is intentionally ignored — DB is source of truth) */
 export async function getAppSetting(key: keyof typeof APP_SETTING_KEYS): Promise<string | null> {
-  // 1. Env always wins (no cache needed — env never changes at runtime)
-  const envVal = process.env[key];
-  if (envVal != null && envVal.trim() !== "") return envVal.trim();
-
-  // 2. In-process cache
+  // 1. In-process cache
   const cached = cacheGet(key);
   if (cached !== undefined) return cached;
 
-  // 3. DB
+  // 2. DB
   try {
     const row = await prisma.appSetting.findUnique({
       where: { key },
@@ -108,11 +104,6 @@ export async function batchGetAppSettings(
   const dbKeys: Array<keyof typeof APP_SETTING_KEYS> = [];
 
   for (const key of keys) {
-    const envVal = process.env[key];
-    if (envVal != null && envVal.trim() !== "") {
-      result[key] = envVal.trim();
-      continue;
-    }
     const cached = cacheGet(key);
     if (cached !== undefined) {
       result[key] = cached;
