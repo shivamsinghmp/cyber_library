@@ -20,7 +20,6 @@ export function BlogEngagement({ slug, initialViews = 0 }: { slug: string; initi
   const [submitting, setSubmitting] = useState(false);
   const [loadingComments, setLoadingComments] = useState(true);
 
-  // Track view once on mount
   useEffect(() => {
     const trackView = async () => {
       try {
@@ -29,36 +28,24 @@ export function BlogEngagement({ slug, initialViews = 0 }: { slug: string; initi
           const data = await res.json();
           setViews(data.views);
         }
-      } catch (e) {
-        console.error("View tracking failed");
-      }
+      } catch {}
     };
     trackView();
   }, [slug]);
 
-  // Load comments
   const loadComments = async () => {
     try {
       const res = await fetch(`/api/blog/${slug}/comments`);
-      if (res.ok) {
-        const data = await res.json();
-        setComments(data);
-      }
-    } catch (e) {
-      console.error("Error loading comments", e);
-    } finally {
-      setLoadingComments(false);
-    }
+      if (res.ok) setComments(await res.json());
+    } catch {}
+    finally { setLoadingComments(false); }
   };
 
-  useEffect(() => {
-    loadComments();
-  }, [slug]);
+  useEffect(() => { loadComments(); }, [slug]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-
     setSubmitting(true);
     try {
       const res = await fetch(`/api/blog/${slug}/comments`, {
@@ -67,93 +54,132 @@ export function BlogEngagement({ slug, initialViews = 0 }: { slug: string; initi
         body: JSON.stringify({ content: newComment }),
       });
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to post comment");
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || "Failed to post comment");
       }
       setNewComment("");
       toast.success("Comment added!");
       await loadComments();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to post");
+    } catch (e: unknown) {
+      toast.error((e as Error).message || "Failed to post");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="mt-16 space-y-12 border-t border-white/10 pt-10">
-      {/* Metrics Bar */}
-      <div className="flex items-center gap-6 text-[var(--cream-muted)]">
+    <div className="space-y-8">
+      {/* Stats row */}
+      <div className="flex items-center gap-6 pb-6 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center gap-2">
-          <Eye className="h-5 w-5 text-[var(--accent)]" />
-          <span className="font-semibold text-[var(--cream)]">{views} <span className="font-normal text-sm opacity-80">Views</span></span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl"
+            style={{ background: "var(--accent-pale)" }}>
+            <Eye className="h-4 w-4" style={{ color: "var(--accent)" }} />
+          </div>
+          <div>
+            <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>{views}</p>
+            <p className="text-[10px] font-semibold" style={{ color: "var(--muted-text)" }}>Views</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-blue-400" />
-          <span className="font-semibold text-[var(--cream)]">{comments.length} <span className="font-normal text-sm opacity-80">Comments</span></span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl"
+            style={{ background: "#EFF6FF" }}>
+            <MessageSquare className="h-4 w-4 text-blue-500" />
+          </div>
+          <div>
+            <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>{comments.length}</p>
+            <p className="text-[10px] font-semibold" style={{ color: "var(--muted-text)" }}>Comments</p>
+          </div>
         </div>
       </div>
 
-      {/* Discussion Section */}
-      <div className="space-y-8">
-        <h3 className="text-xl font-bold text-[var(--cream)] tracking-tight">Discussion</h3>
+      {/* Discussion */}
+      <div className="space-y-6">
+        <h3 className="text-lg font-extrabold tracking-tight" style={{ color: "var(--foreground)" }}>
+          Discussion
+        </h3>
 
-        {/* Comment Form */}
+        {/* Comment form */}
         {session?.user ? (
           <form onSubmit={handleSubmit} className="relative">
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Share your thoughts or questions safely..."
-              className="w-full rounded-2xl border border-[var(--wood)]/20 bg-white/5 p-4 pr-16 text-sm text-[var(--cream)] placeholder-[var(--cream-muted)]/60 focus:border-[var(--accent)]/50 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/50 transition-all placeholder:font-medium"
+              placeholder="Share your thoughts or questions..."
+              className="w-full rounded-2xl border px-4 py-3 pr-14 text-sm leading-relaxed outline-none transition-all"
+              style={{
+                borderColor: "var(--border)",
+                background: "var(--page-bg)",
+                color: "var(--foreground)",
+              }}
+              onFocus={e => { e.target.style.borderColor = "var(--accent)"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.08)"; }}
+              onBlur={e  => { e.target.style.borderColor = "var(--border)";  e.target.style.boxShadow = "none"; }}
               rows={3}
               required
             />
             <button
               type="submit"
               disabled={submitting}
-              className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--ink)] shadow-md transition hover:scale-105 hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:hover:scale-100"
+              className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-xl text-white shadow transition hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+              style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </form>
         ) : (
-          <div className="rounded-2xl border border-[var(--wood)]/10 bg-white/[0.02] p-6 text-center shadow-inner">
-            <p className="text-sm font-medium text-[var(--cream-muted)]">You must be a verified student to join the discussion.</p>
-            <p className="mt-2 text-xs text-[var(--cream-muted)]/60">(Spam prevention enabled)</p>
+          <div className="rounded-2xl border px-6 py-5 text-center"
+            style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>
+              Discussion join karne ke liye login karo.
+            </p>
+            <p className="mt-1 text-xs" style={{ color: "var(--muted-text)" }}>
+              (Spam prevention enabled)
+            </p>
           </div>
         )}
 
-        {/* Comment List */}
-        <div className="space-y-5">
+        {/* Comment list */}
+        <div className="space-y-4">
           {loadingComments ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-6 w-6 animate-spin text-[var(--wood)]/50" />
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--accent)" }} />
             </div>
           ) : comments.length === 0 ? (
-            <p className="text-center text-sm font-medium text-[var(--cream-muted)] opacity-60">No comments yet. Be the first to share your thoughts!</p>
+            <p className="text-center text-sm font-medium py-6" style={{ color: "var(--muted-text)" }}>
+              No comments yet. Pehle comment karo!
+            </p>
           ) : (
             comments.map((comment) => (
-              <div key={comment.id} className="group relative rounded-2xl border border-[var(--wood)]/10 bg-[var(--ink)]/40 p-5 shadow-sm transition hover:bg-white/[0.03]">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--wood)]/10 text-[var(--wood)] ring-1 ring-[var(--wood)]/20">
+              <div key={comment.id}
+                className="rounded-2xl border p-5 transition-all hover:shadow-sm"
+                style={{ borderColor: "var(--border)", background: "var(--page-bg)" }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white font-bold text-sm"
+                    style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
                     {comment.user.image ? (
-                      <img src={comment.user.image} alt="User" className="h-10 w-10 rounded-full" />
+                      <img src={comment.user.image} alt="User" className="h-9 w-9 rounded-full object-cover" />
                     ) : (
-                      <span className="font-bold text-sm uppercase">{comment.user.name?.[0] || "?"}</span>
+                      <span className="uppercase">{comment.user.name?.[0] || "?"}</span>
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-[var(--cream)]">
+                    <p className="text-sm font-bold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
                       {comment.user.name || "Anonymous Student"}
-                      {comment.user.role === "ADMIN" && <span className="ml-2 rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-[10px] uppercase text-[var(--accent)] ring-1 ring-inset ring-[var(--accent)]/30">Admin</span>}
+                      {comment.user.role === "ADMIN" && (
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white"
+                          style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
+                          Admin
+                        </span>
+                      )}
                     </p>
-                    <p className="text-xs font-semibold text-[var(--cream-muted)]/60">
-                      {new Date(comment.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(comment.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    <p className="text-[11px]" style={{ color: "var(--muted-text)" }}>
+                      {new Date(comment.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                      {" · "}
+                      {new Date(comment.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                 </div>
-                <p className="mt-4 text-sm leading-relaxed text-[var(--cream-muted)] font-medium">
+                <p className="text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>
                   {comment.content}
                 </p>
               </div>
