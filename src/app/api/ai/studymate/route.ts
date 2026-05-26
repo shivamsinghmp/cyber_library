@@ -75,7 +75,7 @@ function estimateCoins(messages: Array<{ content: string }>, model: ModelId): nu
   return Math.ceil(estTokens / 1000) * COINS_PER_1000T[model];
 }
 
-// Fetch AI keys: env takes priority, then DB-stored (admin-configured)
+// Fetch AI keys from DB only — env is intentionally ignored (DB is source of truth)
 async function getAiKeys() {
   const settings = await batchGetAppSettings(["GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]);
   return {
