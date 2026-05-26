@@ -12,7 +12,7 @@ type KeyStatus = { hasValue: boolean };
 type AllStatus = Record<string, KeyStatus>;
 
 type ProviderConfig = {
-  id: "GEMINI_API_KEY" | "ANTHROPIC_API_KEY" | "OPENAI_API_KEY";
+  id: "GEMINI_API_KEY" | "ANTHROPIC_API_KEY" | "OPENAI_API_KEY" | "YOUTUBE_API_KEY";
   label: string;
   provider: string;
   color: string;
@@ -61,6 +61,18 @@ const PROVIDERS: ProviderConfig[] = [
     docsLabel: "Get OpenAI key",
     hint: "GPT-4o mini, GPT-4.1, GPT-4o, o1 — wide range of tiers",
   },
+  {
+    id: "YOUTUBE_API_KEY",
+    label: "YouTube Data API v3",
+    provider: "Google Cloud Console",
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    placeholder: "AIza...",
+    docsUrl: "https://console.cloud.google.com/apis/credentials",
+    docsLabel: "Get YouTube key",
+    hint: "Meet Addon music player mein search feature ke liye — YouTube Data API v3",
+  },
 ];
 
 export default function AiSettingsPage() {
@@ -70,6 +82,7 @@ export default function AiSettingsPage() {
     GEMINI_API_KEY: "",
     ANTHROPIC_API_KEY: "",
     OPENAI_API_KEY: "",
+    YOUTUBE_API_KEY: "",
   });
   const [show, setShow] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
