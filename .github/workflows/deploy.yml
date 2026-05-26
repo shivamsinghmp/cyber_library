@@ -11,13 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DO_HOST }}
-          username: ${{ secrets.DO_USER }}
-          key: ${{ secrets.DO_SSH_KEY }}
-          port: 22
-          script: |
+        env:
+          DO_HOST: ${{ secrets.DO_HOST }}
+          DO_USER: ${{ secrets.DO_USER }}
+          DO_SSH_KEY: ${{ secrets.DO_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DO_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DO_HOST" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key "$DO_USER@$DO_HOST" << 'ENDSSH'
             set -e
             cd /var/www/cyber_library
             git checkout -- .
@@ -29,13 +32,13 @@ jobs:
             npm run build
             pm2 reload ecosystem.config.js --update-env
             pm2 save
+          ENDSSH
 
       - name: Health check
         run: |
           echo "Waiting 30s for app to be ready..."
           sleep 30
 
-          # Home page must return 200
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://cyberlib.in)
           if [ "$STATUS" != "200" ]; then
             echo "❌ Home page returned $STATUS (expected 200)"
@@ -43,7 +46,6 @@ jobs:
           fi
           echo "✅ Home page OK ($STATUS)"
 
-          # /dashboard must redirect to login (307), NOT to itself in a loop
           DASH=$(curl -s -o /dev/null -w "%{http_code}" -L --max-redirs 1 https://cyberlib.in/dashboard)
           if [ "$DASH" = "200" ] || [ "$DASH" = "307" ]; then
             echo "✅ Dashboard redirect OK"
@@ -52,7 +54,6 @@ jobs:
             exit 1
           fi
 
-          # Auth session endpoint must return 200
           AUTH=$(curl -s -o /dev/null -w "%{http_code}" https://cyberlib.in/api/auth/session)
           if [ "$AUTH" != "200" ]; then
             echo "❌ /api/auth/session returned $AUTH (expected 200)"
