@@ -3,13 +3,10 @@ import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
-// Try yt-dlp binary first (installed via curl on Linux server),
-// fall back to python module (Windows dev / pip-installed)
-function getYtDlpCmd(): string {
-  return process.platform === "win32"
-    ? "python -m yt_dlp"
-    : "yt-dlp";
-}
+// Windows: python module; Linux: absolute path (pm2 may not have /usr/local/bin in PATH)
+const YTDLP_CMD = process.platform === "win32"
+  ? "python -m yt_dlp"
+  : "/usr/local/bin/yt-dlp";
 
 interface YtDlpFormat {
   url:     string;
@@ -44,7 +41,7 @@ export type YtDlpStreamInfo = {
 
 export async function getYTStreamInfoViaYtDlp(videoId: string): Promise<YtDlpStreamInfo> {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
-  const cmd = `${getYtDlpCmd()} --dump-json --no-playlist --no-warnings "${url}"`;
+  const cmd = `${YTDLP_CMD} --dump-json --no-playlist --no-warnings "${url}"`;
 
   const { stdout } = await execAsync(cmd, { timeout: 25_000 });
 
