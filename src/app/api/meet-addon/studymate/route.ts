@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getMeetAddonCorsHeaders } from "../cors";
+import { getAppSetting } from "@/lib/app-settings";
 import { z } from "zod";
 
 const FREE_MESSAGES_PER_DAY = 5;
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
       currentStreak: profile?.currentStreak ?? 0,
     });
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = await getAppSetting("GEMINI_API_KEY");
     if (!apiKey) return NextResponse.json({ error: "AI not configured" }, { status: 503, headers: cors });
 
     const geminiContents = messages.map((m) => ({
