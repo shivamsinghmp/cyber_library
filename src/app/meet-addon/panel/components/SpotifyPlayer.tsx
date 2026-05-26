@@ -110,7 +110,9 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
       playerRef.current = new window.YT!.Player(containerRef.current, {
         width: 320, height: 180,
         videoId,
-        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1 },
+        // autoplay: 0 — browsers block autoplay in sandboxed iframes (e.g. Google Meet).
+        // Music starts when the user explicitly clicks Play or a preset.
+        playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1 },
         events: {
           onReady: () => { readyRef.current = true; setApiReady(true); },
           onStateChange: (e: { data: number; target: YTPlayer }) => {

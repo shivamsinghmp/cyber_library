@@ -120,9 +120,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
           }
         } catch (err) {
-          // DB unreachable during session validation — fail closed.
+          // DB unreachable during session validation — fail open to avoid
+          // spurious logouts when the DB is temporarily unavailable.
           console.error("[auth] Session DB validation failed:", err);
-          return {} as typeof token;
+          return token;
         }
       }
 

@@ -82,8 +82,8 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              // Razorpay checkout + Google analytics/tag manager
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com https://*.googletagmanager.com",
+              // Razorpay checkout + Google analytics/tag manager + YouTube IFrame API
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com https://*.googletagmanager.com https://www.youtube.com https://s.ytimg.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
@@ -109,7 +109,20 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors https://*.meet.google.com https://meet.google.com 'self'",
+            // Full policy for meet-addon: allows Google Meet to embed the panel,
+            // and explicitly allows YouTube IFrame API for the music player.
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://www.googletagmanager.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "font-src 'self' data: https://fonts.gstatic.com",
+              "img-src 'self' data: blob: https:",
+              "connect-src 'self' https://www.youtube.com https://s.ytimg.com",
+              "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
+              "frame-ancestors https://*.meet.google.com https://meet.google.com 'self'",
+              "object-src 'none'",
+              "base-uri 'self'",
+            ].join("; "),
           },
           {
             key: "X-Frame-Options",
