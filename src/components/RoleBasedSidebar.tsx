@@ -56,6 +56,7 @@ const roleNav: Record<string, NavNode[]> = {
         { href: "/admin/traffic", label: "Traffic" },
         { href: "/admin/audit-logs", label: "Audit Logs" },
         { href: "/admin/settings", label: "Settings" },
+        { href: "/admin/ai-settings", label: "AI API Keys" },
       ],
     },
     {
