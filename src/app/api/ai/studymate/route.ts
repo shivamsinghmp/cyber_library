@@ -522,8 +522,18 @@ export async function POST(request: Request) {
     try {
       ({ reply, totalTokens } = await callModel(keys, modelId, messages, system, imageBase64, mediaType));
     } catch (err) {
-      // Fallback: try cheapest available model
-      const fallback = available.find(m => COINS_PER_1000T[m] === 1) ?? available[0];
+      const errMsg = (err as Error).message ?? "";
+      const isQuota = errMsg.includes("quota");
+      const failedProvider = MODEL_PROVIDER[modelId];
+
+      // On quota error prefer a different provider so the user never sees "busy"
+      let fallback: ModelId | undefined;
+      if (isQuota) {
+        fallback = available.find(m => MODEL_PROVIDER[m] !== failedProvider && COINS_PER_1000T[m] <= 2)
+          ?? available.find(m => MODEL_PROVIDER[m] !== failedProvider);
+      }
+      fallback = fallback ?? available.find(m => COINS_PER_1000T[m] === 1) ?? available[0];
+
       if (fallback !== modelId) {
         try {
           ({ reply, totalTokens } = await callModel(keys, fallback, messages, system, imageBase64, mediaType));
@@ -569,11 +579,23 @@ export async function POST(request: Request) {
 }
 
 // ─── GET — initial stats ──────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const auth = await requireModule("studymate");
-    if (auth.error) return auth.error;
-    const userId = auth.user.id;
+    let userId: string;
+
+    const bearerToken = request.headers.get("authorization")?.startsWith("Bearer ")
+      ? request.headers.get("authorization")!.slice(7) : null;
+
+    if (bearerToken) {
+      const { verifyMeetAddonToken } = await import("@/lib/meet-addon-token");
+      const payload = verifyMeetAddonToken(bearerToken);
+      if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      userId = payload.userId;
+    } else {
+      const auth = await requireModule("studymate");
+      if (auth.error) return auth.error;
+      userId = auth.user.id;
+    }
 
     // Single DB query for profile + coins, parallel with AI key lookup
     const [profileRow, keys] = await Promise.all([
