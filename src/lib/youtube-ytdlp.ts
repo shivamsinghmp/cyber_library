@@ -67,7 +67,14 @@ export type YtDlpStreamInfo = {
 export async function getYTStreamInfoViaYtDlp(videoId: string): Promise<YtDlpStreamInfo> {
   const { bin, args } = buildArgs(videoId);
 
-  const { stdout } = await execFileAsync(bin, args, { timeout: 30_000 });
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileAsync(bin, args, { timeout: 30_000 }));
+  } catch (e: unknown) {
+    // Surface just the yt-dlp stderr (not the full command string)
+    const stderr = (e as { stderr?: string }).stderr ?? (e as Error).message;
+    throw new Error(stderr.trim().slice(0, 300));
+  }
 
   const jsonLine = stdout.split("\n").find(l => l.trim().startsWith("{"));
   if (!jsonLine) throw new Error("yt-dlp returned no JSON output");
