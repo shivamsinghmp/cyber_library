@@ -36,16 +36,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const jti = crypto.randomUUID();
         token.jti = jti;
 
-        // Delete all existing sessions so previous device is logged out
-        await prisma.session.deleteMany({ where: { userId: user.id as string } });
+        // Atomic: delete old sessions then create new one in a transaction
+        try {
+          await prisma.$transaction([
+            prisma.session.deleteMany({ where: { userId: user.id as string } }),
+            prisma.session.create({
+              data: {
+                sessionToken: jti,
+                userId: user.id as string,
+                expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              },
+            }),
+          ]);
+        } catch {
+          // Concurrent login race — non-fatal, self-heal will run on next request
+        }
+      }
 
-        await prisma.session.create({
-          data: {
-            sessionToken: jti,
-            userId: user.id as string,
-            expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
-          },
-        }).catch(() => {}); // ignore race-condition duplicate on concurrent login
+      // Fallback: ensure token.id is populated from token.sub (NextAuth default)
+      if (!token.id && token.sub) {
+        token.id = token.sub;
       }
 
       // Env superadmin: JWT is self-validating, skip DB check
@@ -60,35 +70,45 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             where: { sessionToken: token.jti as string },
           });
           if (!dbSession) {
-            // Session record missing — could be stale (4-device cleanup) or deliberate revocation.
-            // Check if the user account still exists and is not deleted.
-            // If yes: self-heal by recreating the session record (stale jti case).
-            // If no:  force logout (account deleted / revoked).
             if (token.id && token.id !== ENV_SUPERADMIN_ID) {
               const userStillExists = await prisma.user.findUnique({
                 where: { id: token.id as string },
                 select: { id: true, deletedAt: true },
               });
               if (userStillExists && !userStillExists.deletedAt) {
-                // Before self-healing check if user logged in from another device.
-                // If a different session token exists, the old one was intentionally
-                // deleted by a new login — enforce 1-device limit, do NOT self-heal.
                 const anyOtherSession = await prisma.session.findFirst({
                   where: { userId: token.id as string },
-                  select: { sessionToken: true },
+                  select: { sessionToken: true, expires: true },
                 });
                 if (!anyOtherSession) {
-                  // No other session exists — safe to recreate (DB cleanup edge case)
-                  await prisma.session.create({
-                    data: {
+                  // No other session — safe to self-heal
+                  await prisma.session.upsert({
+                    where: { sessionToken: token.jti as string },
+                    update: {},
+                    create: {
                       sessionToken: token.jti as string,
                       userId: token.id as string,
                       expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
                     },
                   }).catch(() => {});
                 } else {
-                  // Another session exists → user logged in elsewhere → force re-login
-                  return {} as typeof token;
+                  // Another session exists — determine if this is 1-device enforcement
+                  // or a race condition from a concurrent login attempt.
+                  // Compare JWT iat with the other session's approximate creation time
+                  // (expires - 24h). If our JWT was issued before the other session
+                  // was created (minus a 3-min grace window), we're the stale device.
+                  const iatMs = ((token.iat as number) ?? 0) * 1000;
+                  const otherCreatedAt = anyOtherSession.expires.getTime() - 24 * 60 * 60 * 1000;
+                  if (iatMs < otherCreatedAt - 3 * 60 * 1000) {
+                    // Our JWT is clearly older — 1-device enforcement: force re-login
+                    return {} as typeof token;
+                  }
+                  // Within the 3-min window: concurrent login race condition.
+                  // Adopt the existing DB session to our jti so both requests succeed.
+                  await prisma.session.update({
+                    where: { sessionToken: anyOtherSession.sessionToken },
+                    data: { sessionToken: token.jti as string },
+                  }).catch(() => {});
                 }
               } else {
                 // Account deleted or soft-deleted — force logout
@@ -101,8 +121,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         } catch (err) {
           // DB unreachable during session validation — fail closed.
-          // Returning an empty token forces re-authentication rather than
-          // silently accepting a token that may have been revoked.
           console.error("[auth] Session DB validation failed:", err);
           return {} as typeof token;
         }
@@ -121,11 +139,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     session({ session, token }) {
-      if (!token || (!token.id && !token.email)) {
+      if (!token || (!token.id && !token.sub && !token.email)) {
         return {} as any;
       }
       if (session.user) {
-        (session.user as { id?: string }).id             = token.id as string;
+        // Use token.id first, fall back to token.sub (NextAuth default for user id)
+        const userId = (token.id ?? token.sub) as string | undefined;
+        (session.user as { id?: string }).id             = userId;
         (session.user as { goal?: string }).goal         = token.goal as string | undefined;
         (session.user as { role?: string }).role         = token.role as string;
         (session.user as { isSuperAdmin?: boolean }).isSuperAdmin = !!token.isSuperAdmin;

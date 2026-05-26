@@ -7,7 +7,17 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
+    let userId = (session?.user as { id?: string })?.id;
+
+    // Fallback: look up by email if id is missing (mirrors api-helpers.ts behaviour)
+    if (!userId && session?.user?.email) {
+      const dbUser = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      });
+      if (dbUser) userId = dbUser.id;
+    }
+
     if (!userId) return NextResponse.json({ active: false });
 
     const now = new Date();
