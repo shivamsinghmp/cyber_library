@@ -58,8 +58,7 @@ export default function PricingPage() {
 
   useEffect(() => {
     if (subLoading) return;
-    // Only auto-redirect if user has a paid membership plan (not just room enrollment)
-    if (hasActiveSub && activePlanType !== "ROOM") {
+    if (hasActiveSub) {
       toast.success(`Aapka ${activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai!`);
       router.replace("/dashboard");
     }

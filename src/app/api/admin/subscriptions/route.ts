@@ -64,6 +64,40 @@ export async function GET(request: Request) {
   }
 }
 
+export async function POST(request: Request) {
+  try {
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+
+    const { userId, planType, months } = await request.json();
+    if (!userId || !["MONTHLY", "YEARLY"].includes(planType)) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+
+    const durationMonths = planType === "YEARLY" ? 12 : Math.max(1, Number(months) || 1);
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setMonth(endDate.getMonth() + durationMonths);
+
+    // Cancel any existing active subscription first
+    await prisma.userSubscription.updateMany({
+      where: { userId, status: "ACTIVE", endDate: { gt: now } },
+      data: { status: "CANCELLED" },
+    });
+
+    const sub = await prisma.userSubscription.create({
+      data: { userId, planType, startDate: now, endDate, status: "ACTIVE", amountPaid: 0 },
+    });
+
+    return NextResponse.json({ ok: true, id: sub.id });
+  } catch {
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: Request) {
   try {
     // Subscription status changes (activate / expire / cancel) directly affect

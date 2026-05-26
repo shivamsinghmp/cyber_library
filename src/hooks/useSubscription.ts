@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 
 export type SubscriptionStatus = {
   active: boolean;
-  planType?: "MONTHLY" | "YEARLY" | "ROOM";
+  planType?: "MONTHLY" | "YEARLY";
   startDate?: string;
   endDate?: string;
   amountPaid?: number;
