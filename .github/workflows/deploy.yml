@@ -19,6 +19,7 @@ jobs:
           script: |
             set -e
             cd /var/www/cyber_library
+            git checkout -- .
             git pull origin main
             rm -rf node_modules
             npm ci
