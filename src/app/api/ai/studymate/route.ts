@@ -344,10 +344,14 @@ async function callGoogle(
   ).finally(() => clearTimeout(timer));
 
   if (!res.ok) {
-    const body = await res.text(); console.error(`Google ${model} error:`, res.status, body);
+    const body = await res.text();
+    console.error(`Google ${model} error:`, res.status, body);
+    let apiMsg = body.slice(0, 300);
+    try { apiMsg = (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
     if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
-    if (res.status === 403) throw new Error("Gemini API key invalid. Admin se contact karo.");
-    throw new Error("AI service unavailable. Thodi der baad try karo.");
+    if (res.status === 403) throw new Error(`Gemini API key invalid ya expired hai. Admin panel mein key check karo.`);
+    if (res.status === 404) throw new Error(`Gemini model '${API_MODEL[model]}' available nahi hai. Admin se contact karo.`);
+    throw new Error(`Gemini error (${res.status}): ${apiMsg}`);
   }
   const data = await res.json();
   const reply = data.candidates?.[0]?.content?.parts?.filter((p: {text?:string}) => p.text)
@@ -535,10 +539,11 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if ((e as Error).name === "AbortError") {
-      return NextResponse.json({ error: "AI response timed out. Please try again." }, { status: 504 });
+      return NextResponse.json({ error: "AI response timed out. Dobara try karo." }, { status: 504 });
     }
     const msg = (e as Error).message ?? "";
-    if (msg.includes("quota") || msg.includes("unavailable") || msg.includes("invalid") || msg.includes("key")) {
+    // Forward all AI provider errors as 502 so the frontend shows the actual reason
+    if (msg.includes("Gemini") || msg.includes("quota") || msg.includes("invalid") || msg.includes("key") || msg.includes("available") || msg.includes("error")) {
       return NextResponse.json({ error: msg }, { status: 502 });
     }
     console.error("StudyMate POST error:", e);

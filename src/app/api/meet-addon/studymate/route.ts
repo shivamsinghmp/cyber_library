@@ -132,9 +132,12 @@ export async function POST(request: NextRequest) {
     if (!res.ok) {
       const errBody = await res.text();
       console.error("[meet-addon/studymate] Gemini error:", res.status, errBody);
-      let userMsg = "AI service unavailable. Thodi der baad try karo.";
+      let apiMsg = errBody.slice(0, 300);
+      try { apiMsg = (JSON.parse(errBody) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
+      let userMsg = `Gemini error (${res.status}): ${apiMsg}`;
       if (res.status === 429) userMsg = "AI quota limit ho gayi. Thodi der baad try karo.";
-      if (res.status === 403) userMsg = "AI API key invalid. Admin se contact karo.";
+      if (res.status === 403) userMsg = "Gemini API key invalid ya expired hai. Admin panel mein key check karo.";
+      if (res.status === 404) userMsg = "Gemini model available nahi hai. Admin se contact karo.";
       return NextResponse.json({ error: userMsg }, { status: 502, headers: cors });
     }
 

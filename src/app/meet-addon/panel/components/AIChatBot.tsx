@@ -70,7 +70,7 @@ export function AIChatBot({ isOpen, onClose }: Props) {
               ? "StudyMate AI abhi available nahi hai. Admin se contact karo."
               : res.status === 504 || data.error?.includes("timed out")
                 ? "AI timeout ho gayi. Thodi der baad try karo."
-                : data.error || "Kuch gadbad ho gayi. Dobara try karo.";
+                : data.error || `Error ${res.status}. Dobara try karo.`;
 
         setMessages((prev) => [...prev, { role: "assistant", content: errMsg }]);
       } else {
