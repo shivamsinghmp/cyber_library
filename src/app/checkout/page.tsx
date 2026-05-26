@@ -390,8 +390,8 @@ function CheckoutForm() {
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10">
           <CheckCircle className="h-9 w-9 text-emerald-500" />
         </div>
-        <h2 className="mb-2 text-xl font-bold text-[var(--cream)]">Subscription Already Active</h2>
-        <p className="text-sm text-[var(--cream-muted)]">
+        <h2 className="mb-2 text-xl font-bold text-[var(--foreground)]">Subscription Already Active</h2>
+        <p className="text-sm text-[var(--muted-text)]">
           Aapka {activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai
           {expiry ? ` — ${expiry} tak valid hai` : ""}.
           Dashboard use karte rahein!
@@ -408,39 +408,39 @@ function CheckoutForm() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 md:py-12">
-      <h1 className="text-2xl font-semibold text-[var(--cream)] md:text-3xl">
+      <h1 className="text-2xl font-bold text-[var(--foreground)] md:text-3xl">
         Checkout
       </h1>
-      <p className="mt-1 text-sm text-[var(--cream)]">
+      <p className="mt-1 text-sm text-[var(--muted-text)]">
         Payment will be completed via Razorpay.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-        <div className="rounded-2xl border border-white/10 bg-black/35 p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-[var(--cream)]">Order summary</h2>
+        <div className="rounded-2xl border border-[var(--border)] bg-white p-6 space-y-4 shadow-[var(--shadow-sm)]">
+          <h2 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-wide">Order summary</h2>
           {isCartMode ? (
             <>
               {payableItems.map((item) => (
                 <div key={item.slotId} className="flex justify-between text-sm">
-                  <span className="text-[var(--cream-muted)]">{item.name} · {item.timeLabel}</span>
-                  <span className="font-medium text-[var(--cream)]">{item.price > 0 ? `₹${item.price}` : "Free"}</span>
+                  <span className="text-[var(--muted-text)]">{item.name} · {item.timeLabel}</span>
+                  <span className="font-semibold text-[var(--foreground)]">{item.price > 0 ? `₹${item.price}` : "Free"}</span>
                 </div>
               ))}
               {cartItems.length > payableItems.length && (
-                <p className="text-xs text-emerald-400/90">
+                <p className="text-xs text-emerald-600">
                   {cartItems.length - payableItems.length} item(s) already enrolled — not charged
                 </p>
               )}
-              <div className="flex justify-between text-sm text-[var(--cream-muted)] pt-1 border-t border-white/10">
+              <div className="flex justify-between text-sm text-[var(--muted-text)] pt-1 border-t border-[var(--border)]">
                 <span>Subtotal</span>
-                <span className="font-medium text-[var(--cream)]">₹{price}</span>
+                <span className="font-semibold text-[var(--foreground)]">₹{price}</span>
               </div>
             </>
           ) : isSubscription ? (
             <>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-[var(--cream-muted)]">Plan</span>
-                <span className="flex items-center gap-2 font-semibold text-[var(--cream)]">
+                <span className="text-[var(--muted-text)]">Plan</span>
+                <span className="flex items-center gap-2 font-bold text-[var(--foreground)]">
                   {planName}
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
                     style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
@@ -448,18 +448,17 @@ function CheckoutForm() {
                   </span>
                 </span>
               </div>
-              <div className="flex justify-between text-sm text-[var(--cream-muted)]">
-                <span>Billing cycle</span>
-                <span className="font-medium text-[var(--cream)]">
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--muted-text)]">Billing cycle</span>
+                <span className="font-semibold text-[var(--foreground)]">
                   {subPlan === "MONTHLY" ? "Every month" : "Every year"}
                 </span>
               </div>
-              {/* Price row — original + offer */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[var(--cream-muted)]">Amount</span>
+                <span className="text-sm text-[var(--muted-text)]">Amount</span>
                 <div className="flex flex-col items-end gap-0.5">
                   {originalPriceFromQuery > price && (
-                    <span className="text-xs text-white/40 line-through">
+                    <span className="text-xs text-[var(--muted-text)] line-through">
                       ₹{originalPriceFromQuery.toLocaleString("en-IN")}
                     </span>
                   )}
@@ -470,12 +469,12 @@ function CheckoutForm() {
                         -{Math.round(((originalPriceFromQuery - price) / originalPriceFromQuery) * 100)}% OFF
                       </span>
                     )}
-                    <span className="text-base font-bold text-[var(--cream)]">
+                    <span className="text-base font-bold text-[var(--foreground)]">
                       ₹{price.toLocaleString("en-IN")}
                     </span>
                   </div>
                   {originalPriceFromQuery > price && (
-                    <span className="text-[10px] text-emerald-400 font-semibold">
+                    <span className="text-[10px] text-emerald-600 font-semibold">
                       You save ₹{(originalPriceFromQuery - price).toLocaleString("en-IN")}
                     </span>
                   )}
@@ -484,20 +483,20 @@ function CheckoutForm() {
             </>
           ) : (
             <>
-              <div className="flex justify-between text-sm text-[var(--cream-muted)]">
-                <span>{isRewardEnrollment ? "Reward enrollment" : "Plan"}</span>
-                <span className="font-medium text-[var(--cream)]">{planName}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--muted-text)]">{isRewardEnrollment ? "Reward enrollment" : "Plan"}</span>
+                <span className="font-semibold text-[var(--foreground)]">{planName}</span>
               </div>
-              <div className="flex justify-between text-sm text-[var(--cream-muted)]">
-                <span>Amount</span>
-                <span className="font-medium text-[var(--cream)]">₹{price}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-[var(--muted-text)]">Amount</span>
+                <span className="font-semibold text-[var(--foreground)]">₹{price}</span>
               </div>
             </>
           )}
 
           {/* ── Available public coupons ── */}
           {publicCoupons.length > 0 && (
-            <div className="border-t border-white/10 pt-4">
+            <div className="border-t border-[var(--border)] pt-4">
               <button
                 type="button"
                 onClick={() => setOffersOpen((o) => !o)}
@@ -525,27 +524,26 @@ function CheckoutForm() {
                         key={c.id}
                         className={`relative flex items-center justify-between rounded-xl border px-3 py-2.5 transition-all ${
                           isApplied
-                            ? "border-emerald-500/40 bg-emerald-500/10"
-                            : "border-dashed border-white/20 bg-white/5 hover:border-white/30"
+                            ? "border-emerald-300 bg-emerald-50"
+                            : "border-dashed border-[var(--border)] bg-[var(--page-bg)] hover:border-[var(--accent-border)]"
                         }`}
                       >
-                        {/* Left: code + description */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono text-xs font-black tracking-wider text-[var(--accent)]">
                               {c.code}
                             </span>
-                            <span className="rounded-full bg-[var(--accent)]/20 px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]">
+                            <span className="rounded-full bg-[var(--accent-pale)] px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]">
                               {discountLabel}
                             </span>
                             {expiring && daysLeft !== null && (
-                              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-400">
+                              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-600">
                                 <Clock className="h-3 w-3" />
                                 {daysLeft === 0 ? "Expires today!" : `${daysLeft}d left`}
                               </span>
                             )}
                           </div>
-                          <p className="mt-0.5 text-[10px] text-[var(--cream-muted)] truncate">
+                          <p className="mt-0.5 text-[10px] text-[var(--muted-text)] truncate">
                             {c.description ?? discountLabel}
                             {c.minOrderAmount ? ` · Min. ₹${c.minOrderAmount}` : ""}
                             {c.validUntil && !expiring
@@ -553,15 +551,14 @@ function CheckoutForm() {
                               : ""}
                           </p>
                         </div>
-                        {/* Right: apply / applied */}
                         <button
                           type="button"
                           disabled={couponApplying}
                           onClick={() => isApplied ? removeCoupon() : quickApplyCoupon(c.code)}
                           className={`ml-3 shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all disabled:opacity-50 ${
                             isApplied
-                              ? "bg-emerald-500/20 text-emerald-400 hover:bg-red-500/20 hover:text-red-400"
-                              : "bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30"
+                              ? "bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-600"
+                              : "bg-[var(--accent-pale)] text-[var(--accent)] hover:bg-[var(--accent-border)]"
                           }`}
                         >
                           {isApplied ? "Remove" : "Apply"}
@@ -574,19 +571,19 @@ function CheckoutForm() {
             </div>
           )}
 
-          <div className="border-t border-white/10 pt-4">
-            <p className="mb-2 text-xs font-medium text-[var(--cream-muted)]">
+          <div className="border-t border-[var(--border)] pt-4">
+            <p className="mb-2 text-xs font-medium text-[var(--muted-text)]">
               Coupon code {!session?.user && "(log in to apply — one use per account)"}
             </p>
             {appliedCoupon ? (
-              <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
-                <span className="text-sm font-medium text-emerald-200">
+              <div className="flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5">
+                <span className="text-sm font-semibold text-emerald-700">
                   {appliedCoupon.code} · {appliedCoupon.description}
                 </span>
                 <button
                   type="button"
                   onClick={removeCoupon}
-                  className="rounded-lg p-1 text-[var(--cream-muted)] hover:bg-white/10 hover:text-[var(--cream)]"
+                  className="rounded-lg p-1 text-emerald-500 hover:bg-emerald-100 hover:text-emerald-700"
                   aria-label="Remove coupon"
                 >
                   <X className="h-4 w-4" />
@@ -595,7 +592,7 @@ function CheckoutForm() {
             ) : (
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cream-muted)]" />
+                  <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-text)]" />
                   <input
                     type="text"
                     value={couponInput}
@@ -610,39 +607,39 @@ function CheckoutForm() {
                       }
                     }}
                     placeholder="Enter code"
-                    className="w-full rounded-xl border border-white/10 bg-black/40 py-2.5 pl-9 pr-3 text-sm text-[var(--cream)] placeholder:text-[var(--cream-muted)]/60 focus:border-[var(--accent)]/70 focus:outline-none"
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--page-bg)] py-2.5 pl-9 pr-3 text-sm text-[var(--foreground)] placeholder:text-[var(--placeholder)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-border)]"
                   />
                 </div>
                 <button
                   type="button"
                   disabled={couponApplying}
                   onClick={(e) => handleApplyCoupon(e as unknown as React.FormEvent)}
-                  className="rounded-xl border border-[var(--accent)]/50 bg-[var(--accent)]/10 px-4 py-2.5 text-sm font-medium text-[var(--cream)] transition hover:bg-[var(--accent)]/20 disabled:opacity-60"
+                  className="rounded-xl border border-[var(--accent-border)] bg-[var(--accent-pale)] px-4 py-2.5 text-sm font-semibold text-[var(--accent)] transition hover:bg-[var(--accent)] hover:text-white disabled:opacity-60"
                 >
                   {couponApplying ? "Applying…" : "Apply"}
                 </button>
               </div>
             )}
             {couponMessage && (
-              <p className={`mt-2 text-xs ${couponMessage.type === "success" ? "text-emerald-400" : "text-red-400"}`}>
+              <p className={`mt-2 text-xs font-medium ${couponMessage.type === "success" ? "text-emerald-600" : "text-red-500"}`}>
                 {couponMessage.text}
               </p>
             )}
           </div>
 
           {discount > 0 && (
-            <div className="flex justify-between text-sm text-emerald-400">
-              <span>Discount</span>
-              <span className="font-medium">−₹{discount}</span>
+            <div className="flex justify-between text-sm text-emerald-600">
+              <span className="font-medium">Discount</span>
+              <span className="font-semibold">−₹{discount}</span>
             </div>
           )}
-          <div className="border-t border-white/10 pt-3 flex justify-between items-center">
-            <span className="text-sm font-semibold text-[var(--cream)]">Total Payable</span>
+          <div className="border-t border-[var(--border)] pt-3 flex justify-between items-center">
+            <span className="text-sm font-bold text-[var(--foreground)]">Total Payable</span>
             <div className="flex items-center gap-2">
               {discount > 0 && (
-                <span className="text-xs text-white/40 line-through">₹{price.toLocaleString("en-IN")}</span>
+                <span className="text-xs text-[var(--muted-text)] line-through">₹{price.toLocaleString("en-IN")}</span>
               )}
-              <span className={`text-lg font-black ${total === 0 ? "text-green-400" : "text-[var(--cream)]"}`}>
+              <span className={`text-xl font-black ${total === 0 ? "text-emerald-600" : "text-[var(--foreground)]"}`}>
                 ₹{total.toLocaleString("en-IN")}
               </span>
             </div>
@@ -653,15 +650,15 @@ function CheckoutForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-full bg-[var(--accent)] py-2.5 text-sm font-semibold text-[var(--ink)] shadow-md transition hover:bg-[var(--accent-hover)] disabled:opacity-70 sm:flex-1"
+            className="w-full rounded-full bg-[var(--accent)] py-3 text-sm font-bold text-white shadow-[var(--shadow-brand)] transition hover:bg-[var(--accent-hover)] disabled:opacity-70 sm:flex-1"
           >
             {submitting ? "Processing…" : "Proceed to payment"}
           </button>
           <Link
             href={isCartMode ? "/cart" : "/"}
-            className="w-full rounded-full border border-white/10 py-2.5 text-center text-sm font-medium text-[var(--cream)]/85 transition hover:bg-white/5 sm:flex-1"
+            className="w-full rounded-full border border-[var(--border)] py-3 text-center text-sm font-semibold text-[var(--body-text)] transition hover:bg-[var(--page-bg)] sm:flex-1"
           >
-            {isCartMode ? "Back to cart" : "Back to home"}
+            {isCartMode ? "Back to cart" : "Back"}
           </Link>
         </div>
       </form>

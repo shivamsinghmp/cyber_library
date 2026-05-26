@@ -97,16 +97,25 @@ export async function POST(request: Request) {
       if (planType !== "MONTHLY" && planType !== "YEARLY") {
         return NextResponse.json({ error: "Invalid plan type" }, { status: 400 });
       }
-      // Block if user already has an active subscription
+      // Block if user already has an active subscription of the SAME or HIGHER plan.
+      // Allow upgrade: Monthly → Yearly (planType upgrade is permitted).
       const activeSub = await prisma.userSubscription.findFirst({
         where: { userId, status: "ACTIVE", endDate: { gt: new Date() } },
-        select: { planType: true, endDate: true },
+        select: { id: true, planType: true, endDate: true },
       });
       if (activeSub) {
-        return NextResponse.json(
-          { error: `Aapka ${activeSub.planType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai. Expiry ke baad renew karein.` },
-          { status: 400 }
-        );
+        const isUpgrade = activeSub.planType === "MONTHLY" && planType === "YEARLY";
+        if (!isUpgrade) {
+          return NextResponse.json(
+            { error: `Aapka ${activeSub.planType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai. Expiry ke baad renew karein.` },
+            { status: 400 }
+          );
+        }
+        // Upgrade allowed — cancel the existing monthly sub before creating yearly
+        await prisma.userSubscription.update({
+          where: { id: activeSub.id },
+          data: { status: "CANCELLED" },
+        });
       }
       // Fetch authoritative price from DB — fall back to DEFAULT_PRICING only when DB has no entry
       const { getAppSetting } = await import("@/lib/app-settings");

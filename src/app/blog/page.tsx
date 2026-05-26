@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { Calendar, Clock, ArrowRight, BookOpen, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Blog – Padhai Tips & Focus Strategies | The Cyber Library",
   description: "Focus kaise kare, exam preparation, study habits aur deep work ke baare mein tips. The Cyber Library ka official blog.",

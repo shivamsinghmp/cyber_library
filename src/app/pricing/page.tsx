@@ -14,6 +14,8 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useSubscription } from "@/hooks/useSubscription";
+import toast from "react-hot-toast";
 
 
 type PriceTier = { originalPrice: number; offerPrice: number };
@@ -52,6 +54,15 @@ export default function PricingPage() {
 
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { active: hasActiveSub, planType: activePlanType, loading: subLoading } = useSubscription();
+
+  useEffect(() => {
+    if (subLoading) return;
+    if (hasActiveSub) {
+      toast.success(`Aapka ${activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai!`);
+      router.replace("/dashboard");
+    }
+  }, [hasActiveSub, subLoading, activePlanType, router]);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -92,12 +103,12 @@ export default function PricingPage() {
   const discount = tier ? calcDiscount(tier.originalPrice, tier.offerPrice) : 0;
   const savings = tier ? tier.originalPrice - tier.offerPrice : 0;
 
-  if (loading) {
+  if (loading || subLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--accent)] border-t-transparent" />
-          <p className="text-sm text-[var(--cream-muted)]">Loading pricing…</p>
+          <p className="text-sm text-[var(--muted-text)]">Loading pricing…</p>
         </div>
       </div>
     );

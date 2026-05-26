@@ -37,6 +37,8 @@ type TodoItem = { id: string; title: string; completedAt: string | null; taskDat
 
 type GamificationData = { totalCoins: number; streakDays: number; longestStreakDays: number; lastStudyOn: string | null };
 type CoinSummary = { todayCoins: number; weekCoins: number };
+type PricingTier = { originalPrice: number; offerPrice: number };
+type PricingData = { planName: string; currency: string; monthly: PricingTier; yearly: PricingTier };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -171,6 +173,7 @@ export function DashboardContent({ userName }: { userName: string }) {
   const [studiedDates, setStudiedDates] = useState<Set<string>>(new Set());
   const [weeklyHours, setWeeklyHours] = useState<{ label: string; hours: number; isToday?: boolean }[]>([]);
   const [coinSummary, setCoinSummary] = useState<CoinSummary | null>(null);
+  const [pricingData, setPricingData] = useState<PricingData | null>(null);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -217,7 +220,8 @@ export function DashboardContent({ userName }: { userName: string }) {
       fetch(`/api/study/streak-calendar?month=${month}`).then(r => r.ok ? r.json() : { studiedDates: [] }),
       fetch(`/api/dashboard/charts?from=${weekFrom}&to=${today}`, { credentials: "include" }).then(r => r.ok ? r.json() : null),
       fetch("/api/user/wallet?filter=earned&page=1", { credentials: "include" }).then(r => r.ok ? r.json() : null),
-    ]).then(([slots, subs, lb, todos, addon, calendar, charts, wallet]) => {
+      fetch("/api/pricing").then(r => r.ok ? r.json() : null),
+    ]).then(([slots, subs, lb, todos, addon, calendar, charts, wallet, pricing]) => {
       if (slots.status === "fulfilled") setStudyRooms(Array.isArray(slots.value) ? slots.value : []);
       if (subs.status === "fulfilled")  setSubscribedRooms(Array.isArray(subs.value) ? subs.value : []);
 
@@ -250,6 +254,8 @@ export function DashboardContent({ userName }: { userName: string }) {
         const weekCoins = logs.filter(l => new Date(l.createdAt).getTime() >= weekAgoMs && l.coins > 0).reduce((s, l) => s + l.coins, 0);
         setCoinSummary({ todayCoins, weekCoins });
       }
+
+      if (pricing.status === "fulfilled" && pricing.value) setPricingData(pricing.value as PricingData);
 
       // Real weekly hours from charts API — no Math.random()
       if (charts.status === "fulfilled" && charts.value?.studyData) {
@@ -432,15 +438,26 @@ export function DashboardContent({ userName }: { userName: string }) {
                   </p>
                 </div>
               </div>
-              {isExpiringSoon && (
-                <Link
-                  href="/pricing"
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg,#f97316,#ef4444)" }}
-                >
-                  Renew Now <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              )}
+              <div className="flex flex-wrap gap-2 shrink-0">
+                {subscription.planType === "MONTHLY" && pricingData && (
+                  <Link
+                    href={`/checkout?type=subscription&plan=YEARLY&name=Yearly+Membership&amount=${pricingData.yearly.offerPrice}&originalAmount=${pricingData.yearly.originalPrice}`}
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+                  >
+                    <Zap className="h-3.5 w-3.5" /> Upgrade to Yearly
+                  </Link>
+                )}
+                {isExpiringSoon && (
+                  <Link
+                    href="/pricing"
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg,#f97316,#ef4444)" }}
+                  >
+                    Renew Now <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         );

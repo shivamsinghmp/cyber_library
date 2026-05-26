@@ -39,12 +39,14 @@ export async function fulfillOrder({
 
   // 1. Generate OrderDetails metadata for the transaction
   let orderDetails: Array<{ slotId?: string; productId?: string; name: string; price: number }> = [];
+  let cartSlots: { id: string; name: string; price: number; timeLabel: string; meetLink: string | null; calendarEventId: string | null }[] = [];
 
   if (type === "CART") {
     const slots = await prisma.studySlot.findMany({
       where: { id: { in: ids } },
       select: { id: true, name: true, price: true, timeLabel: true, meetLink: true, calendarEventId: true },
     });
+    cartSlots = slots;
     orderDetails = slots.map(s => ({ slotId: s.id, name: `${s.name} (${s.timeLabel})`, price: s.price }));
 
     // Grant Room Subscriptions atomically — skip already enrolled, createMany for the rest
@@ -122,13 +124,20 @@ export async function fulfillOrder({
 
     orderDetails = [{ name: `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`, price: amountRupees }];
 
-    // Block duplicate: do not enroll if user already has an active subscription
+    // Block duplicate: do not enroll if user already has the same or a higher plan.
+    // (Monthly → Yearly upgrade is allowed; the old plan was cancelled in create-order.)
     const existingActive = await prisma.userSubscription.findFirst({
       where: { userId, status: "ACTIVE", endDate: { gt: now } },
-      select: { id: true },
+      select: { id: true, planType: true },
     });
     if (existingActive) {
-      throw new Error("ALREADY_SUBSCRIBED");
+      const isUpgrade = existingActive.planType === "MONTHLY" && planType === "YEARLY";
+      if (!isUpgrade) throw new Error("ALREADY_SUBSCRIBED");
+      // Cancel the old monthly sub before activating yearly
+      await prisma.userSubscription.update({
+        where: { id: existingActive.id },
+        data: { status: "CANCELLED" },
+      });
     }
 
     await prisma.userSubscription.create({
@@ -180,6 +189,12 @@ export async function fulfillOrder({
 
   // 4. Send purchase receipt email (fire-and-forget)
   if (user?.email) {
+    // For CART enrollments, include meet links so student can join even if calendar invite is delayed
+    // Reuse already-fetched cartSlots — no extra DB query needed
+    const enrolledRoomsForEmail = type === "CART" && cartSlots.length > 0
+      ? cartSlots.map(s => ({ name: s.name, timeLabel: s.timeLabel, meetLink: s.meetLink ?? null }))
+      : null;
+
     sendPurchaseReceipt({
       to: user.email,
       customerName: user.profile?.fullName ?? null,
@@ -190,6 +205,7 @@ export async function fulfillOrder({
       planType:        fulfillMeta.planType        ?? null,
       membershipStart: fulfillMeta.membershipStart ?? null,
       membershipEnd:   fulfillMeta.membershipEnd   ?? null,
+      enrolledRooms:   enrolledRoomsForEmail,
     }).catch((e) => console.error("[fulfillOrder] Receipt email failed:", e));
   }
 

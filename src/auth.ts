@@ -70,14 +70,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 select: { id: true, deletedAt: true },
               });
               if (userStillExists && !userStillExists.deletedAt) {
-                // Self-heal: recreate session so subsequent requests work normally
-                await prisma.session.create({
-                  data: {
-                    sessionToken: token.jti as string,
-                    userId: token.id as string,
-                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
-                  },
-                }).catch(() => {}); // ignore race-condition duplicates
+                // Before self-healing check if user logged in from another device.
+                // If a different session token exists, the old one was intentionally
+                // deleted by a new login — enforce 1-device limit, do NOT self-heal.
+                const anyOtherSession = await prisma.session.findFirst({
+                  where: { userId: token.id as string },
+                  select: { sessionToken: true },
+                });
+                if (!anyOtherSession) {
+                  // No other session exists — safe to recreate (DB cleanup edge case)
+                  await prisma.session.create({
+                    data: {
+                      sessionToken: token.jti as string,
+                      userId: token.id as string,
+                      expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    },
+                  }).catch(() => {});
+                } else {
+                  // Another session exists → user logged in elsewhere → force re-login
+                  return {} as typeof token;
+                }
               } else {
                 // Account deleted or soft-deleted — force logout
                 console.info(`[auth] Account deleted for ${token.id} — forcing re-login`);

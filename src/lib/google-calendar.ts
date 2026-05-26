@@ -6,19 +6,31 @@ async function getCalendarCredentials(): Promise<{
   serviceAccountEmail: string;
   privateKey: string;
   calendarId: string;
+  ownerEmail: string;
 } | null> {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim() || (await getAppSetting("GOOGLE_SERVICE_ACCOUNT_EMAIL"));
   const rawKey = process.env.GOOGLE_PRIVATE_KEY?.trim() || (await getAppSetting("GOOGLE_PRIVATE_KEY"));
   const calId = process.env.GOOGLE_CALENDAR_ID?.trim() || (await getAppSetting("GOOGLE_CALENDAR_ID"));
+  // ownerEmail = the Google Workspace user whose calendar we impersonate via domain-wide delegation.
+  // Must be a real @yourdomain.com email, NOT "primary" or a calendar resource ID.
+  const ownerEmail =
+    process.env.GOOGLE_CALENDAR_OWNER_EMAIL?.trim() ||
+    (await getAppSetting("GOOGLE_CALENDAR_OWNER_EMAIL")) ||
+    (calId && calId.includes("@") ? calId : null);
   if (!email || !rawKey) {
     console.warn("⚠️ Google Calendar integration is disabled due to missing credentials.");
+    return null;
+  }
+  if (!ownerEmail) {
+    console.warn("⚠️ GOOGLE_CALENDAR_OWNER_EMAIL not set — calendar impersonation will fail. Set it to the Google Workspace user email that owns the calendar.");
     return null;
   }
   const privateKey = rawKey.replace(/\\n/g, "\n");
   return {
     serviceAccountEmail: email,
     privateKey,
-    calendarId: calId || "primary",
+    calendarId: calId || ownerEmail,
+    ownerEmail,
   };
 }
 
@@ -30,7 +42,7 @@ async function getCalendarClient(): Promise<{ client: calendar_v3.Calendar; cale
     email: creds.serviceAccountEmail,
     key: creds.privateKey,
     scopes: ["https://www.googleapis.com/auth/calendar"],
-    subject: creds.calendarId, // impersonate calendar owner for Meet link generation
+    subject: creds.ownerEmail, // domain-wide delegation: impersonate the calendar owner
   });
   const client = google.calendar({ version: "v3", auth });
   return { client, calendarId: creds.calendarId };
