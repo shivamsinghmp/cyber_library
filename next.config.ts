@@ -68,20 +68,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Google Meet addon CSP
-      {
-        source: "/meet-addon/:path*",
-        headers: [
-          {
-            key: "Content-Security-Policy",
-            value: "frame-ancestors https://*.meet.google.com https://meet.google.com 'self'",
-          },
-          {
-            key: "Permissions-Policy",
-            value: "display-capture=*",
-          },
-        ],
-      },
       // Security headers for all routes
       {
         source: "/:path*",
@@ -109,6 +95,29 @@ const nextConfig: NextConfig = {
               "form-action 'self' https://api.razorpay.com",
               "upgrade-insecure-requests",
             ].join("; "),
+          },
+        ],
+      },
+      // Google Meet Add-on: MUST come after the global rule above so it overrides.
+      // The panel runs inside a Google Meet iframe (different origin), so we must:
+      //   1. Override frame-ancestors to allow meet.google.com
+      //   2. Override X-Frame-Options — CSP frame-ancestors takes precedence in Chrome,
+      //      but setting ALLOWALL avoids legacy-browser confusion. (Non-standard value;
+      //      modern Chrome ignores it and uses the CSP directive instead.)
+      {
+        source: "/meet-addon/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors https://*.meet.google.com https://meet.google.com 'self'",
+          },
+          {
+            key: "X-Frame-Options",
+            value: "ALLOWALL",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "display-capture=*",
           },
         ],
       },
