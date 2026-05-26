@@ -427,12 +427,20 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
               <div className="relative z-10 px-4 pb-4 text-center">
                 <p className="text-sm font-bold text-white leading-tight truncate mb-0.5">{displayName}</p>
                 {channel && <p className="text-[10px] text-white/40 truncate">{channel}</p>}
+                {streamError && (
+                  <div className="mt-2 mx-1 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-left">
+                    <p className="text-[10px] text-orange-300 leading-snug">{streamError}</p>
+                    <button
+                      onClick={() => loadTrack(currentVideoRef.current)}
+                      className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-orange-400 hover:text-orange-300 transition-colors"
+                    >
+                      ↺ Dobara try karo
+                    </button>
+                  </div>
+                )}
                 <div className="flex justify-center mt-2">
                   {streamError
-                    ? <button onClick={() => loadTrack(currentVideoRef.current)}
-                        className="flex items-center gap-1 text-[9px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full hover:bg-orange-500/20 transition-colors">
-                        ↺ Retry
-                      </button>
+                    ? null
                     : isBuffering
                       ? <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
                           <Loader2 className="w-2.5 h-2.5 animate-spin" /> Loading
