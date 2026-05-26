@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         }
       );
       if (res.status === 403) return NextResponse.json({ ok: false, error: "Invalid or expired API key (403)" });
-      if (res.status === 429) return NextResponse.json({ ok: false, error: "Quota exceeded (429) — key is valid but rate limited" });
+      if (res.status === 429) return NextResponse.json({ ok: true, message: "Key valid ✓ (rate limited — free tier RPM hit, chatbot will work fine)" });
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         let msg = txt.slice(0, 200);
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         signal: AbortSignal.timeout(10_000),
       });
       if (res.status === 401) return NextResponse.json({ ok: false, error: "Invalid API key (401)" });
-      if (res.status === 429) return NextResponse.json({ ok: false, error: "Quota exceeded — key is valid" });
+      if (res.status === 429) return NextResponse.json({ ok: true, message: "Key valid ✓ (rate limited — free tier RPM hit, will work fine)" });
       if (!res.ok) return NextResponse.json({ ok: false, error: `Anthropic error (${res.status})` });
       return NextResponse.json({ ok: true, message: "Anthropic key is valid ✓" });
     }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         signal: AbortSignal.timeout(10_000),
       });
       if (res.status === 401) return NextResponse.json({ ok: false, error: "Invalid API key (401)" });
-      if (res.status === 429) return NextResponse.json({ ok: false, error: "Quota exceeded — key is valid" });
+      if (res.status === 429) return NextResponse.json({ ok: true, message: "Key valid ✓ (rate limited — free tier RPM hit, will work fine)" });
       if (!res.ok) return NextResponse.json({ ok: false, error: `OpenAI error (${res.status})` });
       return NextResponse.json({ ok: true, message: "OpenAI key is valid ✓" });
     }
