@@ -22,8 +22,8 @@ async function resolveStreamUrl(videoId: string, cookies?: string | null, force 
   let contentLength: string | null = null;
 
   try {
-    // yt-dlp primary — ANDROID_VR client, no bot-detection
-    const info = await getYTStreamInfoViaYtDlp(videoId);
+    // yt-dlp primary — ANDROID_VR client with cookies
+    const info = await getYTStreamInfoViaYtDlp(videoId, cookies);
     if (!info.url) throw new Error("yt-dlp returned no URL");
     url       = info.url;
     mimeType  = info.mimeType ?? "audio/webm";

@@ -14,15 +14,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid videoId" }, { status: 400 });
   }
 
+  const cookies = await getAppSetting("YOUTUBE_COOKIES");
+
   let info;
   try {
-    // yt-dlp: most reliable, handles bot-detection via ANDROID_VR client
-    info = await getYTStreamInfoViaYtDlp(videoId);
+    info = await getYTStreamInfoViaYtDlp(videoId, cookies);
   } catch (e1) {
     const ytdlpErr = (e1 as Error).message;
     console.error("[youtube/audio] yt-dlp failed:", ytdlpErr);
     try {
-      const cookies = await getAppSetting("YOUTUBE_COOKIES");
       info = await getYTStreamInfo(videoId, cookies);
     } catch (e2) {
       const raw = (e2 as Error).message;
