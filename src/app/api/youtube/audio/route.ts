@@ -19,17 +19,16 @@ export async function GET(request: NextRequest) {
     // yt-dlp: most reliable, handles bot-detection via ANDROID_VR client
     info = await getYTStreamInfoViaYtDlp(videoId);
   } catch (e1) {
-    console.warn("[youtube/audio] yt-dlp failed, trying InnerTube:", (e1 as Error).message);
+    const ytdlpErr = (e1 as Error).message;
+    console.error("[youtube/audio] yt-dlp failed:", ytdlpErr);
     try {
       const cookies = await getAppSetting("YOUTUBE_COOKIES");
       info = await getYTStreamInfo(videoId, cookies);
     } catch (e2) {
       const raw = (e2 as Error).message;
-      console.error("[youtube/audio] videoId:", videoId, "→", raw);
-      const msg = raw.toLowerCase().includes("sign in") || raw.toLowerCase().includes("age")
-        ? "Age-restricted video — YouTube Cookies configure karo Admin → AI Settings mein."
-        : raw.slice(0, 200);
-      return NextResponse.json({ error: msg }, { status: 500 });
+      console.error("[youtube/audio] InnerTube failed:", raw);
+      // Show yt-dlp error to surface real issue (e.g. binary not found)
+      return NextResponse.json({ error: `yt-dlp: ${ytdlpErr.slice(0, 150)} | fallback: ${raw.slice(0, 100)}` }, { status: 500 });
     }
   }
 
