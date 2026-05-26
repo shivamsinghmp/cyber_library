@@ -84,6 +84,7 @@ export default function MeetAddonPanelPage() {
 
   const [zenMode, setZenMode] = useState(false);
   const [spotifyOpen, setSpotifyOpen] = useState(false);
+  const [musicPlaying, setMusicPlaying] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mainStageLoading, setMainStageLoading] = useState(false);
@@ -458,7 +459,7 @@ export default function MeetAddonPanelPage() {
 
   // ── MAIN DASHBOARD ──────────────────────────────────────────────────────────
   return (
-    <div className={`min-h-[100dvh] flex flex-col items-center justify-start transition-all duration-500 ${zenMode ? "pt-12" : "pt-24 pb-6"} px-4 relative overflow-y-auto scrollbar-hide`} style={{ background: "var(--page-bg)" }}>
+    <div className={`min-h-[100dvh] flex flex-col items-center justify-start transition-all duration-500 ${zenMode ? "pt-12" : `pt-24 ${musicPlaying && !spotifyOpen ? "pb-24" : "pb-6"}`} px-4 relative overflow-y-auto scrollbar-hide`} style={{ background: "var(--page-bg)" }}>
 
       {/* Home-page style background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -545,7 +546,7 @@ export default function MeetAddonPanelPage() {
       </div>
 
       {/* Spotify floating player */}
-      <SpotifyPlayer isOpen={spotifyOpen} onClose={() => setSpotifyOpen(false)} />
+      <SpotifyPlayer isOpen={spotifyOpen} onClose={() => setSpotifyOpen(false)} onOpen={() => setSpotifyOpen(true)} onPlayingChange={setMusicPlaying} />
       {/* AI Chatbot */}
       <AIChatBot isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 

@@ -640,7 +640,7 @@ export default function MeetAddonMainStagePage() {
         )}
       </div>
 
-      <SpotifyPlayer isOpen={spotifyOpen} onClose={() => setSpotifyOpen(false)} />
+      <SpotifyPlayer isOpen={spotifyOpen} onClose={() => setSpotifyOpen(false)} onOpen={() => setSpotifyOpen(true)} />
       <AIChatBot isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 
       {/* ── Bottom bar ── */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Play, Pause, SkipForward, SkipBack, Search, Plus, Trash2, ListMusic, Loader2 } from "lucide-react";
+import { X, Play, Pause, SkipForward, SkipBack, Search, Plus, Trash2, ListMusic, Loader2, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── YouTube IFrame API types ───────────────────────────────────────────────────
@@ -12,6 +12,8 @@ interface YTPlayer {
   previousVideo(): void;
   getPlayerState(): number;
   getVideoData(): { title: string; author: string };
+  getCurrentTime(): number;
+  getDuration(): number;
   loadVideoById(id: string): void;
   loadPlaylist(opts: { list: string; listType: string }): void;
   destroy(): void;
@@ -39,9 +41,9 @@ interface PlaylistItem {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const YT_STORAGE_KEY   = "vl_yt_music_url";
-const PLAYLIST_KEY     = "vl_custom_music_playlist";
-const DEFAULT_VIDEO    = "5qap5aO4i9A";
+const YT_STORAGE_KEY = "vl_yt_music_url";
+const PLAYLIST_KEY   = "vl_custom_music_playlist";
+const DEFAULT_VIDEO  = "5qap5aO4i9A";
 
 const YT_PRESETS = [
   { label: "Lofi Girl",    emoji: "🎵", desc: "Beats to relax/study to",  videoId: "5qap5aO4i9A" },
@@ -56,22 +58,29 @@ function ytThumb(videoId: string) {
   return `https://i.ytimg.com/vi/${videoId}/default.jpg`;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-type Tab = "presets" | "search" | "playlist";
-type Props = { isOpen: boolean; onClose: () => void };
+function fmtTime(sec: number) {
+  const s = Math.floor(sec);
+  return `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+}
 
-export function SpotifyPlayer({ isOpen, onClose }: Props) {
+// ── Component ─────────────────────────────────────────────────────────────────
+type Tab  = "presets" | "search" | "playlist";
+type Props = { isOpen: boolean; onClose: () => void; onOpen: () => void; onPlayingChange?: (playing: boolean) => void };
+
+export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef    = useRef<YTPlayer | null>(null);
   const readyRef     = useRef(false);
   const plCtxRef     = useRef<{ items: PlaylistItem[]; index: number } | null>(null);
 
   // Player state
-  const [isPlaying,    setIsPlaying]    = useState(false);
-  const [isBuffering,  setIsBuffering]  = useState(false);
-  const [trackTitle,   setTrackTitle]   = useState("");
-  const [thumbnail,    setThumbnail]    = useState<string | null>(null);
-  const [apiReady,     setApiReady]     = useState(false);
+  const [isPlaying,   setIsPlaying]   = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [trackTitle,  setTrackTitle]  = useState("");
+  const [thumbnail,   setThumbnail]   = useState<string | null>(null);
+  const [apiReady,    setApiReady]    = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration,    setDuration]    = useState(0);
 
   // UI state
   const [tab,          setTab]          = useState<Tab>("presets");
@@ -79,10 +88,10 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
   const [plIdx,        setPlIdx]        = useState(-1);
 
   // Search state
-  const [query,        setQuery]        = useState("");
-  const [results,      setResults]      = useState<SearchResult[]>([]);
-  const [searching,    setSearching]    = useState(false);
-  const [searchErr,    setSearchErr]    = useState("");
+  const [query,      setQuery]      = useState("");
+  const [results,    setResults]    = useState<SearchResult[]>([]);
+  const [searching,  setSearching]  = useState(false);
+  const [searchErr,  setSearchErr]  = useState("");
 
   // Custom playlist
   const [playlist, setPlaylist] = useState<PlaylistItem[]>(() => {
@@ -110,13 +119,13 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
       playerRef.current = new window.YT!.Player(containerRef.current, {
         width: 320, height: 180,
         videoId,
-        // autoplay: 0 — browsers block autoplay in sandboxed iframes (e.g. Google Meet).
-        // Music starts when the user explicitly clicks Play or a preset.
         playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1 },
         events: {
           onReady: () => { readyRef.current = true; setApiReady(true); },
           onStateChange: (e: { data: number; target: YTPlayer }) => {
-            setIsPlaying(e.data === 1);
+            const playing = e.data === 1;
+            setIsPlaying(playing);
+            onPlayingChange?.(playing);
             setIsBuffering(e.data === 3);
             if (e.data === 1) {
               setTimeout(() => {
@@ -153,7 +162,7 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
       window.onYouTubeIframeAPIReady = () => { prev?.(); initPlayer(); };
       if (!document.getElementById("yt-api-script")) {
         const s = document.createElement("script");
-        s.id = "yt-api-script";
+        s.id  = "yt-api-script";
         s.src = "https://www.youtube.com/iframe_api";
         document.head.appendChild(s);
       }
@@ -162,9 +171,22 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
     return () => {
       try { playerRef.current?.destroy(); } catch {}
       playerRef.current = null;
-      readyRef.current = false;
+      readyRef.current  = false;
     };
   }, []);
+
+  // ── Poll current time & duration while playing ────────────────────────────
+  useEffect(() => {
+    if (!isPlaying) return;
+    const id = setInterval(() => {
+      if (!playerRef.current || !readyRef.current) return;
+      try {
+        setCurrentTime(playerRef.current.getCurrentTime());
+        setDuration(playerRef.current.getDuration());
+      } catch {}
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isPlaying]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const playVideo = useCallback((videoId: string, title: string, thumb: string) => {
@@ -208,16 +230,12 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
     setSearchErr("");
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("vl_meet_addon_token") : null;
-      const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query.trim())}`, {
+      const res   = await fetch(`/api/youtube/search?q=${encodeURIComponent(query.trim())}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const data = await res.json() as { results?: SearchResult[]; error?: string };
-      if (!res.ok) {
-        setSearchErr(data.error ?? "Search failed");
-        setResults([]);
-      } else {
-        setResults(data.results ?? []);
-      }
+      const data  = await res.json() as { results?: SearchResult[]; error?: string };
+      if (!res.ok) { setSearchErr(data.error ?? "Search failed"); setResults([]); }
+      else          { setResults(data.results ?? []); }
     } catch {
       setSearchErr("Network error. Dobara try karo.");
     } finally {
@@ -237,26 +255,32 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
   const removeFromPlaylist = (videoId: string) => {
     savePlaylist(playlist.filter(p => p.videoId !== videoId));
     if (plCtxRef.current) {
-      const newItems = playlist.filter(p => p.videoId !== videoId);
-      plCtxRef.current = { ...plCtxRef.current, items: newItems };
+      plCtxRef.current = { ...plCtxRef.current, items: playlist.filter(p => p.videoId !== videoId) };
     }
   };
 
   const togglePlay = () => {
     if (!playerRef.current) return;
     if (isPlaying) playerRef.current.pauseVideo();
-    else playerRef.current.playVideo();
+    else           playerRef.current.playVideo();
   };
+
+  const displayName = trackTitle || activePreset || "Study Music";
+  const isLive      = isPlaying && duration === 0;
+  const progress    = duration > 0 ? currentTime / duration : 0;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <>
-      {/* Hidden YT player — always mounted so audio continues when popup closes */}
-      <div
-        ref={containerRef}
-        style={{ position: "fixed", top: -9999, left: -9999, width: 320, height: 180, pointerEvents: "none", zIndex: -1 }}
-      />
+      {/* Hidden YT player — always mounted so audio continues when popup closes.
+          2×2 clip at corner: gives Chrome a non-zero viewport intersection so it
+          doesn't suspend the nested iframe (off-screen + zIndex:-1 caused silent
+          audio suspension inside Google Meet's sandboxed iframe context). */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, width: 2, height: 2, overflow: "hidden", pointerEvents: "none", zIndex: 1 }}>
+        <div ref={containerRef} style={{ width: 320, height: 180 }} />
+      </div>
 
+      {/* ── Full player popup ───────────────────────────────────────────── */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -299,9 +323,7 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
                 <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-0.5">
                   {isBuffering ? "Loading..." : isPlaying ? "Now Playing" : apiReady ? "Paused" : "Starting..."}
                 </p>
-                <p className="text-xs font-semibold text-white/90 truncate leading-tight">
-                  {trackTitle || activePreset || "Study Music"}
-                </p>
+                <p className="text-xs font-semibold text-white/90 truncate leading-tight">{displayName}</p>
               </div>
               {thumbnail && isPlaying && (
                 <div className="flex items-end gap-[2px] h-5 shrink-0">
@@ -315,6 +337,24 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
                 </div>
               )}
             </div>
+
+            {/* ── Progress bar (inside popup) ── */}
+            {(isPlaying || currentTime > 0) && (
+              <div className="flex-shrink-0" style={{ background: "#111" }}>
+                <div className="flex items-center gap-2 px-3 pb-2">
+                  <span className="text-[9px] font-mono text-white/30 w-8 text-right shrink-0">{fmtTime(currentTime)}</span>
+                  <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                    {isLive
+                      ? <motion.div className="h-full bg-red-500 rounded-full" animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 1.5, repeat: Infinity }} style={{ width: "100%" }} />
+                      : <div className="h-full bg-red-500 rounded-full transition-all duration-1000" style={{ width: `${progress * 100}%` }} />
+                    }
+                  </div>
+                  <span className="text-[9px] font-mono text-white/30 w-8 shrink-0">
+                    {isLive ? <span className="text-red-400 font-bold tracking-wide">LIVE</span> : fmtTime(duration)}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* ── Controls ── */}
             <div className="flex items-center justify-center gap-5 py-2.5 border-t border-b border-white/5 flex-shrink-0" style={{ background: "#111" }}>
@@ -350,7 +390,7 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
                     tab === t ? "text-red-400 border-b-2 border-red-500" : "text-white/30 hover:text-white/60"
                   }`}>
                   {t === "presets" && "Presets"}
-                  {t === "search" && <><Search className="w-3 h-3" /> Search</>}
+                  {t === "search"  && <><Search className="w-3 h-3" /> Search</>}
                   {t === "playlist" && <><ListMusic className="w-3 h-3" /> Playlist {playlist.length > 0 && <span className="bg-red-500 text-white rounded-full text-[8px] w-3.5 h-3.5 flex items-center justify-center">{playlist.length}</span>}</>}
                 </button>
               ))}
@@ -381,10 +421,7 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
               {tab === "search" && (
                 <div className="flex flex-col">
                   <form onSubmit={handleSearch} className="flex gap-1.5 px-3 pt-2.5 pb-2">
-                    <input
-                      type="text"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
+                    <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
                       placeholder="Lofi study, jazz, piano..."
                       className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors"
                     />
@@ -394,15 +431,10 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
                       {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                     </button>
                   </form>
-
-                  {searchErr && (
-                    <p className="px-3 pb-2 text-[10px] text-red-400">{searchErr}</p>
-                  )}
-
+                  {searchErr && <p className="px-3 pb-2 text-[10px] text-red-400">{searchErr}</p>}
                   {results.length === 0 && !searching && !searchErr && (
                     <p className="px-3 pb-3 text-[10px] text-white/20 text-center">Search karo — results yahan aayenge</p>
                   )}
-
                   <div className="divide-y divide-white/5">
                     {results.map((r) => (
                       <div key={r.videoId} className="flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 transition-colors group">
@@ -416,9 +448,7 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
                             title="Play" className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-30">
                             <Play className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            onClick={() => addToPlaylist(r)}
-                            title="Playlist mein add karo"
+                          <button onClick={() => addToPlaylist(r)} title="Playlist mein add karo"
                             disabled={playlist.some(p => p.videoId === r.videoId)}
                             className="p-1.5 rounded-lg text-white/40 hover:text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed">
                             <Plus className="w-3.5 h-3.5" />
@@ -491,6 +521,103 @@ export function SpotifyPlayer({ isOpen, onClose }: Props) {
                   )}
                 </div>
               )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Floating mini-player — visible when playing & popup is closed ── */}
+      <AnimatePresence>
+        {(isPlaying || isBuffering) && !isOpen && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0,  opacity: 1 }}
+            exit={{    y: 80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 320, damping: 28 }}
+            className="fixed bottom-0 left-0 right-0 z-[8998] select-none"
+            style={{ background: "#0d0d0d", borderTop: "1px solid rgba(239,68,68,0.3)", boxShadow: "0 -4px 24px rgba(0,0,0,0.5)" }}
+          >
+            {/* Progress bar — top edge */}
+            <div className="h-[3px] w-full bg-white/[0.06]">
+              {isLive
+                ? <motion.div className="h-full bg-red-500" animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.4, repeat: Infinity }} style={{ width: "100%" }} />
+                : <div className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-1000 ease-linear" style={{ width: `${progress * 100}%` }} />
+              }
+            </div>
+
+            {/* Main row */}
+            <div
+              className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
+              onClick={onOpen}
+            >
+              {/* Thumbnail or equaliser bars */}
+              {thumbnail
+                ? (
+                  <div className="relative shrink-0">
+                    <img src={thumbnail} alt="" className="w-10 h-7 rounded object-cover border border-white/10" />
+                    {isPlaying && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded">
+                        <div className="flex items-end gap-[2px] h-4">
+                          {[0,1,2].map(i => (
+                            <motion.div key={i} className="w-[3px] rounded-full bg-red-400"
+                              animate={{ height: ["20%","100%","45%","20%"] }}
+                              transition={{ duration: 0.65, repeat: Infinity, delay: i * 0.18, ease: "easeInOut" }}
+                              style={{ minHeight: 2 }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+                : (
+                  <div className="flex items-end gap-[3px] h-7 w-10 shrink-0">
+                    {[0,1,2,3].map(i => (
+                      <motion.div key={i} className="flex-1 rounded-full bg-red-500"
+                        animate={isPlaying ? { height: ["25%","100%","55%","80%","25%"] } : { height: "15%" }}
+                        transition={isPlaying ? { duration: 0.7, repeat: Infinity, delay: i * 0.17, ease: "easeInOut" } : { duration: 0.3 }}
+                        style={{ minHeight: 2 }}
+                      />
+                    ))}
+                  </div>
+                )
+              }
+
+              {/* Track info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-white/90 truncate leading-tight">{displayName}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {isBuffering
+                    ? <p className="text-[9px] text-white/30 font-mono">Loading...</p>
+                    : isLive
+                      ? <span className="text-[8px] font-black tracking-widest text-red-400 bg-red-500/15 border border-red-500/30 px-1.5 py-0.5 rounded-full">● LIVE</span>
+                      : (
+                        <p className="text-[9px] text-white/35 font-mono">
+                          {fmtTime(currentTime)}
+                          <span className="text-white/15 mx-0.5">/</span>
+                          {fmtTime(duration)}
+                        </p>
+                      )
+                  }
+                </div>
+              </div>
+
+              {/* Play / Pause */}
+              <button
+                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                disabled={!apiReady}
+                className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-red-500 hover:bg-red-600 active:scale-95 text-white transition-all disabled:opacity-40 shadow-md shadow-red-500/30"
+              >
+                {isBuffering
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : isPlaying
+                    ? <Pause className="w-3.5 h-3.5" />
+                    : <Play className="w-3.5 h-3.5 ml-0.5" />
+                }
+              </button>
+
+              {/* Expand chevron */}
+              <ChevronUp className="w-3.5 h-3.5 text-white/20 shrink-0" />
             </div>
           </motion.div>
         )}
