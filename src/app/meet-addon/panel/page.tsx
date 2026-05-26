@@ -86,6 +86,7 @@ export default function MeetAddonPanelPage() {
   const [spotifyOpen, setSpotifyOpen] = useState(false);
   const [musicPlaying, setMusicPlaying] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [mainStageLoading, setMainStageLoading] = useState(false);
   const [studentName, setStudentName] = useState<string>("");
@@ -548,7 +549,12 @@ export default function MeetAddonPanelPage() {
       {/* Spotify floating player */}
       <SpotifyPlayer isOpen={spotifyOpen} onClose={() => setSpotifyOpen(false)} onOpen={() => setSpotifyOpen(true)} onPlayingChange={setMusicPlaying} />
       {/* AI Chatbot */}
-      <AIChatBot isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      <AIChatBot
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        initialPrompt={pendingPrompt}
+        onPromptConsumed={() => setPendingPrompt(null)}
+      />
 
       <AnimatePresence mode="wait">
         <motion.div key={zenMode ? "zen" : "dash"} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.35 }}
@@ -818,6 +824,59 @@ export default function MeetAddonPanelPage() {
               </div>
             </section>
           </div>
+
+          {/* ── StudyMate AI Section ── */}
+          {!zenMode && (
+            <motion.section
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full mt-5 bg-white border border-[#C7D2FE] rounded-2xl overflow-hidden shadow-[0_4px_16px_rgba(99,102,241,0.08)]"
+            >
+              {/* Header */}
+              <div
+                className="flex items-center justify-between px-5 py-4 border-b border-[#C7D2FE]"
+                style={{ background: "linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%)" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-[0_2px_8px_rgba(99,102,241,0.25)]"
+                    style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
+                    <Sparkles className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-[#0F172A]">StudyMate AI</p>
+                    <p className="text-[10px] text-[#94A3B8]">Doubt, plan, motivation — sab yahan</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setChatOpen(true)}
+                  className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all hover:opacity-90 shadow-[0_2px_10px_rgba(99,102,241,0.35)]"
+                  style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}
+                >
+                  Chat Kholo →
+                </button>
+              </div>
+
+              {/* Quick prompts */}
+              <div className="px-5 py-4 flex flex-wrap gap-2">
+                {[
+                  { emoji: "📅", label: "Study Plan", prompt: "Aaj study plan bana do" },
+                  { emoji: "🎯", label: "Motivation", prompt: "Motivation chahiye" },
+                  { emoji: "⚡", label: "Shortcut Trick", prompt: "Shortcut trick batao" },
+                  { emoji: "📖", label: "Revision Plan", prompt: "Kal ka revision plan" },
+                  { emoji: "😰", label: "Stressed Hoon", prompt: "Bahut stressed hoon, help karo" },
+                  { emoji: "📊", label: "Weak Topic", prompt: "Mera weak topic fix karo" },
+                ].map(({ emoji, label, prompt }) => (
+                  <button
+                    key={prompt}
+                    onClick={() => { setPendingPrompt(prompt); setChatOpen(true); }}
+                    className="flex items-center gap-1.5 rounded-full border border-[#C7D2FE] bg-[#F8FAFF] px-3 py-1.5 text-[11px] font-semibold text-[#475569] hover:border-[#6366F1]/50 hover:bg-[#EEF2FF] hover:text-[#6366F1] transition-all"
+                  >
+                    <span>{emoji}</span> {label}
+                  </button>
+                ))}
+              </div>
+            </motion.section>
+          )}
 
           {/* ── Brain Dump ── */}
           {!zenMode && (

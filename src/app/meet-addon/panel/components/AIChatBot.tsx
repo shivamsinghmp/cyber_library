@@ -22,17 +22,22 @@ const RETRY_SECONDS = 30;
 type Props = {
   isOpen: boolean;
   onClose: () => void;
+  initialPrompt?: string | null;
+  onPromptConsumed?: () => void;
 };
 
-export function AIChatBot({ isOpen, onClose }: Props) {
+export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: Props) {
   const [messages,       setMessages]       = useState<Message[]>([]);
   const [input,          setInput]          = useState("");
   const [loading,        setLoading]        = useState(false);
   const [freeLeft,       setFreeLeft]       = useState<number | null>(null);
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
   const pendingRetryMsgs = useRef<Message[] | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef  = useRef<HTMLTextAreaElement>(null);
+  const bottomRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLTextAreaElement>(null);
+  const sendRef    = useRef(send);
+
+  useEffect(() => { sendRef.current = send; });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -41,6 +46,15 @@ export function AIChatBot({ isOpen, onClose }: Props) {
   useEffect(() => {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 150);
   }, [isOpen]);
+
+  // Auto-send when a prompt is passed from outside (section card quick prompts)
+  useEffect(() => {
+    if (!initialPrompt) return;
+    onPromptConsumed?.();
+    const t = setTimeout(() => sendRef.current(initialPrompt), 200);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialPrompt]);
 
   // Countdown ticker — auto-retry when it reaches 0
   useEffect(() => {
