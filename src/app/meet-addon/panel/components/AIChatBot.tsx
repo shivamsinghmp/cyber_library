@@ -30,7 +30,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   const [messages,       setMessages]       = useState<Message[]>([]);
   const [input,          setInput]          = useState("");
   const [loading,        setLoading]        = useState(false);
-  const [freeLeft,       setFreeLeft]       = useState<number | null>(null);
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
   const pendingRetryMsgs = useRef<Message[] | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
@@ -78,7 +77,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   const callApi = useCallback(async (msgs: Message[]) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/meet-addon/studymate", {
+      const res = await fetch("/api/ai/studymate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -90,19 +89,39 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
       const data = await res.json().catch(() => ({ error: "Response parse error" }));
 
       if (!res.ok) {
+        // Rate-limit — auto-retry after countdown
         if (data.retryable) {
           pendingRetryMsgs.current = msgs;
           setMessages((prev) => [
             ...prev,
-            { role: "assistant", content: `${data.error ?? "Abhi bahut log AI use kar rahe hain 🙏"} — ${RETRY_SECONDS}s mein auto-retry hoga.` },
+            { role: "assistant", content: `Abhi AI bahut busy hai 🙏 — ${RETRY_SECONDS}s mein auto-retry hoga.` },
           ]);
           setRetryCountdown(RETRY_SECONDS);
           return;
         }
 
+        // Quality warning — auto-accept cheaper model silently in add-on context
+        if (data.error === "quality_warning") {
+          const r2 = await fetch("/api/ai/studymate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+            body: JSON.stringify({ messages: msgs, acceptLowerQuality: true }),
+          });
+          const d2 = await r2.json().catch(() => ({ error: "Parse error" }));
+          if (r2.ok) {
+            setMessages((prev) => [...prev, { role: "assistant", content: d2.reply }]);
+            return;
+          }
+          setMessages((prev) => [...prev, {
+            role: "assistant",
+            content: d2.error || "Coins kam hain. Dashboard pe wallet top-up karo 🪙",
+          }]);
+          return;
+        }
+
         const errMsg =
           data.error === "coins_required"
-            ? (data.message ?? "Coins khatam ho gaye! Study room mein jaao coins kamao 🪙")
+            ? (data.message ?? "Coins khatam! Dashboard pe wallet top-up karo 🪙")
             : res.status === 401
               ? "Session expire ho gayi. Panel se logout karke dobara login karo."
               : res.status === 503 || data.error === "AI not configured"
@@ -114,7 +133,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
         setMessages((prev) => [...prev, { role: "assistant", content: errMsg }]);
       } else {
         setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-        if (data.freeMessagesLeft !== undefined) setFreeLeft(data.freeMessagesLeft);
       }
     } catch {
       setMessages((prev) => [...prev, {
@@ -149,7 +167,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
 
   function clearChat() {
     setMessages([]);
-    setFreeLeft(null);
     setRetryCountdown(null);
     pendingRetryMsgs.current = null;
   }
@@ -180,9 +197,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               </div>
               <div>
                 <p className="text-xs font-bold text-white leading-none">StudyMate AI</p>
-                <p className="text-[9px] text-white/40 mt-0.5">
-                  {freeLeft !== null ? `${freeLeft} free msgs left today` : "AI study buddy"}
-                </p>
+                <p className="text-[9px] text-white/40 mt-0.5">AI study buddy</p>
               </div>
             </div>
             <div className="flex items-center gap-1">

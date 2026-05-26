@@ -440,9 +440,23 @@ const bodySchema = z.object({
 // ─── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
-    const auth = await requireModule("studymate");
-    if (auth.error) return auth.error;
-    const userId = auth.user.id;
+    let userId: string;
+
+    // Meet add-on: authenticate via bearer token (custom HMAC JWT)
+    const bearerToken = request.headers.get("authorization")?.startsWith("Bearer ")
+      ? request.headers.get("authorization")!.slice(7) : null;
+
+    if (bearerToken) {
+      const { verifyMeetAddonToken } = await import("@/lib/meet-addon-token");
+      const payload = verifyMeetAddonToken(bearerToken);
+      if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      userId = payload.userId;
+    } else {
+      // Dashboard: session auth + module access check
+      const auth = await requireModule("studymate");
+      if (auth.error) return auth.error;
+      userId = auth.user.id;
+    }
 
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -542,8 +556,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "AI response timed out. Dobara try karo." }, { status: 504 });
     }
     const msg = (e as Error).message ?? "";
+    if (msg.includes("quota")) {
+      return NextResponse.json({ error: msg, retryable: true }, { status: 502 });
+    }
     // Forward all AI provider errors as 502 so the frontend shows the actual reason
-    if (msg.includes("Gemini") || msg.includes("quota") || msg.includes("invalid") || msg.includes("key") || msg.includes("available") || msg.includes("error")) {
+    if (msg.includes("Gemini") || msg.includes("invalid") || msg.includes("key") || msg.includes("available") || msg.includes("error")) {
       return NextResponse.json({ error: msg }, { status: 502 });
     }
     console.error("StudyMate POST error:", e);
