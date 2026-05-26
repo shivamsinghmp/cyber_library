@@ -25,6 +25,7 @@ jobs:
             cd /var/www/cyber_library
             git checkout -- .
             git pull origin main
+            pip3 install --upgrade yt-dlp --quiet
             rm -rf node_modules
             npm ci
             npx prisma generate
