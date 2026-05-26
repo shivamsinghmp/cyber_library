@@ -6,6 +6,25 @@ export interface RateLimitResult {
 }
 
 const rateLimiterCache = new Map<string, { count: number; resetTime: number }>();
+const MAX_RATE_LIMIT_ENTRIES = 50_000;
+
+function evictIfOverLimit() {
+  if (rateLimiterCache.size < MAX_RATE_LIMIT_ENTRIES) return;
+  const now = Date.now();
+  // First pass: remove already-expired entries
+  for (const [key, record] of rateLimiterCache) {
+    if (now > record.resetTime) rateLimiterCache.delete(key);
+    if (rateLimiterCache.size < MAX_RATE_LIMIT_ENTRIES * 0.8) return;
+  }
+  // Second pass: evict oldest 20% by insertion order (DoS mitigation)
+  const toDelete = Math.ceil(rateLimiterCache.size * 0.2);
+  let deleted = 0;
+  for (const key of rateLimiterCache.keys()) {
+    if (deleted >= toDelete) break;
+    rateLimiterCache.delete(key);
+    deleted++;
+  }
+}
 
 // Prune expired entries every 5 minutes to prevent unbounded memory growth.
 if (typeof setInterval !== "undefined") {
@@ -24,6 +43,7 @@ export function rateLimit(identifier: string, limit: number, windowInSeconds: nu
   const record = rateLimiterCache.get(identifier);
 
   if (!record) {
+    evictIfOverLimit();
     rateLimiterCache.set(identifier, { count: 1, resetTime: now + windowMs });
     return { success: true, limit, remaining: limit - 1, reset: now + windowMs };
   }

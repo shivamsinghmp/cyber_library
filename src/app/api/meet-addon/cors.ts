@@ -4,7 +4,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
 
 function isAllowedOrigin(origin: string): boolean {
   if (!origin) return false;
-  if (origin.startsWith("https://meet.google") || origin.startsWith("http://meet.google")) return true;
+  if (origin.startsWith("https://meet.google")) return true;
   if (origin === SITE_URL) return true;
   if (process.env.NODE_ENV !== "production" && origin.startsWith("http://localhost")) return true;
   return false;

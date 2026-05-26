@@ -20,9 +20,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, alreadyVerified: true });
     }
 
-    const host = request.headers.get("host") ?? "cyberlib.in";
-    const proto = host.startsWith("localhost") ? "http" : "https";
-    const baseUrl = `${proto}://${host}`;
+    // Use env var — never the request Host header (prevents phishing via forged Host)
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://cyberlib.in";
 
     const token = await createMagicLinkToken(email);
     const verifyUrl = `${baseUrl}/verify-email/confirm?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;

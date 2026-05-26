@@ -102,10 +102,9 @@ export async function POST(request: Request) {
     await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber: whatsappNumber } });
 
     // Send magic link for email verification (fire-and-forget)
+    // Use env var — never the request Host header (prevents phishing via forged Host)
     try {
-      const host = request.headers.get("host") ?? "cyberlib.in";
-      const proto = host.startsWith("localhost") ? "http" : "https";
-      const baseUrl = `${proto}://${host}`;
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://cyberlib.in";
       const token = await createMagicLinkToken(email);
       const verifyUrl = `${baseUrl}/verify-email/confirm?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
       sendMagicLinkEmail(email, verifyUrl, name).catch(console.error);

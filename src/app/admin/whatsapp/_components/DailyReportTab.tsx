@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Save, Send, RefreshCw, Eye, Code, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
+import DOMPurify from "dompurify";
 
 const VARIABLES = [
   { key: "{{name}}",           desc: "Student ka naam" },
@@ -170,7 +171,7 @@ export function DailyReportTab() {
             <div className="flex justify-end">
               <div className="max-w-sm rounded-2xl rounded-tr-sm bg-[#dcf8c6] px-4 py-3 text-sm leading-relaxed shadow-sm">
                 <div
-                  dangerouslySetInnerHTML={{ __html: renderWA(previewTemplate(template)) }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderWA(previewTemplate(template))) }}
                   className="text-gray-900"
                 />
                 <p className="mt-2 text-right text-[10px] text-gray-400">10:30 AM ✓✓</p>
