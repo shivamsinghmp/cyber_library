@@ -794,6 +794,9 @@
   font-size: 0.9375rem;
   line-height: 1.8;
   color: var(--body-text, #374151);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
 }
 .prose-blog p { margin: 0 0 1.2em; }
 .prose-blog h1,

@@ -75,11 +75,11 @@ export default async function BlogPostPage({ params }: Props) {
         </Link>
 
         {/* Hero card */}
-        <div className="mt-6 overflow-hidden rounded-[2rem] border bg-white shadow-xl"
+        <div className="mt-6 rounded-[2rem] border bg-white shadow-xl"
           style={{ borderColor: "var(--border)", boxShadow: "0 8px 40px rgba(99,102,241,0.12), 0 2px 8px rgba(0,0,0,0.06)" }}>
 
           {/* Rainbow top bar */}
-          <div className="h-1.5 w-full"
+          <div className="h-1.5 w-full rounded-t-[2rem]"
             style={{ background: "linear-gradient(to right, #6366F1, #8B5CF6, #EC4899, #06B6D4)" }} />
 
           <div className="px-8 pt-8 pb-7 sm:px-10 sm:pt-10">
