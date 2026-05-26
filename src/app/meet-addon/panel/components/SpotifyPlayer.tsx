@@ -71,10 +71,11 @@ type Props = {
 };
 
 export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Props) {
-  const audioRef    = useRef<HTMLAudioElement | null>(null);
-  const hlsRef      = useRef<unknown>(null);
-  const plCtxRef    = useRef<{ items: PlaylistItem[]; index: number } | null>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
+  const audioRef        = useRef<HTMLAudioElement | null>(null);
+  const hlsRef          = useRef<unknown>(null);
+  const plCtxRef        = useRef<{ items: PlaylistItem[]; index: number } | null>(null);
+  const progressRef     = useRef<HTMLDivElement>(null);
+  const currentVideoRef = useRef<string>(DEFAULT_VIDEO);
 
   // Player state
   const [isPlaying,   setIsPlaying]   = useState(false);
@@ -83,8 +84,9 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
   const [trackTitle,  setTrackTitle]  = useState("");
   const [channel,     setChannel]     = useState("");
   const [thumbnail,   setThumbnail]   = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration,    setDuration]    = useState(0);
+  const [currentTime,  setCurrentTime]  = useState(0);
+  const [duration,     setDuration]     = useState(0);
+  const [streamError,  setStreamError]  = useState("");
 
   // UI state
   const [tab,          setTab]          = useState<Tab>("presets");
@@ -106,12 +108,14 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
     try { localStorage.setItem(PLAYLIST_KEY, JSON.stringify(items)); } catch {}
   };
 
-  // ── Load track (fetch stream URL, attach to <audio>) ─────────────────────
+  // ── Load track ────────────────────────────────────────────────────────────
   const loadTrack = useCallback(async (videoId: string, knownTitle?: string, knownThumb?: string) => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    currentVideoRef.current = videoId;
     setIsBuffering(true);
+    setStreamError("");
     setCurrentTime(0);
     setDuration(0);
     if (knownTitle) setTrackTitle(knownTitle);
@@ -119,13 +123,16 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
 
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("vl_meet_addon_token") : null;
-      const res   = await fetch(`/api/youtube/audio?videoId=${encodeURIComponent(videoId)}`, {
+
+      // Fetch metadata (title, thumbnail, author, isLive, hlsUrl for live streams)
+      const res  = await fetch(`/api/youtube/audio?videoId=${encodeURIComponent(videoId)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json() as AudioResponse;
 
       if (!res.ok || data.error) {
         setIsBuffering(false);
+        setStreamError(data.error ?? "Track unavailable");
         return;
       }
 
@@ -134,32 +141,38 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
       setThumbnail(data.thumbnail);
       if (!data.isLive && data.duration > 0) setDuration(data.duration);
 
-      // Tear down previous HLS instance
+      // Tear down previous HLS instance and reset audio element
       const prevHls = hlsRef.current as { destroy?: () => void } | null;
-      if (prevHls?.destroy) { prevHls.destroy(); }
+      if (prevHls?.destroy) prevHls.destroy();
       hlsRef.current = null;
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
 
       if (data.isLive && data.hlsUrl) {
+        // Live stream — use hls.js (Chrome) or native HLS (Safari)
         const { default: Hls } = await import("hls.js");
         if (Hls.isSupported()) {
           const hls = new Hls({ enableWorker: false });
           hlsRef.current = hls;
           hls.loadSource(data.hlsUrl);
           hls.attachMedia(audio);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            audio.play().catch(() => {});
+          hls.on(Hls.Events.MANIFEST_PARSED, () => { audio.play().catch(() => {}); });
+          hls.on(Hls.Events.ERROR, (_: unknown, d: { fatal?: boolean }) => {
+            if (d.fatal) { setIsBuffering(false); setStreamError("Live stream error"); }
           });
         } else if (audio.canPlayType("application/vnd.apple.mpegurl")) {
-          // Native HLS — Safari
           audio.src = data.hlsUrl;
           audio.load();
           audio.play().catch(() => {});
+        } else {
+          setIsBuffering(false);
+          setStreamError("Live stream not supported in this browser");
         }
-      } else if (data.url) {
-        audio.src = data.url;
+      } else {
+        // VOD — stream proxied through our server to avoid YouTube CDN blocks
+        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+        audio.src = `/api/youtube/stream?videoId=${encodeURIComponent(videoId)}${tokenParam}`;
         audio.load();
         audio.play().catch(() => {});
       }
@@ -167,6 +180,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
       try { localStorage.setItem(YT_STORAGE_KEY, videoId); } catch {}
     } catch {
       setIsBuffering(false);
+      setStreamError("Could not load track");
     }
   }, []);
 
@@ -181,12 +195,18 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
     audioRef.current = audio;
     setIsReady(true);
 
-    const onPlay     = () => { setIsPlaying(true);  setIsBuffering(false); onPlayingChange?.(true); };
+    const onPlay     = () => { setIsPlaying(true);  setIsBuffering(false); setStreamError(""); onPlayingChange?.(true); };
     const onPause    = () => { setIsPlaying(false); onPlayingChange?.(false); };
     const onWaiting  = () => setIsBuffering(true);
     const onCanPlay  = () => setIsBuffering(false);
-    const onTimeUpdate    = () => setCurrentTime(audio.currentTime);
+    const onTimeUpdate     = () => setCurrentTime(audio.currentTime);
     const onDurationChange = () => { if (isFinite(audio.duration)) setDuration(audio.duration); };
+    const onError = () => {
+      setIsBuffering(false);
+      setIsPlaying(false);
+      onPlayingChange?.(false);
+      setStreamError("Playback failed — dobara try karo");
+    };
     const onEnded = () => {
       if (plCtxRef.current) {
         const { items, index } = plCtxRef.current;
@@ -210,6 +230,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
     audio.addEventListener("playing",        onCanPlay);
     audio.addEventListener("timeupdate",     onTimeUpdate);
     audio.addEventListener("durationchange", onDurationChange);
+    audio.addEventListener("error",          onError);
     audio.addEventListener("ended",          onEnded);
 
     let videoId = DEFAULT_VIDEO;
@@ -225,6 +246,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
       audio.removeEventListener("playing",        onCanPlay);
       audio.removeEventListener("timeupdate",     onTimeUpdate);
       audio.removeEventListener("durationchange", onDurationChange);
+      audio.removeEventListener("error",          onError);
       audio.removeEventListener("ended",          onEnded);
       audio.pause();
       const hls = hlsRef.current as { destroy?: () => void } | null;
@@ -389,23 +411,28 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                 <p className="text-sm font-bold text-white leading-tight truncate mb-0.5">{displayName}</p>
                 {channel && <p className="text-[10px] text-white/40 truncate">{channel}</p>}
                 <div className="flex justify-center mt-2">
-                  {isBuffering
-                    ? <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
-                        <Loader2 className="w-2.5 h-2.5 animate-spin" /> Loading
-                      </span>
-                    : isLive
-                      ? <span className="flex items-center gap-1 text-[9px] font-bold text-red-400 bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 rounded-full">
-                          <motion.span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" animate={{ opacity: [1,0.2,1] }} transition={{ duration: 1.2, repeat: Infinity }} />
-                          LIVE
+                  {streamError
+                    ? <button onClick={() => loadTrack(currentVideoRef.current)}
+                        className="flex items-center gap-1 text-[9px] font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-0.5 rounded-full hover:bg-orange-500/20 transition-colors">
+                        ↺ Retry
+                      </button>
+                    : isBuffering
+                      ? <span className="flex items-center gap-1 text-[9px] font-bold text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" /> Loading
                         </span>
-                      : isPlaying
-                        ? <span className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
-                            <EqBars playing count={3} color="#34d399" size="sm" />
-                            Now Playing
+                      : isLive
+                        ? <span className="flex items-center gap-1 text-[9px] font-bold text-red-400 bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 rounded-full">
+                            <motion.span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" animate={{ opacity: [1,0.2,1] }} transition={{ duration: 1.2, repeat: Infinity }} />
+                            LIVE
                           </span>
-                        : isReady
-                          ? <span className="text-[9px] font-bold text-white/20 bg-white/5 px-2 py-0.5 rounded-full">Paused</span>
-                          : <span className="text-[9px] font-bold text-white/20 bg-white/5 px-2 py-0.5 rounded-full">Starting…</span>
+                        : isPlaying
+                          ? <span className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                              <EqBars playing count={3} color="#34d399" size="sm" />
+                              Now Playing
+                            </span>
+                          : isReady
+                            ? <span className="text-[9px] font-bold text-white/20 bg-white/5 px-2 py-0.5 rounded-full">Paused</span>
+                            : <span className="text-[9px] font-bold text-white/20 bg-white/5 px-2 py-0.5 rounded-full">Starting…</span>
                   }
                 </div>
               </div>
