@@ -309,7 +309,8 @@ export default function AiSettingsPage() {
               )}
               <p className="text-xs text-gray-500">
                 Gemini 2.5 Flash, 2.0 Flash, 1.5 Pro, 2.5 Pro — Google Cloud Vertex AI via API key.
-                <br />API key Google Cloud Console → Agent Platform → API keys se milta hai.
+                <br />Step 1: Google Cloud Console → APIs &amp; Services → Enable <strong>Vertex AI API</strong>.
+                <br />Step 2: APIs &amp; Services → Credentials → Create API Key (restrict to Vertex AI API).
               </p>
 
               {/* Project ID */}

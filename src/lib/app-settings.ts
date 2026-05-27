@@ -36,7 +36,7 @@ export const APP_SETTING_KEYS = {
   CHECKIN_COINS:                  { label: "Daily Check-in Coins (default: 5)",                   secret: false },
   VERTEX_PROJECT_ID:              { label: "Vertex AI — Google Cloud Project ID",                  secret: false },
   VERTEX_LOCATION:                { label: "Vertex AI — Region (e.g. us-central1)",                 secret: false },
-  VERTEX_API_KEY:                 { label: "Vertex AI — API Key (Agent Platform / Google Cloud)",   secret: true  },
+  VERTEX_API_KEY:                 { label: "Vertex AI — API Key (Google Cloud → APIs & Services → Credentials)", secret: true  },
   ANTHROPIC_API_KEY:              { label: "Anthropic API Key (Claude AI)",                        secret: true  },
   OPENAI_API_KEY:                 { label: "OpenAI API Key",                                       secret: true  },
   YOUTUBE_API_KEY:                { label: "YouTube Data API v3 Key (for music search)",            secret: true  },
