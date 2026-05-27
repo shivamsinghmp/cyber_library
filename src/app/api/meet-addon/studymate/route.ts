@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 25_000);
       res = await fetch(
-        vertexUrl(projectId, location, "gemini-2.0-flash"),
+        vertexUrl(projectId, location, "gemini-2.0-flash-001"),
         {
           method: "POST",
           signal: controller.signal,

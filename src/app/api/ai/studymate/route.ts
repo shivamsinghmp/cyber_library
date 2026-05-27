@@ -26,12 +26,12 @@ const MODEL_PROVIDER: Record<ModelId, Provider> = {
   "gpt-o1-mini":      "openai",   "gpt-o1":            "openai",
 };
 
-// Real API model identifiers
+// Real API model identifiers (Vertex AI requires versioned IDs, not unversioned aliases)
 const API_MODEL: Record<ModelId, string> = {
-  "gemini-2.5-flash": "gemini-2.5-flash",
-  "gemini-2.0-flash": "gemini-2.0-flash",
-  "gemini-1.5-pro":   "gemini-1.5-pro",
-  "gemini-2.5-pro":   "gemini-2.5-pro",
+  "gemini-2.5-flash": "gemini-2.5-flash-002",
+  "gemini-2.0-flash": "gemini-2.0-flash-001",
+  "gemini-1.5-pro":   "gemini-1.5-pro-002",
+  "gemini-2.5-pro":   "gemini-2.5-pro-002",
   "claude-haiku":     "claude-haiku-4-5-20251001",
   "claude-sonnet":    "claude-sonnet-4-6",
   "claude-opus":      "claude-opus-4-7",
