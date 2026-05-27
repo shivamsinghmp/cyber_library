@@ -150,14 +150,21 @@ export default function AiSettingsPage() {
   }
 
   async function handleSaveVertex() {
+    // Only save fields that were actually filled in — sending null would delete existing values
+    const toSave = [
+      { key: "VERTEX_PROJECT_ID", value: vertexProjectId.trim() },
+      { key: "VERTEX_LOCATION",   value: vertexLocation.trim()  },
+      { key: "VERTEX_API_KEY",    value: vertexApiKey.trim()    },
+    ].filter(f => f.value !== "");
+
+    if (toSave.length === 0) {
+      toast.error("Koi field fill nahi ki — values enter karo phir save karo");
+      return;
+    }
+
     setVertexSaving(true);
     try {
-      const fields: Array<{ key: string; value: string | null }> = [
-        { key: "VERTEX_PROJECT_ID", value: vertexProjectId.trim() || null },
-        { key: "VERTEX_LOCATION",   value: vertexLocation.trim()  || null },
-        { key: "VERTEX_API_KEY",    value: vertexApiKey.trim()    || null },
-      ];
-      await Promise.all(fields.map(f =>
+      const results = await Promise.all(toSave.map(f =>
         fetch("/api/admin/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -165,7 +172,8 @@ export default function AiSettingsPage() {
           body: JSON.stringify({ key: f.key, value: f.value }),
         })
       ));
-      toast.success(vertexProjectId.trim() ? "Vertex AI settings saved" : "Vertex AI settings removed");
+      if (results.some(r => !r.ok)) { toast.error("Save failed — dobara try karo"); return; }
+      toast.success("Vertex AI settings saved");
       setVertexProjectId(""); setVertexLocation(""); setVertexApiKey("");
       await fetchStatus();
     } catch {
@@ -177,8 +185,26 @@ export default function AiSettingsPage() {
 
   async function handleRemoveVertex() {
     if (!confirm("Vertex AI settings remove kar doge? Google models band ho jaayenge.")) return;
-    setVertexProjectId(""); setVertexLocation(""); setVertexApiKey("");
-    await handleSaveVertex();
+    setVertexSaving(true);
+    try {
+      await Promise.all(
+        ["VERTEX_PROJECT_ID", "VERTEX_LOCATION", "VERTEX_API_KEY"].map(key =>
+          fetch("/api/admin/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ key, value: null }),
+          })
+        )
+      );
+      toast.success("Vertex AI settings removed");
+      setVertexProjectId(""); setVertexLocation(""); setVertexApiKey("");
+      await fetchStatus();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setVertexSaving(false);
+    }
   }
 
   async function handleTest(id: ProviderConfig["id"]) {
