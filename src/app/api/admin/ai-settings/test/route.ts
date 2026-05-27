@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
 
       const res = await fetch(
-        geminiUrl("gemini-2.0-flash"),
+        geminiUrl("gemini-2.5-flash"),
         {
           method: "POST",
           headers: vertexAuthHeaders(apiKey),

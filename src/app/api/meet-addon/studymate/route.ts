@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 25_000);
       res = await fetch(
-        geminiUrl("gemini-2.0-flash"),
+        geminiUrl("gemini-2.5-flash"),
         {
           method: "POST",
           signal: controller.signal,

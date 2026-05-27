@@ -29,7 +29,7 @@ const MODEL_PROVIDER: Record<ModelId, Provider> = {
 // Real API model identifiers (AI Studio uses unversioned aliases)
 const API_MODEL: Record<ModelId, string> = {
   "gemini-2.5-flash": "gemini-2.5-flash",
-  "gemini-2.0-flash": "gemini-2.0-flash",
+  "gemini-2.0-flash": "gemini-2.5-flash",
   "gemini-1.5-pro":   "gemini-1.5-pro",
   "gemini-2.5-pro":   "gemini-2.5-pro",
   "claude-haiku":     "claude-haiku-4-5-20251001",
@@ -188,7 +188,7 @@ async function extractAndSaveProfile(userId: string, conversation: Msg[], apiKey
   try {
     const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
     const res = await fetch(
-      geminiUrl("gemini-2.0-flash"),
+      geminiUrl("gemini-2.5-flash"),
       {
         method: "POST",
         headers: vertexAuthHeaders(apiKey),
