@@ -50,20 +50,20 @@ function InfoCard({
   value: string;
   accent?: "indigo" | "emerald" | "amber" | "sky";
 }) {
-  const bg: Record<string, string> = {
-    indigo:  "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
-    emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-    amber:   "bg-amber-500/10  border-amber-500/20  text-amber-400",
-    sky:     "bg-sky-500/10    border-sky-500/20    text-sky-400",
+  const iconCls: Record<string, string> = {
+    indigo:  "bg-indigo-500/15 border-indigo-500/30 text-indigo-400",
+    emerald: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400",
+    amber:   "bg-amber-500/15 border-amber-500/30 text-amber-400",
+    sky:     "bg-sky-500/15 border-sky-500/30 text-sky-400",
   };
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.03] p-4 transition hover:bg-white/[0.06]">
-      <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${bg[accent]}`}>
+    <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 transition hover:bg-white/[0.15]">
+      <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${iconCls[accent]}`}>
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">{label}</p>
-        <p className="mt-0.5 truncate text-sm font-semibold text-white/85">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cream-muted)]">{label}</p>
+        <p className="mt-1 truncate text-sm font-semibold text-[var(--cream)]">{value}</p>
       </div>
     </div>
   );
@@ -80,7 +80,7 @@ function FieldWrap({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-[10px] font-bold uppercase tracking-widest text-white/40">{label}</label>
+      <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--cream-muted)]">{label}</label>
       {children}
       {error && (
         <p className="flex items-center gap-1 text-xs text-red-400">
@@ -339,7 +339,7 @@ export function ToggleProfileForm() {
 
           {/* name + goal */}
           <div className="mt-3">
-            <h1 className="text-2xl font-black tracking-tight text-white">{displayName}</h1>
+            <h1 className="text-2xl font-black tracking-tight text-[var(--cream)]">{displayName}</h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 px-3 py-1 text-xs font-bold text-indigo-300">
                 <Target className="h-3 w-3" /> {displayGoal}
@@ -367,7 +367,7 @@ export function ToggleProfileForm() {
             onSubmit={handleSave}
             className="rounded-3xl border border-white/8 bg-[#0d0d14] p-6 shadow-xl space-y-5"
           >
-            <p className="text-xs font-bold uppercase tracking-widest text-white/30">Edit Profile Info</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--cream-muted)]">Edit Profile Info</p>
 
             <div className="grid gap-5 sm:grid-cols-2">
 
@@ -459,9 +459,9 @@ export function ToggleProfileForm() {
             </div>
 
             {/* bio */}
-            <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-white/30">About Me</p>
-              <p className="text-sm leading-relaxed text-white/70">{displayBio}</p>
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-5">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--cream-muted)]">About Me</p>
+              <p className="text-sm leading-relaxed text-[var(--cream)]">{displayBio}</p>
             </div>
           </motion.div>
         )}
@@ -484,8 +484,8 @@ export function ToggleProfileForm() {
               {isVerified ? <ShieldCheck className="h-5 w-5" /> : <ShieldAlert className="h-5 w-5" />}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white">Email Verification</p>
-              <p className="truncate text-xs text-white/40">{profile.email ?? "—"}</p>
+              <p className="text-sm font-bold text-[var(--cream)]">Email Verification</p>
+              <p className="truncate text-xs text-[var(--cream-muted)]">{profile.email ?? "—"}</p>
             </div>
             {isVerified && (
               <span className="shrink-0 rounded-full bg-emerald-500/15 border border-emerald-500/25 px-3 py-1 text-xs font-bold text-emerald-400">
@@ -500,7 +500,7 @@ export function ToggleProfileForm() {
 
               {otpStep === "idle" && (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-white/50">
+                  <p className="text-sm text-[var(--cream-muted)]">
                     Email abhi verify nahi hua. OTP aapki email pe jayega.
                   </p>
                   <button onClick={handleSendOtp}
@@ -511,7 +511,7 @@ export function ToggleProfileForm() {
               )}
 
               {otpStep === "sending" && (
-                <div className="flex items-center gap-2.5 text-sm text-white/50">
+                <div className="flex items-center gap-2.5 text-sm text-[var(--cream-muted)]">
                   <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
                   OTP bheja ja raha hai…
                 </div>
@@ -519,8 +519,8 @@ export function ToggleProfileForm() {
 
               {(otpStep === "input" || otpStep === "verifying") && (
                 <div className="space-y-3">
-                  <p className="text-sm text-white/50">
-                    <span className="font-semibold text-white/70">{profile.email}</span> pe 6-digit OTP bheja gaya hai.
+                  <p className="text-sm text-[var(--cream-muted)]">
+                    <span className="font-semibold text-[var(--cream)]">{profile.email}</span> pe 6-digit OTP bheja gaya hai.
                   </p>
                   <div className="flex gap-3">
                     <div className="relative max-w-[180px]">
@@ -546,7 +546,7 @@ export function ToggleProfileForm() {
                   {otpError && <p className="text-xs text-red-400">{otpError}</p>}
                   <button onClick={handleSendOtp}
                     disabled={otpCooldown > 0 || otpStep === "verifying"}
-                    className="text-xs text-white/30 underline underline-offset-2 hover:text-white/60 disabled:no-underline disabled:opacity-30">
+                    className="text-xs text-[var(--cream-muted)] underline underline-offset-2 hover:text-[var(--cream)] disabled:no-underline disabled:opacity-40">
                     {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "OTP dobara bhejo"}
                   </button>
                 </div>
