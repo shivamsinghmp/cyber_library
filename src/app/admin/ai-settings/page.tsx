@@ -76,14 +76,12 @@ export default function AiSettingsPage() {
   const [testing, setTesting] = useState<Record<string, boolean>>({});
   const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
-  // Vertex AI fields
-  const [vertexProjectId, setVertexProjectId] = useState("");
-  const [vertexLocation,  setVertexLocation]  = useState("");
-  const [vertexApiKey,    setVertexApiKey]    = useState("");
-  const [vertexSaving,    setVertexSaving]    = useState(false);
-  const [vertexTesting,   setVertexTesting]   = useState(false);
-  const [vertexShowKey,   setVertexShowKey]   = useState(false);
-  const [vertexTestResult, setVertexTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Gemini AI Studio fields
+  const [geminiKey,        setGeminiKey]        = useState("");
+  const [geminiSaving,     setGeminiSaving]     = useState(false);
+  const [geminiTesting,    setGeminiTesting]    = useState(false);
+  const [geminiShowKey,    setGeminiShowKey]    = useState(false);
+  const [geminiTestResult, setGeminiTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   // YouTube cookies (for music player bot-detection bypass)
   const [ytCookies,      setYtCookies]      = useState("");
@@ -125,85 +123,67 @@ export default function AiSettingsPage() {
     }
   }
 
-  async function handleTestVertex() {
-    setVertexTesting(true);
-    setVertexTestResult(null);
+  async function handleTestGemini() {
+    setGeminiTesting(true);
+    setGeminiTestResult(null);
     try {
       const res = await fetch("/api/admin/ai-settings/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          provider: "vertex",
-          ...(vertexProjectId.trim() ? { projectId: vertexProjectId.trim() } : {}),
-          ...(vertexLocation.trim()  ? { location:  vertexLocation.trim()  } : {}),
-          ...(vertexApiKey.trim()    ? { apiKey:     vertexApiKey.trim()    } : {}),
+          provider: "gemini",
+          ...(geminiKey.trim() ? { value: geminiKey.trim() } : {}),
         }),
       });
       const d = await res.json() as { ok: boolean; message?: string; error?: string };
-      setVertexTestResult({ ok: d.ok, msg: d.ok ? (d.message ?? "Valid ✓") : (d.error ?? "Failed") });
+      setGeminiTestResult({ ok: d.ok, msg: d.ok ? (d.message ?? "Valid ✓") : (d.error ?? "Failed") });
     } catch {
-      setVertexTestResult({ ok: false, msg: "Network error" });
+      setGeminiTestResult({ ok: false, msg: "Network error" });
     } finally {
-      setVertexTesting(false);
+      setGeminiTesting(false);
     }
   }
 
-  async function handleSaveVertex() {
-    // Only save fields that were actually filled in — sending null would delete existing values
-    const toSave = [
-      { key: "VERTEX_PROJECT_ID", value: vertexProjectId.trim() },
-      { key: "VERTEX_LOCATION",   value: vertexLocation.trim()  },
-      { key: "VERTEX_API_KEY",    value: vertexApiKey.trim()    },
-    ].filter(f => f.value !== "");
-
-    if (toSave.length === 0) {
-      toast.error("Koi field fill nahi ki — values enter karo phir save karo");
-      return;
-    }
-
-    setVertexSaving(true);
+  async function handleSaveGemini() {
+    const value = geminiKey.trim();
+    if (!value) { toast.error("API key enter karo"); return; }
+    setGeminiSaving(true);
     try {
-      const results = await Promise.all(toSave.map(f =>
-        fetch("/api/admin/settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ key: f.key, value: f.value }),
-        })
-      ));
-      if (results.some(r => !r.ok)) { toast.error("Save failed — dobara try karo"); return; }
-      toast.success("Vertex AI settings saved");
-      setVertexProjectId(""); setVertexLocation(""); setVertexApiKey("");
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: "GEMINI_API_KEY", value }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(d.error ?? "Save failed"); return; }
+      toast.success("Gemini API key saved");
+      setGeminiKey("");
       await fetchStatus();
     } catch {
       toast.error("Network error");
     } finally {
-      setVertexSaving(false);
+      setGeminiSaving(false);
     }
   }
 
-  async function handleRemoveVertex() {
-    if (!confirm("Vertex AI settings remove kar doge? Google models band ho jaayenge.")) return;
-    setVertexSaving(true);
+  async function handleRemoveGemini() {
+    if (!confirm("Gemini API key remove kar doge? Google models band ho jaayenge.")) return;
+    setGeminiSaving(true);
     try {
-      await Promise.all(
-        ["VERTEX_PROJECT_ID", "VERTEX_LOCATION", "VERTEX_API_KEY"].map(key =>
-          fetch("/api/admin/settings", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ key, value: null }),
-          })
-        )
-      );
-      toast.success("Vertex AI settings removed");
-      setVertexProjectId(""); setVertexLocation(""); setVertexApiKey("");
+      await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: "GEMINI_API_KEY", value: null }),
+      });
+      toast.success("Gemini API key removed");
       await fetchStatus();
     } catch {
       toast.error("Network error");
     } finally {
-      setVertexSaving(false);
+      setGeminiSaving(false);
     }
   }
 
@@ -278,19 +258,19 @@ export default function AiSettingsPage() {
         </p>
       </div>
 
-      {/* Vertex AI card */}
+      {/* Gemini AI Studio card */}
       {(() => {
-        const configured = !!(status["VERTEX_PROJECT_ID"]?.hasValue && status["VERTEX_LOCATION"]?.hasValue && status["VERTEX_API_KEY"]?.hasValue);
+        const configured = !!status["GEMINI_API_KEY"]?.hasValue;
         return (
           <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden shadow-sm">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3 bg-blue-50">
               <h2 className="flex items-center gap-2 text-sm font-bold text-blue-600">
                 <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-blue-200 bg-white text-xs font-black text-blue-600">G</span>
-                Google Gemini (Vertex AI)
+                Google Gemini (AI Studio)
               </h2>
-              <a href="https://console.cloud.google.com/vertex-ai" target="_blank" rel="noopener noreferrer"
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline">
-                Google Cloud Console <ExternalLink className="h-3 w-3" />
+                Get API Key <ExternalLink className="h-3 w-3" />
               </a>
             </div>
             <div className="p-5 space-y-4">
@@ -299,7 +279,7 @@ export default function AiSettingsPage() {
               ) : configured ? (
                 <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <span className="text-sm font-semibold text-emerald-700">Configured — Vertex AI active hai</span>
+                  <span className="text-sm font-semibold text-emerald-700">Configured — Gemini active hai</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
@@ -308,80 +288,53 @@ export default function AiSettingsPage() {
                 </div>
               )}
               <p className="text-xs text-gray-500">
-                Gemini 2.5 Flash, 2.0 Flash, 1.5 Pro, 2.5 Pro — Google Cloud Vertex AI via API key.
-                <br />Step 1: Google Cloud Console → APIs &amp; Services → Enable <strong>Vertex AI API</strong>.
-                <br />Step 2: APIs &amp; Services → Credentials → Create API Key (restrict to Vertex AI API).
+                Gemini 2.5 Flash, 2.0 Flash, 1.5 Pro, 2.5 Pro — Google AI Studio via API key.
+                <br />aistudio.google.com/apikey pe jaao → <strong>Create API key</strong> → yahan paste karo.
               </p>
 
-              {/* Project ID */}
-              <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1 block">Project ID</label>
-                <input
-                  type="text"
-                  value={vertexProjectId}
-                  onChange={e => setVertexProjectId(e.target.value)}
-                  placeholder={status["VERTEX_PROJECT_ID"]?.hasValue ? "••• (change karne ke liye type karo)" : "my-project-123"}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-sm font-mono text-gray-900 outline-none focus:border-blue-400 focus:bg-white transition"
-                />
-              </div>
-
-              {/* Location */}
-              <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1 block">Region / Location</label>
-                <input
-                  type="text"
-                  value={vertexLocation}
-                  onChange={e => setVertexLocation(e.target.value)}
-                  placeholder={status["VERTEX_LOCATION"]?.hasValue ? "••• (change karne ke liye type karo)" : "us-central1"}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-sm font-mono text-gray-900 outline-none focus:border-blue-400 focus:bg-white transition"
-                />
-              </div>
-
               {/* API Key */}
-              <div>
-                <label className="text-xs font-semibold text-gray-600 mb-1 block">API Key</label>
-                <div className="relative flex-1">
-                  <input
-                    type={vertexShowKey ? "text" : "password"}
-                    value={vertexApiKey}
-                    onChange={e => setVertexApiKey(e.target.value)}
-                    placeholder={status["VERTEX_API_KEY"]?.hasValue ? "••••••••••••••••••••• (change karne ke liye type karo)" : "AIza..."}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 text-sm font-mono text-gray-900 outline-none focus:border-blue-400 focus:bg-white transition"
-                  />
-                  <button type="button" onClick={() => setVertexShowKey(s => !s)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {vertexShowKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
+              <div className="relative">
+                <input
+                  type={geminiShowKey ? "text" : "password"}
+                  value={geminiKey}
+                  onChange={e => setGeminiKey(e.target.value)}
+                  placeholder={configured ? "••••••••••••••••••••• (change karne ke liye type karo)" : "AIza..."}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 text-sm font-mono text-gray-900 outline-none focus:border-blue-400 focus:bg-white transition"
+                  onKeyDown={e => { if (e.key === "Enter" && geminiKey.trim()) handleSaveGemini(); }}
+                />
+                <button type="button" onClick={() => setGeminiShowKey(s => !s)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {geminiShowKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
 
               {/* Actions */}
               <div className="flex gap-2">
-                <button onClick={handleTestVertex} disabled={vertexTesting || vertexSaving}
+                <button onClick={handleTestGemini} disabled={geminiTesting || geminiSaving}
                   className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-gray-100 text-gray-600 border border-gray-200 hover:opacity-80">
-                  {vertexTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+                  {geminiTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
                   Test
                 </button>
-                <button onClick={handleSaveVertex} disabled={vertexSaving}
+                <button onClick={handleSaveGemini} disabled={geminiSaving}
                   className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-blue-50 text-blue-600 border border-blue-200 hover:opacity-80">
-                  {vertexSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {geminiSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Save
                 </button>
               </div>
 
               {/* Test result */}
-              {vertexTestResult?.msg && (
+              {geminiTestResult?.msg && (
                 <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${
-                  vertexTestResult.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"
+                  geminiTestResult.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"
                 }`}>
-                  {vertexTestResult.ok ? <CheckCircle className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-                  {vertexTestResult.msg}
+                  {geminiTestResult.ok ? <CheckCircle className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                  {geminiTestResult.msg}
                 </div>
               )}
 
               {configured && (
-                <button type="button" onClick={handleRemoveVertex} className="text-xs text-red-500 hover:underline">
-                  Remove Vertex AI settings
+                <button type="button" onClick={handleRemoveGemini} className="text-xs text-red-500 hover:underline">
+                  Remove Gemini API key
                 </button>
               )}
             </div>

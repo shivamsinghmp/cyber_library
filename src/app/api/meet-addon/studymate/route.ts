@@ -105,16 +105,16 @@ export async function POST(request: NextRequest) {
       currentStreak: profile?.currentStreak ?? 0,
     });
 
-    const [projectId, location, apiKey] = await Promise.all([
-      getAppSetting("VERTEX_PROJECT_ID"),
-      getAppSetting("VERTEX_LOCATION"),
+    const [geminiKey, vertexKey] = await Promise.all([
+      getAppSetting("GEMINI_API_KEY"),
       getAppSetting("VERTEX_API_KEY"),
     ]);
-    if (!projectId || !location || !apiKey) {
+    const apiKey = geminiKey ?? vertexKey ?? null;
+    if (!apiKey) {
       return NextResponse.json({ error: "AI not configured" }, { status: 503, headers: cors });
     }
 
-    const { vertexUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
+    const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
 
     const contents = messages.map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 25_000);
       res = await fetch(
-        vertexUrl(projectId, location, "gemini-2.0-flash-001"),
+        geminiUrl("gemini-2.0-flash"),
         {
           method: "POST",
           signal: controller.signal,

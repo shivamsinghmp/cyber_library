@@ -8,35 +8,25 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({})) as {
     provider?: string;
-    // vertex fields (can be passed for pre-save test)
-    projectId?: string; location?: string; apiKey?: string;
-    // anthropic/openai
-    value?: string;
+    value?: string; // API key to test (pre-save)
   };
-  const provider = (body.provider ?? "vertex") as "vertex" | "anthropic" | "openai";
+  const provider = (body.provider ?? "gemini") as "gemini" | "anthropic" | "openai";
 
   try {
-    if (provider === "vertex") {
-      // Use provided values or fall back to saved settings
-      let projectId = body.projectId?.trim() ?? null;
-      let location  = body.location?.trim()  ?? null;
-      let apiKey    = body.apiKey?.trim()     ?? null;
-
-      if (!projectId || !location || !apiKey) {
-        const settings = await batchGetAppSettings(["VERTEX_PROJECT_ID", "VERTEX_LOCATION", "VERTEX_API_KEY"]);
-        projectId = projectId ?? settings["VERTEX_PROJECT_ID"] ?? null;
-        location  = location  ?? settings["VERTEX_LOCATION"]   ?? null;
-        apiKey    = apiKey    ?? settings["VERTEX_API_KEY"]    ?? null;
+    if (provider === "gemini") {
+      let apiKey = body.value?.trim() ?? null;
+      if (!apiKey) {
+        const settings = await batchGetAppSettings(["GEMINI_API_KEY", "VERTEX_API_KEY"]);
+        apiKey = settings["GEMINI_API_KEY"] ?? settings["VERTEX_API_KEY"] ?? null;
+      }
+      if (!apiKey) {
+        return NextResponse.json({ ok: false, error: "Gemini API key configured nahi hai — pehle save karo" });
       }
 
-      if (!projectId || !location || !apiKey) {
-        return NextResponse.json({ ok: false, error: "Vertex AI configuration incomplete — Project ID, Location, aur API Key sab chahiye" });
-      }
-
-      const { vertexUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
+      const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
 
       const res = await fetch(
-        vertexUrl(projectId, location, "gemini-2.0-flash"),
+        geminiUrl("gemini-2.0-flash"),
         {
           method: "POST",
           headers: vertexAuthHeaders(apiKey),
@@ -47,15 +37,15 @@ export async function POST(request: NextRequest) {
           signal: AbortSignal.timeout(15_000),
         }
       );
-      if (res.status === 401 || res.status === 403) return NextResponse.json({ ok: false, error: "Permission denied (403) — service account ko Vertex AI User role chahiye" });
-      if (res.status === 429) return NextResponse.json({ ok: true, message: "Vertex AI configured ✓ (rate limited — will work fine)" });
+      if (res.status === 401 || res.status === 403) return NextResponse.json({ ok: false, error: "Invalid API key (403) — aistudio.google.com se naya key generate karo" });
+      if (res.status === 429) return NextResponse.json({ ok: true, message: "Gemini configured ✓ (rate limited — will work fine)" });
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         let msg = txt.slice(0, 200);
         try { msg = (JSON.parse(txt) as { error?: { message?: string } }).error?.message ?? msg; } catch {}
-        return NextResponse.json({ ok: false, error: `Vertex AI error (${res.status}): ${msg}` });
+        return NextResponse.json({ ok: false, error: `Gemini error (${res.status}): ${msg}` });
       }
-      return NextResponse.json({ ok: true, message: "Vertex AI configured ✓ — gemini-2.0-flash responding" });
+      return NextResponse.json({ ok: true, message: "Gemini configured ✓ — gemini-2.0-flash responding" });
     }
 
     // anthropic / openai — use single value key
