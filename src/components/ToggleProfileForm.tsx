@@ -50,20 +50,45 @@ function InfoCard({
   value: string;
   accent?: "indigo" | "emerald" | "amber" | "sky";
 }) {
-  const iconCls: Record<string, string> = {
-    indigo:  "bg-indigo-500/15 border-indigo-500/30 text-indigo-400",
-    emerald: "bg-emerald-500/15 border-emerald-500/30 text-emerald-400",
-    amber:   "bg-amber-500/15 border-amber-500/30 text-amber-400",
-    sky:     "bg-sky-500/15 border-sky-500/30 text-sky-400",
+  const styles: Record<string, { card: string; icon: string; label: string; bar: string }> = {
+    emerald: {
+      card:  "border-emerald-500/25 bg-gradient-to-br from-emerald-950/70 via-[#0d0d14] to-[#0d0d14] hover:from-emerald-900/60",
+      icon:  "bg-emerald-500/20 border-emerald-500/40 text-emerald-400 shadow-emerald-500/20",
+      label: "text-emerald-400/70",
+      bar:   "bg-emerald-500",
+    },
+    sky: {
+      card:  "border-sky-500/25 bg-gradient-to-br from-sky-950/70 via-[#0d0d14] to-[#0d0d14] hover:from-sky-900/60",
+      icon:  "bg-sky-500/20 border-sky-500/40 text-sky-400 shadow-sky-500/20",
+      label: "text-sky-400/70",
+      bar:   "bg-sky-500",
+    },
+    amber: {
+      card:  "border-amber-500/25 bg-gradient-to-br from-amber-950/70 via-[#0d0d14] to-[#0d0d14] hover:from-amber-900/60",
+      icon:  "bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-amber-500/20",
+      label: "text-amber-400/70",
+      bar:   "bg-amber-500",
+    },
+    indigo: {
+      card:  "border-indigo-500/25 bg-gradient-to-br from-indigo-950/70 via-[#0d0d14] to-[#0d0d14] hover:from-indigo-900/60",
+      icon:  "bg-indigo-500/20 border-indigo-500/40 text-indigo-400 shadow-indigo-500/20",
+      label: "text-indigo-400/70",
+      bar:   "bg-indigo-500",
+    },
   };
+  const s = styles[accent];
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/40 p-4 transition hover:bg-black/50">
-      <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${iconCls[accent]}`}>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cream-muted)]">{label}</p>
-        <p className="mt-1 truncate text-sm font-semibold text-[var(--cream)]">{value}</p>
+    <div className={`relative overflow-hidden rounded-2xl border p-4 transition-all duration-200 ${s.card}`}>
+      {/* top accent bar */}
+      <div className={`absolute inset-x-0 top-0 h-[2px] ${s.bar} opacity-60`} />
+      <div className="flex items-center gap-3">
+        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border shadow-lg ${s.icon}`}>
+          {icon}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className={`text-[10px] font-bold uppercase tracking-widest ${s.label}`}>{label}</p>
+          <p className="mt-0.5 truncate text-[15px] font-bold text-white">{value}</p>
+        </div>
       </div>
     </div>
   );
@@ -260,7 +285,7 @@ export function ToggleProfileForm() {
       {/* ══════════════════════════════════════════════
           HERO CARD
       ══════════════════════════════════════════════ */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl">
 
         {/* gradient banner */}
         <div className="h-32 w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700">
@@ -365,7 +390,7 @@ export function ToggleProfileForm() {
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
             transition={{ duration: 0.22 }}
             onSubmit={handleSave}
-            className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-xl space-y-5"
+            className="rounded-3xl border border-white/10 bg-[#0d0d14] p-6 shadow-xl space-y-5"
           >
             <p className="text-xs font-bold uppercase tracking-widest text-[var(--cream-muted)]">Edit Profile Info</p>
 
@@ -459,9 +484,17 @@ export function ToggleProfileForm() {
             </div>
 
             {/* bio */}
-            <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--cream-muted)]">About Me</p>
-              <p className="text-sm leading-relaxed text-[var(--cream)]">{displayBio}</p>
+            <div className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/50 via-[#0d0d14] to-[#0d0d14] p-5">
+              <div className="absolute inset-x-0 top-0 h-[2px] bg-violet-500 opacity-60" />
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-violet-500/40 bg-violet-500/20 text-violet-400 shadow-lg shadow-violet-500/20">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400/70">About Me</p>
+                  <p className="mt-1 text-sm leading-relaxed text-white/90">{displayBio}</p>
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
