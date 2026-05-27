@@ -34,15 +34,18 @@ export function sanitizeBlogHtml(html: string): string {
     }
   });
 
-  const clean = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR,
-    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/)/i,
-    FORBID_ATTR: ["srcdoc", "formaction", "action", "data", "style", "id"],
-    FORCE_BODY: true,
-  });
-
-  DOMPurify.removeHook("afterSanitizeAttributes");
+  let clean = "";
+  try {
+    clean = DOMPurify.sanitize(html, {
+      ALLOWED_TAGS,
+      ALLOWED_ATTR,
+      ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/)/i,
+      FORBID_ATTR: ["srcdoc", "formaction", "action", "data", "style", "id"],
+      FORCE_BODY: true,
+    });
+  } finally {
+    DOMPurify.removeHook("afterSanitizeAttributes");
+  }
 
   return clean;
 }

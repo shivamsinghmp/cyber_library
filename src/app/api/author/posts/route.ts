@@ -4,6 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { sanitizeCustomCss } from "@/lib/sanitize-html";
 import DOMPurify from "isomorphic-dompurify";
 import { z } from "zod";
+import { invalidateCache } from "@/lib/redis";
+import { revalidatePath } from "next/cache";
+
+async function invalidateBlogCaches(slug?: string) {
+  await invalidateCache("public:recent-blogs");
+  revalidatePath("/");
+  revalidatePath("/blog");
+  if (slug) revalidatePath(`/blog/${slug}`);
+}
 
 async function getMyAuthorId(): Promise<string | null> {
   const session = await auth();
@@ -85,6 +94,7 @@ export async function POST(request: Request) {
         authorId,
       },
     });
+    await invalidateBlogCaches(post.slug);
     return NextResponse.json(post, { status: 201 });
   } catch (e) {
     console.error("POST /api/author/posts:", e);

@@ -5,6 +5,12 @@ export interface RateLimitResult {
   reset: number;
 }
 
+// In PM2 cluster mode each worker has its own in-process Map, so an attacker
+// who hits all workers effectively gets limit × workers.  Dividing the stored
+// limit by the worker count keeps the *effective* limit at the intended value.
+// PM2_INSTANCES is set in ecosystem.config.js and defaults to 1 in dev.
+const WORKER_COUNT = Math.max(1, parseInt(process.env.PM2_INSTANCES ?? "1", 10));
+
 const rateLimiterCache = new Map<string, { count: number; resetTime: number }>();
 const MAX_RATE_LIMIT_ENTRIES = 50_000;
 
@@ -39,27 +45,30 @@ if (typeof setInterval !== "undefined") {
 export function rateLimit(identifier: string, limit: number, windowInSeconds: number): RateLimitResult {
   const now = Date.now();
   const windowMs = windowInSeconds * 1000;
+  // Per-worker limit: divide by cluster size so effective limit across all workers
+  // matches the caller's intent (e.g. limit=5 workers=3 → 2 per worker ≈ 6 effective).
+  const perWorkerLimit = Math.max(1, Math.ceil(limit / WORKER_COUNT));
 
   const record = rateLimiterCache.get(identifier);
 
   if (!record) {
     evictIfOverLimit();
     rateLimiterCache.set(identifier, { count: 1, resetTime: now + windowMs });
-    return { success: true, limit, remaining: limit - 1, reset: now + windowMs };
+    return { success: true, limit, remaining: perWorkerLimit - 1, reset: now + windowMs };
   }
 
   if (now > record.resetTime) {
     record.count = 1;
     record.resetTime = now + windowMs;
-    return { success: true, limit, remaining: limit - 1, reset: record.resetTime };
+    return { success: true, limit, remaining: perWorkerLimit - 1, reset: record.resetTime };
   }
 
-  if (record.count >= limit) {
+  if (record.count >= perWorkerLimit) {
     return { success: false, limit, remaining: 0, reset: record.resetTime };
   }
 
   record.count++;
-  return { success: true, limit, remaining: limit - record.count, reset: record.resetTime };
+  return { success: true, limit, remaining: perWorkerLimit - record.count, reset: record.resetTime };
 }
 
 /**

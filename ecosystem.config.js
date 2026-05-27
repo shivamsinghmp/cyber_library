@@ -28,8 +28,11 @@ module.exports = {
 
       // Environment
       env: {
-        NODE_ENV: "production",
-        PORT:     3000,
+        NODE_ENV:      "production",
+        PORT:          3000,
+        // Total worker count — rate-limit.ts divides per-IP limits by this
+        // so that a user hitting all 3 workers still sees the intended limit.
+        PM2_INSTANCES: "3",
       },
 
       // Logs (rotate manually or use pm2-logrotate module)

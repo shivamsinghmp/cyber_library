@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { z } from "zod";
+import { invalidatePermissionCache } from "@/lib/permissions";
 
 /**
  * Superadmin guard.
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
     where: { id: target.id },
     data: { isSuperAdmin: grant },
   });
+  await invalidatePermissionCache(target.id);
 
   return NextResponse.json({
     ok: true,

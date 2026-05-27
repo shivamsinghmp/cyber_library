@@ -51,16 +51,16 @@ export async function GET() {
       ];
     });
 
+    // Prefix formula-injection characters so Excel/LibreOffice treats them as text
+    const csvCell = (c: unknown) => {
+      const s = String(c ?? "");
+      const safe = /^[=+\-@\t\r\n]/.test(s) ? `'${s}` : s;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+
     const csvLines = [
       header.join(","),
-      ...rows.map((cols) =>
-        cols
-          .map((c) => {
-            const s = c ?? "";
-            return `"${String(s).replace(/"/g, '""')}"`;
-          })
-          .join(",")
-      ),
+      ...rows.map((cols) => cols.map(csvCell).join(",")),
     ];
 
     const csv = csvLines.join("\n");

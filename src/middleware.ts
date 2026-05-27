@@ -140,5 +140,6 @@ export const config = {
     "/api/razorpay/:path*",
     "/api/coupon/:path*",
     "/api/subscription/:path*",
+    "/api/youtube/:path*",
   ],
 };

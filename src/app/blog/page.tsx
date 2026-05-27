@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Calendar, Clock, ArrowRight, BookOpen, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60; // ISR: rebuild at most every 60 s, serve static otherwise
 
 export const metadata: Metadata = {
   title: "Blog – Padhai Tips & Focus Strategies | The Cyber Library",

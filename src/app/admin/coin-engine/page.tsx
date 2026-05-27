@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
-import { Coins, Check, AlertTriangle, Book, Search, User as UserIcon, Calendar as CalendarIcon, TrendingUp, TrendingDown, Gift, Minus, Plus } from "lucide-react";
+import { Coins, Check, AlertTriangle, Book, Search, User as UserIcon, Calendar as CalendarIcon, TrendingUp, TrendingDown, Gift, Minus, Plus, X } from "lucide-react";
 
 type ActionReward = {
   actionKey: string;
@@ -40,6 +40,22 @@ export default function CoinEnginePage() {
   const [awardAmount, setAwardAmount] = useState(0);
   const [awardReason, setAwardReason] = useState("");
   const [awarding, setAwarding] = useState(false);
+
+  // Student search for award section
+  type StudentResult = {
+    id: string;
+    studentId: string | null;
+    name: string | null;
+    email: string;
+    profile: { fullName: string | null; coinBalance: number; phone: string | null } | null;
+  };
+  const [studentQuery, setStudentQuery] = useState("");
+  const [studentResults, setStudentResults] = useState<StudentResult[]>([]);
+  const [studentSearching, setStudentSearching] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentResult | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchRules();
@@ -135,7 +151,10 @@ export default function CoinEnginePage() {
       const data = await res.json();
       if (!res.ok) { toast.error(data.error || "Failed"); return; }
       toast.success(`Done! New balance: ${data.newBalance} coins`);
-      setAwardUserId("");
+      // Update the student card balance in-place so admin can see result immediately
+      setSelectedStudent((prev) =>
+        prev ? { ...prev, profile: prev.profile ? { ...prev.profile, coinBalance: data.newBalance } : prev.profile } : prev
+      );
       setAwardAmount(0);
       setAwardReason("");
       searchPassbook("");
@@ -144,6 +163,50 @@ export default function CoinEnginePage() {
     } finally {
       setAwarding(false);
     }
+  }
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function handleStudentQueryChange(val: string) {
+    setStudentQuery(val);
+    setShowDropdown(true);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    if (val.trim().length < 2) { setStudentResults([]); return; }
+    searchDebounce.current = setTimeout(async () => {
+      setStudentSearching(true);
+      try {
+        const res = await fetch(`/api/admin/coin-engine/user-lookup?q=${encodeURIComponent(val.trim())}`);
+        const data = await res.json();
+        setStudentResults(Array.isArray(data) ? data : []);
+      } catch {
+        setStudentResults([]);
+      } finally {
+        setStudentSearching(false);
+      }
+    }, 300);
+  }
+
+  function selectStudent(s: StudentResult) {
+    setSelectedStudent(s);
+    setAwardUserId(s.id);
+    setStudentQuery("");
+    setStudentResults([]);
+    setShowDropdown(false);
+  }
+
+  function clearSelectedStudent() {
+    setSelectedStudent(null);
+    setAwardUserId("");
+    setStudentQuery("");
+    setStudentResults([]);
   }
 
   async function searchPassbook(q: string = searchQuery) {
@@ -292,57 +355,161 @@ export default function CoinEnginePage() {
             <p className="text-xs text-[var(--cream-muted)]">Kisi bhi student ko directly coins do ya kaato — ledger sync rahega</p>
           </div>
         </div>
-        <form onSubmit={handleAward} className="grid gap-4 sm:grid-cols-4">
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">User ID</label>
-            <input
-              type="text"
-              placeholder="Student ka User ID (DB)"
-              value={awardUserId}
-              onChange={(e) => setAwardUserId(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">
-              Amount <span className="text-red-400">(negative = deduct)</span>
-            </label>
+
+        {/* Step 1: Student Search */}
+        <div className="mb-4" ref={searchRef}>
+          <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">
+            Student Search
+          </label>
+          {selectedStudent ? (
+            /* Selected student card */
+            <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-amber-800 font-bold text-sm shrink-0">
+                  {(selectedStudent.profile?.fullName || selectedStudent.name || selectedStudent.email)[0].toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-[var(--cream)]">
+                      {selectedStudent.profile?.fullName || selectedStudent.name || "—"}
+                    </span>
+                    {selectedStudent.studentId && (
+                      <span className="text-[10px] font-mono bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">
+                        {selectedStudent.studentId}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <span className="text-xs text-[var(--cream-muted)]">{selectedStudent.email}</span>
+                    {selectedStudent.profile?.phone && (
+                      <span className="text-xs text-[var(--cream-muted)]">{selectedStudent.profile.phone}</span>
+                    )}
+                    <span className="flex items-center gap-1 text-xs font-bold text-amber-600">
+                      <Coins className="h-3 w-3" />
+                      {selectedStudent.profile?.coinBalance ?? 0} coins
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={clearSelectedStudent}
+                className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-700 hover:bg-red-100 hover:text-red-600 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            /* Search input + dropdown */
             <div className="relative">
-              <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
-                type="number"
-                value={awardAmount || ""}
-                onChange={(e) => setAwardAmount(parseInt(e.target.value) || 0)}
-                placeholder="e.g. 50 or -10"
+                type="text"
+                placeholder="Student ID, email, ya naam se search karo..."
+                value={studentQuery}
+                onChange={(e) => handleStudentQueryChange(e.target.value)}
+                onFocus={() => studentQuery.length >= 2 && setShowDropdown(true)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
               />
+              {showDropdown && (studentSearching || studentResults.length > 0) && (
+                <div className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+                  {studentSearching ? (
+                    <div className="px-4 py-3 text-xs text-[var(--cream-muted)] animate-pulse">Searching…</div>
+                  ) : studentResults.length === 0 ? (
+                    <div className="px-4 py-3 text-xs text-[var(--cream-muted)]">No students found</div>
+                  ) : (
+                    studentResults.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => selectStudent(s)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 font-bold text-xs">
+                          {(s.profile?.fullName || s.name || s.email)[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-[var(--cream)] truncate">
+                              {s.profile?.fullName || s.name || "—"}
+                            </span>
+                            {s.studentId && (
+                              <span className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded shrink-0">
+                                {s.studentId}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-[var(--cream-muted)] truncate block">{s.email}</span>
+                        </div>
+                        <span className="flex items-center gap-1 text-xs font-bold text-amber-600 shrink-0">
+                          <Coins className="h-3 w-3" />
+                          {s.profile?.coinBalance ?? 0}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">Reason</label>
-            <input
-              type="text"
-              placeholder="e.g. Bonus, Contest win"
-              value={awardReason}
-              onChange={(e) => setAwardReason(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-            />
-          </div>
-          <div className="sm:col-span-4 flex justify-end">
-            <button
-              type="submit"
-              disabled={awarding || !awardUserId || !awardAmount || !awardReason}
-              className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all disabled:opacity-50 ${
-                awardAmount < 0
-                  ? "bg-red-100 text-red-700 hover:bg-red-200"
-                  : "bg-amber-400 text-amber-900 hover:bg-amber-500 shadow-md"
-              }`}
-            >
-              {awardAmount < 0 ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {awarding ? "Processing…" : awardAmount < 0 ? "Deduct Coins" : "Award Coins"}
-            </button>
-          </div>
-        </form>
+          )}
+        </div>
+
+        {/* Step 2: Amount + Reason (only shown after student selected) */}
+        {selectedStudent && (
+          <form onSubmit={handleAward} className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">
+                Amount <span className="text-red-400">(negative = deduct)</span>
+              </label>
+              <div className="relative">
+                <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
+                <input
+                  type="number"
+                  value={awardAmount || ""}
+                  onChange={(e) => setAwardAmount(parseInt(e.target.value) || 0)}
+                  placeholder="e.g. 50 or -10"
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+                />
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-[var(--cream-muted)] mb-1">Reason</label>
+              <input
+                type="text"
+                placeholder="e.g. Contest win, Correction, Bonus"
+                value={awardReason}
+                onChange={(e) => setAwardReason(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </div>
+            <div className="sm:col-span-3 flex items-center justify-between">
+              {awardAmount !== 0 && selectedStudent.profile && (
+                <p className="text-xs text-[var(--cream-muted)]">
+                  Balance: <span className="font-bold text-amber-600">{selectedStudent.profile.coinBalance}</span>
+                  {" → "}
+                  <span className={`font-bold ${awardAmount < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                    {Math.max(0, (selectedStudent.profile.coinBalance ?? 0) + awardAmount)}
+                  </span>
+                  {awardAmount < 0 && (selectedStudent.profile.coinBalance ?? 0) + awardAmount < 0 && (
+                    <span className="ml-2 text-red-500">(insufficient balance)</span>
+                  )}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={awarding || !awardAmount || !awardReason.trim()}
+                className={`ml-auto flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition-all disabled:opacity-50 ${
+                  awardAmount < 0
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
+                    : "bg-amber-400 text-amber-900 hover:bg-amber-500 shadow-md"
+                }`}
+              >
+                {awardAmount < 0 ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {awarding ? "Processing…" : awardAmount < 0 ? "Deduct Coins" : "Award Coins"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Passbook View */}

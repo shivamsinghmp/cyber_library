@@ -14,10 +14,15 @@ function buildDatabaseUrl(): string | undefined {
   try {
     const u = new URL(url);
     if (!u.searchParams.has("connection_limit")) {
+      // 5 per PM2 worker × 3 workers = 15 total. DO managed PG limit ≈ 22.
+      // Leaves 7 connections for pgAdmin, DO monitoring, and manual queries.
       u.searchParams.set("connection_limit", isBuild ? "2" : "5");
     }
     if (!u.searchParams.has("pool_timeout")) {
       u.searchParams.set("pool_timeout", "10");
+    }
+    if (!u.searchParams.has("connect_timeout")) {
+      u.searchParams.set("connect_timeout", "10");
     }
     return u.toString();
   } catch {

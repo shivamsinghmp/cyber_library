@@ -28,6 +28,8 @@ export async function GET() {
       createdAt: u.createdAt,
     }));
 
+    // Note: if this ever returns CSV instead of JSON, sanitize formula-injection chars
+    // (=, +, -, @) by prefixing with a single quote before including in CSV cells.
     return NextResponse.json(rows);
   } catch (e) {
     console.error("GET /api/admin/export/users:", e);

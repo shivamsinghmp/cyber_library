@@ -4,6 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { sanitizeCustomCss } from "@/lib/sanitize-html";
 import DOMPurify from "isomorphic-dompurify";
 import { z } from "zod";
+import { invalidateCache } from "@/lib/redis";
+import { revalidatePath } from "next/cache";
+
+async function invalidateBlogCaches(slug?: string) {
+  await invalidateCache("public:recent-blogs");
+  revalidatePath("/");
+  revalidatePath("/blog");
+  if (slug) revalidatePath(`/blog/${slug}`);
+}
 
 async function getMyAuthorId(): Promise<string | null> {
   const session = await auth();
@@ -101,6 +110,7 @@ export async function PUT(
       where: { id },
       data: updateData as never,
     });
+    await invalidateBlogCaches(updated.slug);
     return NextResponse.json(updated);
   } catch (e) {
     if ((e as { code?: string })?.code === "P2025") {
@@ -126,6 +136,7 @@ export async function DELETE(
     });
     if (!post) return NextResponse.json({ error: "Post not found" }, { status: 404 });
     await prisma.blogPost.delete({ where: { id } });
+    await invalidateBlogCaches(post.slug);
     return NextResponse.json({ ok: true });
   } catch (e) {
     if ((e as { code?: string })?.code === "P2025") {

@@ -38,14 +38,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return NextResponse.json({ error: "Invalid code or email" }, { status: 400 });
-    }
-
+    // OTP check runs first — same code path regardless of whether email exists
+    // (prevents timing-based email enumeration)
     const ok = await verifyOtp(email, "reset", code);
     if (!ok) {
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 400 });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // OTP was valid but no account — treat as success (no enumeration)
+      return NextResponse.json({ success: true });
     }
 
     const hashed = await bcrypt.hash(password, 12);

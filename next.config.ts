@@ -95,6 +95,9 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               // Razorpay checkout + Google analytics/tag manager + YouTube IFrame API
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com https://*.googletagmanager.com https://www.youtube.com https://s.ytimg.com",
+              // Blocks inline event handlers (onclick=, onerror=, etc.) even while unsafe-inline
+              // is needed for GTM/Razorpay — partial XSS hardening without breaking third parties.
+              "script-src-attr 'none'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",

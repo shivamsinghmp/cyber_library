@@ -44,7 +44,13 @@ export async function POST(request: Request) {
       .update(bodyString)
       .digest("hex");
 
-    if (expectedSignature !== razorpay_signature) {
+    // Constant-time comparison — prevents timing oracle attacks (CWE-208)
+    const expectedBuf = Buffer.from(expectedSignature, "hex");
+    const receivedBuf = Buffer.from(razorpay_signature, "hex");
+    const sigValid =
+      expectedBuf.length === receivedBuf.length &&
+      crypto.timingSafeEqual(expectedBuf, receivedBuf);
+    if (!sigValid) {
       console.warn(`[SECURITY] Invalid Razorpay signature from user ${userId}`);
       return NextResponse.json({ error: "Authenticity verification failed" }, { status: 400 });
     }

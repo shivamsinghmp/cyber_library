@@ -23,30 +23,61 @@ jobs:
           ssh -i ~/.ssh/deploy_key "$DO_USER@$DO_HOST" << 'ENDSSH'
             set -e
             cd /var/www/cyber_library
+
             git checkout -- .
             git pull origin main
-            curl -sSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
-            chmod a+rx /usr/local/bin/yt-dlp
+
+            # Update yt-dlp only if version changed (pinned — update intentionally)
+            YT_DLP_VERSION="2025.05.22"
+            INSTALLED=$(/usr/local/bin/yt-dlp --version 2>/dev/null || echo "none")
+            if [ "$INSTALLED" != "$YT_DLP_VERSION" ]; then
+              echo "Updating yt-dlp $INSTALLED → $YT_DLP_VERSION"
+              curl -sSL "https://github.com/yt-dlp/yt-dlp/releases/download/$YT_DLP_VERSION/yt-dlp" \
+                -o /usr/local/bin/yt-dlp
+              chmod a+rx /usr/local/bin/yt-dlp
+            else
+              echo "yt-dlp already at $YT_DLP_VERSION, skipping"
+            fi
+
+            # Sync nginx config and reload if changed
+            if ! diff -q nginx/cyberlib.conf /etc/nginx/sites-available/cyberlib.in > /dev/null 2>&1; then
+              echo "Nginx config changed — reloading"
+              cp nginx/cyberlib.conf /etc/nginx/sites-available/cyberlib.in
+              cp nginx/proxy_params   /etc/nginx/proxy_params
+              nginx -t && nginx -s reload
+            else
+              echo "Nginx config unchanged, skipping reload"
+            fi
+
             rm -rf node_modules
             npm ci
             npx prisma generate
             npx prisma migrate deploy
             npm run build
+
+            # Remove devDependencies from production server after build
+            npm prune --omit=dev
+
             pm2 reload ecosystem.config.js --update-env
             pm2 save
           ENDSSH
 
       - name: Health check
         run: |
-          echo "Waiting 30s for app to be ready..."
-          sleep 30
-
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://cyberlib.in)
-          if [ "$STATUS" != "200" ]; then
-            echo "❌ Home page returned $STATUS (expected 200)"
-            exit 1
-          fi
-          echo "✅ Home page OK ($STATUS)"
+          echo "Waiting for app to be ready..."
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 https://cyberlib.in || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ App is up (attempt $i)"
+              break
+            fi
+            echo "Attempt $i: got $STATUS, retrying in 10s..."
+            sleep 10
+            if [ "$i" = "12" ]; then
+              echo "❌ App did not come up after 120s (last status: $STATUS)"
+              exit 1
+            fi
+          done
 
           DASH=$(curl -s -o /dev/null -w "%{http_code}" -L --max-redirs 1 https://cyberlib.in/dashboard)
           if [ "$DASH" = "200" ] || [ "$DASH" = "307" ]; then

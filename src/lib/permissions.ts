@@ -1,21 +1,47 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { fetchWithCache, invalidateCache } from "@/lib/redis";
 import { AdminModuleIds } from "./permissions-client";
 
 export * from "./permissions-client";
 
-/**
- * Check if a user is a superadmin via DB flag (isSuperAdmin).
- * Cached per-request via module scope — safe in Next.js server context.
- * Replaces the previous hardcoded admin@cyberlib.in check.
- */
+const PERM_TTL = 5 * 60; // 5 minutes — short enough to revoke access promptly
+
+/** Redis-cached superadmin check. Avoids a DB hit on every admin page/API request. */
 async function isDbSuperAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { isSuperAdmin: true },
-  });
-  return user?.isSuperAdmin === true;
+  const result = await fetchWithCache<boolean>(
+    `perm:sa:${userId}`,
+    async () => {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { isSuperAdmin: true },
+      });
+      return user?.isSuperAdmin === true;
+    },
+    PERM_TTL
+  );
+  return result;
+}
+
+/** Redis-cached employee permissions. */
+async function getEmployeePerms(userId: string): Promise<string[] | null> {
+  return fetchWithCache<string[] | null>(
+    `perm:emp:${userId}`,
+    async () => {
+      const perm = await prisma.employeePermission.findUnique({ where: { userId } });
+      return perm?.modules ?? null;
+    },
+    PERM_TTL
+  );
+}
+
+/** Call this whenever superadmin status or employee permissions are changed. */
+export async function invalidatePermissionCache(userId: string) {
+  await Promise.all([
+    invalidateCache(`perm:sa:${userId}`),
+    invalidateCache(`perm:emp:${userId}`),
+  ]);
 }
 
 export async function requireAdminModule(requiredModule: AdminModuleIds) {
@@ -27,20 +53,12 @@ export async function requireAdminModule(requiredModule: AdminModuleIds) {
 
   const role = (session.user as { role?: string }).role;
 
-  // DB-controlled superadmin check — revocable at any time
   if (await isDbSuperAdmin(userId)) return;
-
   if (role === "ADMIN") return;
-
   if (role !== "EMPLOYEE") redirect("/dashboard");
 
-  const perm = await prisma.employeePermission.findUnique({
-    where: { userId },
-  });
-
-  if (!perm || !perm.modules.includes(requiredModule)) {
-    redirect("/admin/unauthorized");
-  }
+  const modules = await getEmployeePerms(userId);
+  if (!modules || !modules.includes(requiredModule)) redirect("/admin/unauthorized");
 }
 
 export async function checkAdminModuleApi(requiredModule: AdminModuleIds): Promise<boolean> {
@@ -50,17 +68,12 @@ export async function checkAdminModuleApi(requiredModule: AdminModuleIds): Promi
   const userId = (session.user as { id?: string }).id!;
   const role = (session.user as { role?: string }).role;
 
-  // DB-controlled superadmin — revocable
   if (await isDbSuperAdmin(userId)) return true;
-
   if (role === "ADMIN") return true;
   if (role !== "EMPLOYEE") return false;
 
-  const perm = await prisma.employeePermission.findUnique({
-    where: { userId },
-  });
-
-  return !!(perm && perm.modules.includes(requiredModule));
+  const modules = await getEmployeePerms(userId);
+  return !!(modules && modules.includes(requiredModule));
 }
 
 /** Auto-infers required module from Next.js req.url */

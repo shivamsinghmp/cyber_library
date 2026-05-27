@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # Cyber Library — DigitalOcean Production Setup Script
-# Run once on fresh DO 4vCPU-8GB Droplet (Ubuntu 22.04)
+# Run once on fresh DO 4vCPU-8GB Droplet (Ubuntu 24.04)
 # ============================================================
 set -e
 
@@ -12,7 +12,7 @@ apt-get update && apt-get upgrade -y
 apt-get install -y nginx certbot python3-certbot-nginx pgbouncer curl git
 
 # 2. Node.js 22 LTS
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y nodejs
 
 # 3. PM2

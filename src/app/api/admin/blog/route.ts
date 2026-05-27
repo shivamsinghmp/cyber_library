@@ -5,6 +5,16 @@ import { z } from "zod";
 import DOMPurify from "isomorphic-dompurify";
 import { logAdminAction } from "@/lib/audit-logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { invalidateCache } from "@/lib/redis";
+import { revalidatePath } from "next/cache";
+
+/** Call after any blog post create/update/delete to keep caches fresh. */
+async function invalidateBlogCaches(slug?: string) {
+  await invalidateCache("public:recent-blogs");
+  revalidatePath("/");
+  revalidatePath("/blog");
+  if (slug) revalidatePath(`/blog/${slug}`);
+}
 
 async function checkAdminContentAccess(session: { user?: { role?: string; id?: string } | null } | null) {
   if (!session?.user) return false;
@@ -39,7 +49,7 @@ export async function GET() {
       select: {
         id: true, slug: true, title: true, excerpt: true,
         coverImage: true, publishedAt: true, createdAt: true,
-        metaTitle: true, metaDescription: true,
+        metaTitle: true, metaDescription: true, views: true,
         _count: { select: { comments: true } },
       },
     });
@@ -97,13 +107,16 @@ export async function POST(request: Request) {
       },
     });
 
-    await logAdminAction(
-      session?.user?.id || "UNKNOWN",
-      "CREATE",
-      "BLOG",
-      `Created blog post '${post.title}' (${post.slug})`,
-      request.headers.get("x-forwarded-for") || undefined
-    );
+    await Promise.all([
+      logAdminAction(
+        session?.user?.id || "UNKNOWN",
+        "CREATE",
+        "BLOG",
+        `Created blog post '${post.title}' (${post.slug})`,
+        request.headers.get("x-forwarded-for") || undefined
+      ),
+      invalidateBlogCaches(post.slug),
+    ]);
 
     return NextResponse.json(post, { status: 201 });
   } catch (e) {

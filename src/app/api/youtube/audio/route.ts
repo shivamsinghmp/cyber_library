@@ -26,9 +26,8 @@ export async function GET(request: NextRequest) {
       info = await getYTStreamInfo(videoId, cookies);
     } catch (e2) {
       const raw = (e2 as Error).message;
-      console.error("[youtube/audio] InnerTube failed:", raw);
-      // Show yt-dlp error to surface real issue (e.g. binary not found)
-      return NextResponse.json({ error: `yt-dlp: ${ytdlpErr.slice(0, 150)} | fallback: ${raw.slice(0, 100)}` }, { status: 500 });
+      console.error("[youtube/audio] Both resolvers failed:", ytdlpErr, raw);
+      return NextResponse.json({ error: "Stream unavailable" }, { status: 500 });
     }
   }
 

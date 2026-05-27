@@ -5,6 +5,15 @@ import { z } from "zod";
 import DOMPurify from "isomorphic-dompurify";
 import { logAdminAction } from "@/lib/audit-logger";
 import { rateLimit } from "@/lib/rate-limit";
+import { invalidateCache } from "@/lib/redis";
+import { revalidatePath } from "next/cache";
+
+async function invalidateBlogCaches(slug?: string) {
+  await invalidateCache("public:recent-blogs");
+  revalidatePath("/");
+  revalidatePath("/blog");
+  if (slug) revalidatePath(`/blog/${slug}`);
+}
 
 async function checkAdminContentAccess(session: { user?: { role?: string; id?: string } | null } | null) {
   if (!session?.user) return false;
@@ -102,13 +111,16 @@ export async function PUT(
       data: updateData as never,
     });
 
-    await logAdminAction(
-      session?.user?.id || "UNKNOWN",
-      "UPDATE",
-      "BLOG",
-      `Updated blog post '${post.title}'`,
-      request.headers.get("x-forwarded-for") || undefined
-    );
+    await Promise.all([
+      logAdminAction(
+        session?.user?.id || "UNKNOWN",
+        "UPDATE",
+        "BLOG",
+        `Updated blog post '${post.title}'`,
+        request.headers.get("x-forwarded-for") || undefined
+      ),
+      invalidateBlogCaches(post.slug),
+    ]);
 
     return NextResponse.json(post);
   } catch (e) {
@@ -144,13 +156,16 @@ export async function DELETE(
     
     await prisma.blogPost.delete({ where: { id } });
 
-    await logAdminAction(
-      session?.user?.id || "UNKNOWN",
-      "DELETE",
-      "BLOG",
-      `Deleted blog post '${existing.title}'`,
-      _request.headers.get("x-forwarded-for") || undefined
-    );
+    await Promise.all([
+      logAdminAction(
+        session?.user?.id || "UNKNOWN",
+        "DELETE",
+        "BLOG",
+        `Deleted blog post '${existing.title}'`,
+        _request.headers.get("x-forwarded-for") || undefined
+      ),
+      invalidateBlogCaches(existing.slug),
+    ]);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

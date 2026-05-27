@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { logAdminAction } from "@/lib/audit-logger";
 import { requireSuperAdmin } from "@/lib/api-helpers";
+import { invalidatePermissionCache } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   try {
@@ -39,13 +40,16 @@ export async function POST(req: Request) {
     // Fetch user details for nicer log
     const staff = await prisma.user.findUnique({ where: { id: userId }, select: { email: true }});
 
-    await logAdminAction(
-      user.id,
-      "GRANT",
-      "STAFF_PERMISSIONS",
-      `Updated module permissions for staff '${staff?.email || userId}' to [${modules.join(", ")}]`,
-      req.headers.get("x-forwarded-for") || undefined
-    );
+    await Promise.all([
+      logAdminAction(
+        user.id,
+        "GRANT",
+        "STAFF_PERMISSIONS",
+        `Updated module permissions for staff '${staff?.email || userId}' to [${modules.join(", ")}]`,
+        req.headers.get("x-forwarded-for") || undefined
+      ),
+      invalidatePermissionCache(userId),
+    ]);
 
     return NextResponse.json(updated);
   } catch (e) {

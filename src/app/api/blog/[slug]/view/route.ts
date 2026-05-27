@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   request: Request,
@@ -7,12 +8,20 @@ export async function POST(
 ) {
   try {
     const { slug } = await params;
-    
-    // Increment the views counter for this blog post
+
+    // 1 view count per IP per slug per hour — prevents inflation and excessive DB writes
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      ?? request.headers.get("x-real-ip")
+      ?? "unknown";
+    const rl = rateLimit(`blog:view:${ip}:${slug}`, 1, 3600);
+    if (!rl.success) {
+      return NextResponse.json({ ok: true }); // silently ignore, don't error
+    }
+
     const post = await prisma.blogPost.update({
-      where: { slug: slug },
+      where: { slug },
       data: { views: { increment: 1 } },
-      select: { views: true }
+      select: { views: true },
     });
 
     return NextResponse.json({ views: post.views });

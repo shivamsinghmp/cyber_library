@@ -162,6 +162,8 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // required for 1-device deleteMany + session findFirst queries
 }
 
 model VerificationToken {
@@ -290,6 +292,8 @@ model BlogPost {
 
   author   Author?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
   comments BlogComment[]
+
+  @@index([publishedAt]) // blog listing: WHERE publishedAt IS NOT NULL ORDER BY publishedAt DESC
 }
 
 // Comments added to public blog posts by logged in users
@@ -361,6 +365,7 @@ model Transaction {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([paymentGatewayId]) // payment dedup: findFirst({ where: { paymentGatewayId } })
 }
 
 // Digital products for store (PDFs, courses, etc.)
@@ -666,18 +671,25 @@ model StudentFormSubmission {
   @@index([userId])
 }
 
-// Website traffic / visitor tracking (IP, device, path)
+// Website traffic / visitor tracking (IP, device, path, geo, referrer)
 model TrafficVisit {
   id         String   @id @default(cuid())
   ip         String
   userAgent  String?  @db.Text
   deviceType String
   path       String?
-  createdAt  DateTime @default(now())
+  country     String?
+  city        String?
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  createdAt   DateTime @default(now())
 
   @@index([createdAt])
   @@index([ip])
-  @@index([path, createdAt]) // analytics: visits per page per day queries
+  @@index([country, createdAt])
+  @@index([path, createdAt])
 }
 
 // Admin-configurable app settings (env vars stored in DB; secrets encrypted)

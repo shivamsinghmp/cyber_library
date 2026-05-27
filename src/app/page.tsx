@@ -4,7 +4,7 @@ import { batchGetAppSettings } from "@/lib/app-settings";
 import { prisma } from "@/lib/prisma";
 import { fetchWithCache } from "@/lib/redis";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await batchGetAppSettings(["SITE_TITLE"]);
@@ -15,12 +15,17 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HomePage() {
   // All three queries run in parallel — single round-trip to DB/Redis
   const [recentBlogs, faqs, settings] = await Promise.all([
-    prisma.blogPost.findMany({
-      where: { publishedAt: { not: null } },
-      orderBy: { publishedAt: "desc" },
-      take: 3,
-      select: { id: true, slug: true, title: true, excerpt: true, publishedAt: true },
-    }),
+    fetchWithCache(
+      "public:recent-blogs",
+      () =>
+        prisma.blogPost.findMany({
+          where: { publishedAt: { not: null } },
+          orderBy: { publishedAt: "desc" },
+          take: 3,
+          select: { id: true, slug: true, title: true, excerpt: true, publishedAt: true },
+        }),
+      300
+    ),
     fetchWithCache(
       "public:faqs",
       () =>
