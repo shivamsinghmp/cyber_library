@@ -9,6 +9,7 @@ import { z } from "zod";
 import Image from "next/image";
 import { User, Mail, Lock, Target, Phone, Eye, EyeOff, ShieldCheck, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { signIn } from "next-auth/react";
 
 const schema = z.object({
   name:            z.string().min(1, "Naam daalna zaroori hai"),
@@ -144,7 +145,16 @@ function SignupContent() {
         return;
       }
       toast.success("Account ban gaya! 🎉 Dashboard pe welcome hai.");
-      router.push("/dashboard");
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+      if (result?.ok) {
+        router.push("/dashboard");
+      } else {
+        router.push("/login");
+      }
     } catch { setSubmitError("Kuch gadbad ho gayi. Dobara try karo."); }
   }
 

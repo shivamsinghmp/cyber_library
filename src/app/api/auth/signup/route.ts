@@ -3,8 +3,6 @@ import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { generateStudentId } from "@/lib/studentId";
-import { createMagicLinkToken } from "@/lib/magic-link";
-import { sendMagicLinkEmail } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
 
 const signupSchema = z.object({
@@ -100,17 +98,6 @@ export async function POST(request: Request) {
 
     // Cleanup used OTP
     await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber: whatsappNumber } });
-
-    // Send magic link for email verification (fire-and-forget)
-    // Use env var — never the request Host header (prevents phishing via forged Host)
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://cyberlib.in";
-      const token = await createMagicLinkToken(email);
-      const verifyUrl = `${baseUrl}/verify-email/confirm?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
-      sendMagicLinkEmail(email, verifyUrl, name).catch(console.error);
-    } catch (e) {
-      console.error("Failed to send magic link after signup:", e);
-    }
 
     return NextResponse.json(
       { success: true, email },
