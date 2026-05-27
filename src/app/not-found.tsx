@@ -14,7 +14,12 @@ export default function NotFound() {
   useEffect(() => {
     if (status === "loading") return;
     if (countdown === 0) {
-      router.replace(status === "authenticated" ? "/dashboard" : "/");
+      const dest = status === "authenticated" ? "/dashboard" : "/";
+      try {
+        router.replace(dest);
+      } catch {
+        window.location.href = dest;
+      }
       return;
     }
     const t = setInterval(() => setCountdown(p => p - 1), 1000);

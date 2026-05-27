@@ -46,7 +46,7 @@ const QUILL_MODULES = {
 
 const QUILL_FORMATS = [
   "header", "bold", "italic", "underline", "strike",
-  "color", "background", "list", "bullet", "indent",
+  "color", "background", "list", "indent",
   "blockquote", "code-block", "link", "image", "video",
 ];
 
