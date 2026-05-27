@@ -23,6 +23,7 @@ const outfit = Plus_Jakarta_Sans({
   weight: ["600", "700", "800"],
 });
 
+import { Suspense } from "react";
 import { SessionProvider } from "@/components/SessionProvider";
 import { CartProvider } from "@/context/CartContext";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
@@ -146,7 +147,9 @@ export default async function RootLayout({
         <SmoothScroll>
           <SessionProvider>
             <CartProvider>
-              <TrafficTracker />
+              <Suspense fallback={null}>
+                <TrafficTracker />
+              </Suspense>
               <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
               <AnnouncementBannerWrapper />
               <NavbarWrapper />
