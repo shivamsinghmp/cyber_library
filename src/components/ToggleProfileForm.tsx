@@ -57,7 +57,7 @@ function InfoCard({
     sky:     "bg-sky-500/15 border-sky-500/30 text-sky-400",
   };
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 transition hover:bg-white/[0.15]">
+    <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/40 p-4 transition hover:bg-black/50">
       <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${iconCls[accent]}`}>
         {icon}
       </span>
@@ -365,7 +365,7 @@ export function ToggleProfileForm() {
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
             transition={{ duration: 0.22 }}
             onSubmit={handleSave}
-            className="rounded-3xl border border-white/8 bg-[#0d0d14] p-6 shadow-xl space-y-5"
+            className="rounded-3xl border border-white/10 bg-black/40 p-6 shadow-xl space-y-5"
           >
             <p className="text-xs font-bold uppercase tracking-widest text-[var(--cream-muted)]">Edit Profile Info</p>
 
@@ -459,7 +459,7 @@ export function ToggleProfileForm() {
             </div>
 
             {/* bio */}
-            <div className="rounded-2xl border border-white/10 bg-white/10 p-5">
+            <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--cream-muted)]">About Me</p>
               <p className="text-sm leading-relaxed text-[var(--cream)]">{displayBio}</p>
             </div>
