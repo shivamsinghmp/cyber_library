@@ -208,7 +208,7 @@ export default function StudyMateChat() {
           if (res.status === 401 || res.status === 403)
             return "Session expire ho gayi. Page refresh karo aur dobara login karo.";
           if (res.status === 503 || data.error === "AI not configured")
-            return "StudyMate AI abhi setup nahi hai. Admin se GEMINI_API_KEY configure karwao.";
+            return "StudyMate AI abhi setup nahi hai. Admin se Vertex AI configure karwao.";
           if (res.status === 504 || data.error?.includes("timed out"))
             return "AI response timeout ho gayi. Network check karo ya thodi der baad try karo.";
           // For 502 and other errors, show the actual error from the API

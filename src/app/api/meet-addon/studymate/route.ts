@@ -59,9 +59,9 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest) {
   const cors = getMeetAddonCorsHeaders(request);
   try {
-    const token = request.headers.get("authorization")?.startsWith("Bearer ")
+    const bearerToken = request.headers.get("authorization")?.startsWith("Bearer ")
       ? request.headers.get("authorization")!.slice(7) : "";
-    const payload = verifyMeetAddonToken(token);
+    const payload = verifyMeetAddonToken(bearerToken);
     if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
     const userId = payload.userId;
 
@@ -105,17 +105,25 @@ export async function POST(request: NextRequest) {
       currentStreak: profile?.currentStreak ?? 0,
     });
 
-    const apiKey = await getAppSetting("GEMINI_API_KEY");
-    if (!apiKey) return NextResponse.json({ error: "AI not configured" }, { status: 503, headers: cors });
+    const [projectId, location, apiKey] = await Promise.all([
+      getAppSetting("VERTEX_PROJECT_ID"),
+      getAppSetting("VERTEX_LOCATION"),
+      getAppSetting("VERTEX_API_KEY"),
+    ]);
+    if (!projectId || !location || !apiKey) {
+      return NextResponse.json({ error: "AI not configured" }, { status: 503, headers: cors });
+    }
 
-    const geminiContents = messages.map((m) => ({
+    const { vertexUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
+
+    const contents = messages.map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
 
-    const geminiBody = JSON.stringify({
+    const body = JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
-      contents: geminiContents,
+      contents,
       generationConfig: { maxOutputTokens: 800, temperature: 0.7 },
     });
 
@@ -126,12 +134,12 @@ export async function POST(request: NextRequest) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 25_000);
       res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        vertexUrl(projectId, location, "gemini-2.0-flash"),
         {
           method: "POST",
           signal: controller.signal,
-          headers: { "Content-Type": "application/json" },
-          body: geminiBody,
+          headers: vertexAuthHeaders(apiKey),
+          body,
         }
       ).finally(() => clearTimeout(timer));
       if (res.status !== 429) break;
@@ -139,7 +147,7 @@ export async function POST(request: NextRequest) {
 
     if (!res!.ok) {
       const errBody = await res!.text();
-      console.error("[meet-addon/studymate] Gemini error:", res!.status, errBody);
+      console.error("[meet-addon/studymate] Vertex AI error:", res!.status, errBody);
       if (res!.status === 429) {
         return NextResponse.json(
           { error: "Abhi bahut log AI use kar rahe hain 🙏", retryable: true },
@@ -148,9 +156,9 @@ export async function POST(request: NextRequest) {
       }
       let apiMsg = errBody.slice(0, 300);
       try { apiMsg = (JSON.parse(errBody) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
-      let userMsg = `Gemini error (${res!.status}): ${apiMsg}`;
-      if (res!.status === 403) userMsg = "Gemini API key invalid ya expired hai. Admin panel mein key check karo.";
-      if (res!.status === 404) userMsg = "Gemini model available nahi hai. Admin se contact karo.";
+      let userMsg = `Vertex AI error (${res!.status}): ${apiMsg}`;
+      if (res!.status === 401 || res!.status === 403) userMsg = "Vertex AI auth failed. Service account permissions check karo.";
+      if (res!.status === 404) userMsg = "Vertex AI model available nahi hai. Location/project check karo.";
       return NextResponse.json({ error: userMsg }, { status: 502, headers: cors });
     }
 

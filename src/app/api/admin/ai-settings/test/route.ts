@@ -1,51 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/api-helpers";
-import { getAppSetting } from "@/lib/app-settings";
+import { batchGetAppSettings } from "@/lib/app-settings";
 
 export async function POST(request: NextRequest) {
   const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
 
-  const body = await request.json().catch(() => ({})) as { provider?: string; value?: string };
-  const provider = (body.provider ?? "gemini") as "gemini" | "anthropic" | "openai";
-
-  // Use provided value (testing before save) or fall back to saved key
-  let key = body.value?.trim() ?? null;
-  if (!key) {
-    const settingKey =
-      provider === "gemini"    ? "GEMINI_API_KEY" :
-      provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
-    key = await getAppSetting(settingKey);
-  }
-
-  if (!key) {
-    return NextResponse.json({ ok: false, error: "No API key configured" });
-  }
+  const body = await request.json().catch(() => ({})) as {
+    provider?: string;
+    // vertex fields (can be passed for pre-save test)
+    projectId?: string; location?: string; apiKey?: string;
+    // anthropic/openai
+    value?: string;
+  };
+  const provider = (body.provider ?? "vertex") as "vertex" | "anthropic" | "openai";
 
   try {
-    if (provider === "gemini") {
+    if (provider === "vertex") {
+      // Use provided values or fall back to saved settings
+      let projectId = body.projectId?.trim() ?? null;
+      let location  = body.location?.trim()  ?? null;
+      let apiKey    = body.apiKey?.trim()     ?? null;
+
+      if (!projectId || !location || !apiKey) {
+        const settings = await batchGetAppSettings(["VERTEX_PROJECT_ID", "VERTEX_LOCATION", "VERTEX_API_KEY"]);
+        projectId = projectId ?? settings["VERTEX_PROJECT_ID"] ?? null;
+        location  = location  ?? settings["VERTEX_LOCATION"]   ?? null;
+        apiKey    = apiKey    ?? settings["VERTEX_API_KEY"]    ?? null;
+      }
+
+      if (!projectId || !location || !apiKey) {
+        return NextResponse.json({ ok: false, error: "Vertex AI configuration incomplete — Project ID, Location, aur API Key sab chahiye" });
+      }
+
+      const { vertexUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
+
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        vertexUrl(projectId, location, "gemini-2.0-flash"),
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: vertexAuthHeaders(apiKey),
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: "Reply with exactly: OK" }] }],
             generationConfig: { maxOutputTokens: 5, temperature: 0 },
           }),
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(15_000),
         }
       );
-      if (res.status === 403) return NextResponse.json({ ok: false, error: "Invalid or expired API key (403)" });
-      if (res.status === 429) return NextResponse.json({ ok: true, message: "Key valid ✓ (rate limited — free tier RPM hit, chatbot will work fine)" });
+      if (res.status === 401 || res.status === 403) return NextResponse.json({ ok: false, error: "Permission denied (403) — service account ko Vertex AI User role chahiye" });
+      if (res.status === 429) return NextResponse.json({ ok: true, message: "Vertex AI configured ✓ (rate limited — will work fine)" });
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         let msg = txt.slice(0, 200);
         try { msg = (JSON.parse(txt) as { error?: { message?: string } }).error?.message ?? msg; } catch {}
-        return NextResponse.json({ ok: false, error: `Gemini error (${res.status}): ${msg}` });
+        return NextResponse.json({ ok: false, error: `Vertex AI error (${res.status}): ${msg}` });
       }
-      return NextResponse.json({ ok: true, message: "Gemini key is valid ✓" });
+      return NextResponse.json({ ok: true, message: "Vertex AI configured ✓ — gemini-2.0-flash responding" });
     }
+
+    // anthropic / openai — use single value key
+    let key = body.value?.trim() ?? null;
+    if (!key) {
+      const settings = await batchGetAppSettings(
+        provider === "anthropic" ? ["ANTHROPIC_API_KEY"] : ["OPENAI_API_KEY"]
+      );
+      key = settings[provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"] ?? null;
+    }
+    if (!key) return NextResponse.json({ ok: false, error: "No API key configured" });
 
     if (provider === "anthropic") {
       const res = await fetch("https://api.anthropic.com/v1/messages", {

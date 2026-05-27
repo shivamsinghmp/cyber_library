@@ -75,20 +75,28 @@ function estimateCoins(messages: Array<{ content: string }>, model: ModelId): nu
   return Math.ceil(estTokens / 1000) * COINS_PER_1000T[model];
 }
 
+type VertexConfig = { projectId: string; location: string; apiKey: string };
+
 // Fetch AI keys from DB only — env is intentionally ignored (DB is source of truth)
 async function getAiKeys() {
-  const settings = await batchGetAppSettings(["GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]);
+  const settings = await batchGetAppSettings([
+    "VERTEX_PROJECT_ID", "VERTEX_LOCATION", "VERTEX_API_KEY",
+    "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+  ]);
+  const projectId = settings["VERTEX_PROJECT_ID"] || null;
+  const location  = settings["VERTEX_LOCATION"]   || null;
+  const apiKey    = settings["VERTEX_API_KEY"]    || null;
   return {
-    gemini:    settings["GEMINI_API_KEY"]    || null,
+    vertex:    (projectId && location && apiKey) ? { projectId, location, apiKey } as VertexConfig : null,
     anthropic: settings["ANTHROPIC_API_KEY"] || null,
     openai:    settings["OPENAI_API_KEY"]    || null,
   };
 }
 
 // Which models are available based on configured API keys
-function getAvailableModels(keys: { gemini: string | null; anthropic: string | null; openai: string | null }): ModelId[] {
+function getAvailableModels(keys: { vertex: VertexConfig | null; anthropic: string | null; openai: string | null }): ModelId[] {
   const list: ModelId[] = [];
-  if (keys.gemini)    list.push("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-pro");
+  if (keys.vertex)    list.push("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-pro");
   if (keys.anthropic) list.push("claude-haiku", "claude-sonnet", "claude-opus");
   if (keys.openai)    list.push("gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1", "gpt-4o", "gpt-o1-mini", "gpt-o1");
   return list;
@@ -173,18 +181,19 @@ RESPONSE FORMAT:
 }
 
 // ─── Profile Extraction (fire-and-forget after student's first reply) ─────────
-async function extractAndSaveProfile(userId: string, conversation: Msg[], geminiKey: string): Promise<void> {
+async function extractAndSaveProfile(userId: string, conversation: Msg[], vertex: VertexConfig): Promise<void> {
 
   const snippet = conversation.slice(-6)
     .map(m => `${m.role === "user" ? "Student" : "AI"}: ${m.content.slice(0, 400)}`)
     .join("\n");
 
   try {
+    const { vertexUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      vertexUrl(vertex.projectId, vertex.location, "gemini-2.0-flash"),
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: vertexAuthHeaders(vertex.apiKey),
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text:
             `Extract student profile from this conversation. Return ONLY valid JSON, nothing else.
@@ -265,8 +274,8 @@ async function logUsage(userId: string, coins: number, model: ModelId) {
 }
 
 // ─── AI Router (Gemini picks best model from available list) ──────────────────
-async function routeToModel(lastMessage: string, available: ModelId[], geminiKey: string | null): Promise<ModelId> {
-  if (!geminiKey || available.length === 0) return available[0] ?? "gemini-2.5-flash";
+async function routeToModel(lastMessage: string, available: ModelId[], vertex: VertexConfig | null): Promise<ModelId> {
+  if (!vertex || available.length === 0) return available[0] ?? "gemini-2.5-flash";
   if (available.length === 1) return available[0];
 
   // Group available models by task suitability
@@ -277,11 +286,12 @@ async function routeToModel(lastMessage: string, available: ModelId[], geminiKey
   const fallback = budget[0] ?? smart[0] ?? available[0];
 
   try {
+    const { vertexUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      vertexUrl(vertex.projectId, vertex.location, "gemini-2.5-flash"),
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: vertexAuthHeaders(vertex.apiKey),
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text:
             `Classify this student message into ONE tier. Reply with ONLY one word: budget | smart | premium
@@ -314,10 +324,12 @@ Reply:` }] }],
 type Msg = { role: "user" | "assistant"; content: string };
 
 async function callGoogle(
-  apiKey: string, model: ModelId, messages: Msg[], system: string,
+  vertex: VertexConfig, model: ModelId, messages: Msg[], system: string,
   imageBase64?: string, mediaType?: string,
-): Promise<{ reply: string; totalTokens: number }> {;
-  const geminiContents = messages.map((m, i) => {
+): Promise<{ reply: string; totalTokens: number }> {
+  const { vertexUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
+
+  const contents = messages.map((m, i) => {
     const role = m.role === "assistant" ? "model" : "user";
     if (imageBase64 && i === messages.length - 1 && m.role === "user") {
       return { role, parts: [
@@ -331,13 +343,13 @@ async function callGoogle(
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30_000);
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL[model]}:generateContent?key=${apiKey}`,
+    vertexUrl(vertex.projectId, vertex.location, API_MODEL[model]),
     {
       method: "POST", signal: ctrl.signal,
-      headers: { "Content-Type": "application/json" },
+      headers: vertexAuthHeaders(vertex.apiKey),
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
-        contents: geminiContents,
+        contents,
         generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
       }),
     }
@@ -349,9 +361,9 @@ async function callGoogle(
     let apiMsg = body.slice(0, 300);
     try { apiMsg = (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
     if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
-    if (res.status === 403) throw new Error(`Gemini API key invalid ya expired hai. Admin panel mein key check karo.`);
-    if (res.status === 404) throw new Error(`Gemini model '${API_MODEL[model]}' available nahi hai. Admin se contact karo.`);
-    throw new Error(`Gemini error (${res.status}): ${apiMsg}`);
+    if (res.status === 401 || res.status === 403) throw new Error(`Vertex AI auth failed. Service account permissions check karo.`);
+    if (res.status === 404) throw new Error(`Vertex AI model '${API_MODEL[model]}' is-location mein available nahi. Location/project check karo.`);
+    throw new Error(`Vertex AI error (${res.status}): ${apiMsg}`);
   }
   const data = await res.json();
   const reply = data.candidates?.[0]?.content?.parts?.filter((p: {text?:string}) => p.text)
@@ -419,12 +431,12 @@ async function callOpenAI(
 
 // Dispatch to correct provider
 async function callModel(
-  keys: { gemini: string | null; anthropic: string | null; openai: string | null },
+  keys: { vertex: VertexConfig | null; anthropic: string | null; openai: string | null },
   model: ModelId, messages: Msg[], system: string,
   imageBase64?: string, mediaType?: string,
 ): Promise<{ reply: string; totalTokens: number }> {
   const provider = MODEL_PROVIDER[model];
-  if (provider === "google")    return callGoogle(keys.gemini!, model, messages, system, imageBase64, mediaType);
+  if (provider === "google")    return callGoogle(keys.vertex!, model, messages, system, imageBase64, mediaType);
   if (provider === "anthropic") return callAnthropic(keys.anthropic!, model, messages, system);
   return callOpenAI(keys.openai!, model, messages, system);
 }
@@ -476,7 +488,7 @@ export async function POST(request: Request) {
     if (available.length === 0) return NextResponse.json({ error: "AI not configured" }, { status: 503 });
 
     const lastUserMsg = messages.findLast(m => m.role === "user")?.content ?? "";
-    let modelId = await routeToModel(lastUserMsg, available, keys.gemini);
+    let modelId = await routeToModel(lastUserMsg, available, keys.vertex);
 
     // Pre-check: enough coins for chosen model?
     let estimated = estimateCoins(messages, modelId);
@@ -551,8 +563,8 @@ export async function POST(request: Request) {
     await logUsage(userId, coinsToCharge, usedModel);
 
     // If profile was incomplete and student has replied to onboarding, extract and save silently
-    if (onboarding && messages.length >= 3 && keys.gemini) {
-      extractAndSaveProfile(userId, messages, keys.gemini).catch(() => {});
+    if (onboarding && messages.length >= 3 && keys.vertex) {
+      extractAndSaveProfile(userId, messages, keys.vertex).catch(() => {});
     }
 
     return NextResponse.json({
@@ -626,7 +638,7 @@ export async function GET(request: Request) {
     const available = getAvailableModels(keys);
 
     const configuredProviders = {
-      gemini:    !!keys.gemini,
+      gemini:    !!keys.vertex,   // key stays "gemini" so frontend display doesn't change
       anthropic: !!keys.anthropic,
       openai:    !!keys.openai,
     };
