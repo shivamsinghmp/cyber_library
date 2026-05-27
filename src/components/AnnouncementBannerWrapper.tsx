@@ -1,22 +1,19 @@
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { getAppSetting } from "@/lib/app-settings";
-import { fetchWithCache } from "@/lib/redis";
+import { unstable_cache } from "next/cache";
 
-/**
- * Server component wrapper for AnnouncementBanner.
- * Reads the announcement message server-side (Redis-cached) so the
- * client component doesn't need its own fetch.
- */
+const getCachedAnnouncement = unstable_cache(
+  async () => {
+    const val = await getAppSetting("ANNOUNCEMENT");
+    return val && val.trim() ? val.trim() : null;
+  },
+  ["public-announcement"],
+  { revalidate: 300 }
+);
+
 export async function AnnouncementBannerWrapper() {
   try {
-    const message = await fetchWithCache(
-      "public:announcement",
-      async () => {
-        const val = await getAppSetting("ANNOUNCEMENT");
-        return val && val.trim() ? val.trim() : null;
-      },
-      300
-    );
+    const message = await getCachedAnnouncement();
     return <AnnouncementBanner initialMessage={message} />;
   } catch {
     return <AnnouncementBanner />;

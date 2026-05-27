@@ -2,9 +2,32 @@ import type { Metadata } from "next";
 import { HomeClient } from "./HomeClient";
 import { batchGetAppSettings } from "@/lib/app-settings";
 import { prisma } from "@/lib/prisma";
-import { fetchWithCache } from "@/lib/redis";
+import { unstable_cache } from "next/cache";
 
 export const revalidate = 60;
+
+const getCachedRecentBlogs = unstable_cache(
+  () =>
+    prisma.blogPost.findMany({
+      where: { publishedAt: { not: null } },
+      orderBy: { publishedAt: "desc" },
+      take: 3,
+      select: { id: true, slug: true, title: true, excerpt: true, publishedAt: true },
+    }),
+  ["public-recent-blogs"],
+  { revalidate: 300 }
+);
+
+const getCachedFaqs = unstable_cache(
+  () =>
+    prisma.faq.findMany({
+      where: { isActive: true },
+      orderBy: { order: "asc" },
+      select: { id: true, question: true, answer: true, order: true },
+    }),
+  ["public-faqs"],
+  { revalidate: 600 }
+);
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await batchGetAppSettings(["SITE_TITLE"]);
@@ -13,29 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  // All three queries run in parallel — single round-trip to DB/Redis
   const [recentBlogs, faqs, settings] = await Promise.all([
-    fetchWithCache(
-      "public:recent-blogs",
-      () =>
-        prisma.blogPost.findMany({
-          where: { publishedAt: { not: null } },
-          orderBy: { publishedAt: "desc" },
-          take: 3,
-          select: { id: true, slug: true, title: true, excerpt: true, publishedAt: true },
-        }),
-      300
-    ),
-    fetchWithCache(
-      "public:faqs",
-      () =>
-        prisma.faq.findMany({
-          where: { isActive: true },
-          orderBy: { order: "asc" },
-          select: { id: true, question: true, answer: true, order: true },
-        }),
-      600
-    ),
+    getCachedRecentBlogs(),
+    getCachedFaqs(),
     batchGetAppSettings(["SITE_HEADLINE"]),
   ]);
 
