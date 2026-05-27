@@ -26,7 +26,11 @@ export async function awardCoins(
   ]);
 }
 
-/** Deduct coins — returns false if insufficient balance (prevents overdraft) */
+/** Deduct coins — returns false if insufficient balance (prevents overdraft).
+ *  Uses an interactive transaction so the log entry is only written when the
+ *  balance check succeeds. Concurrent requests cannot both pass the guard and
+ *  overdraft the wallet — the UPDATE is atomic and conditional.
+ */
 export async function deductCoins(
   userId: string,
   amount: number,
@@ -34,25 +38,22 @@ export async function deductCoins(
 ): Promise<boolean> {
   if (amount <= 0) return true;
 
-  // Read materialized balance — O(1), no SUM query
-  const profile = await prisma.profile.findUnique({
-    where: { userId },
-    select: { coinBalance: true },
-  });
+  return prisma.$transaction(async (tx) => {
+    // Atomic: only updates when coinBalance >= amount.
+    // Returns count=0 (and skips the log) if the balance is insufficient.
+    const updated = await tx.profile.updateMany({
+      where: { userId, coinBalance: { gte: amount } },
+      data:  { coinBalance: { decrement: amount } },
+    });
 
-  if (!profile || profile.coinBalance < amount) return false;
+    if (updated.count === 0) return false;
 
-  await prisma.$transaction([
-    prisma.studyCoinLog.create({
+    await tx.studyCoinLog.create({
       data: { userId, coins: -amount, reason },
-    }),
-    prisma.profile.update({
-      where: { userId },
-      data: { coinBalance: { decrement: amount } },
-    }),
-  ]);
+    });
 
-  return true;
+    return true;
+  });
 }
 
 /** Read current balance — O(1) from materialized column */

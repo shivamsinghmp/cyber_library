@@ -37,7 +37,6 @@ export async function POST(request: Request) {
 
     const coupon = await prisma.coupon.findFirst({
       where: { code, isActive: true },
-      include: { _count: { select: { redemptions: true } } },
     });
 
     if (!coupon) {
@@ -61,28 +60,38 @@ export async function POST(request: Request) {
       );
     }
 
-    if (coupon.maxTotalUses != null && coupon._count.redemptions >= coupon.maxTotalUses) {
-      return NextResponse.json(
-        { error: "This coupon has reached its usage limit" },
-        { status: 400 }
-      );
-    }
+    // Wrap both the usage-limit check and the redemption creation in a serializable
+    // transaction so concurrent requests cannot both pass the maxTotalUses guard.
+    // The unique constraint on (couponId, userId) prevents per-user double-redemption.
+    try {
+      await prisma.$transaction(async (tx) => {
+        if (coupon.maxTotalUses != null) {
+          const count = await tx.couponRedemption.count({ where: { couponId: coupon.id } });
+          if (count >= coupon.maxTotalUses) {
+            throw new Error("COUPON_EXHAUSTED");
+          }
+        }
 
-    const existing = await prisma.couponRedemption.findUnique({
-      where: {
-        couponId_userId: { couponId: coupon.id, userId },
-      },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { error: "You have already used this coupon" },
-        { status: 400 }
-      );
-    }
+        const existing = await tx.couponRedemption.findUnique({
+          where: { couponId_userId: { couponId: coupon.id, userId } },
+        });
+        if (existing) throw new Error("ALREADY_USED");
 
-    await prisma.couponRedemption.create({
-      data: { couponId: coupon.id, userId },
-    });
+        await tx.couponRedemption.create({ data: { couponId: coupon.id, userId } });
+      }, { isolationLevel: "Serializable" });
+    } catch (e) {
+      if (e instanceof Error && e.message === "COUPON_EXHAUSTED") {
+        return NextResponse.json({ error: "This coupon has reached its usage limit" }, { status: 400 });
+      }
+      if (e instanceof Error && e.message === "ALREADY_USED") {
+        return NextResponse.json({ error: "You have already used this coupon" }, { status: 400 });
+      }
+      // P2002 = unique constraint — concurrent request already redeemed for this user
+      if ((e as { code?: string })?.code === "P2002") {
+        return NextResponse.json({ error: "You have already used this coupon" }, { status: 400 });
+      }
+      throw e;
+    }
 
     return NextResponse.json({
       success: true,

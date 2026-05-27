@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
@@ -41,6 +42,12 @@ export async function POST(
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 10 comments per user per hour — prevents comment spam
+    const rl = rateLimit(`comment:${session.user.id}`, 10, 3600);
+    if (!rl.success) {
+      return NextResponse.json({ error: "Too many comments. Thodi der baad try karo." }, { status: 429 });
     }
 
     const { slug } = await params;

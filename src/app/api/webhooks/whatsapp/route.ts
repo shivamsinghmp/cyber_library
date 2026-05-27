@@ -83,29 +83,35 @@ type WAEntry = {
 
 export async function POST(request: Request) {
   try {
-    // Verify Meta's HMAC-SHA256 signature — prevents fake webhook payloads.
     const appSecret = process.env.WHATSAPP_APP_SECRET?.trim();
-    if (appSecret) {
-      const signature = request.headers.get("x-hub-signature-256") ?? "";
-      const rawBody = await request.text();
-      const expected = "sha256=" + crypto
-        .createHmac("sha256", appSecret)
-        .update(rawBody)
-        .digest("hex");
-      const sigBuf = Buffer.from(signature);
-      const expBuf = Buffer.from(expected);
-      const valid =
-        sigBuf.length === expBuf.length &&
-        crypto.timingSafeEqual(sigBuf, expBuf);
-      if (!valid) {
-        console.warn("[webhook/whatsapp] Invalid signature — request rejected");
-        return new Response("Forbidden", { status: 403 });
-      }
-      const body = JSON.parse(rawBody) as { object: string; entry: WAEntry[] };
-      return handleWebhookBody(body);
+    if (!appSecret) {
+      // Hard-fail when the secret is missing — never process unsigned payloads.
+      // Set WHATSAPP_APP_SECRET in .env to the App Secret from Meta Developer Console
+      // → App → Settings → Basic → App Secret
+      console.error("[webhook/whatsapp] WHATSAPP_APP_SECRET not configured — rejecting POST");
+      return new Response("Service misconfigured", { status: 503 });
     }
 
-    const body = await request.json() as { object: string; entry: WAEntry[] };
+    // Verify Meta's HMAC-SHA256 signature — prevents forged webhook payloads.
+    const rawBody = await request.text();
+    const signature = request.headers.get("x-hub-signature-256") ?? "";
+    const expected = "sha256=" + crypto
+      .createHmac("sha256", appSecret)
+      .update(rawBody)
+      .digest("hex");
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expected);
+    const valid =
+      sigBuf.length > 0 &&
+      sigBuf.length === expBuf.length &&
+      crypto.timingSafeEqual(sigBuf, expBuf);
+
+    if (!valid) {
+      console.warn("[webhook/whatsapp] Invalid signature — request rejected");
+      return new Response("Forbidden", { status: 403 });
+    }
+
+    const body = JSON.parse(rawBody) as { object: string; entry: WAEntry[] };
     return handleWebhookBody(body);
   } catch (e) {
     console.error("WhatsApp webhook error:", e);

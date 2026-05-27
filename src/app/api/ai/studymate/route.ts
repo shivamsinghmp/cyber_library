@@ -432,7 +432,8 @@ async function callModel(
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const bodySchema = z.object({
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(5000) })).min(1).max(20),
-  imageBase64: z.string().optional(),
+  // ~1 MB image max: base64 encoding is ~33% larger than binary, so 1_400_000 chars ≈ 1 MB image.
+  imageBase64: z.string().max(1_400_000).optional(),
   mediaType:   z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]).optional(),
   acceptLowerQuality: z.boolean().optional().default(false),
 });
@@ -566,15 +567,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "AI response timed out. Dobara try karo." }, { status: 504 });
     }
     const msg = (e as Error).message ?? "";
-    if (msg.includes("quota")) {
-      return NextResponse.json({ error: msg, retryable: true }, { status: 502 });
+    // Log full error server-side; return only safe user-facing messages to the client.
+    // Raw provider errors can leak API key details, internal URLs, or billing info.
+    if (msg.includes("quota") || msg.includes("limit")) {
+      console.warn("StudyMate quota error:", msg);
+      return NextResponse.json({ error: "AI service temporarily busy. Thodi der baad try karo.", retryable: true }, { status: 502 });
     }
-    // Forward all AI provider errors as 502 so the frontend shows the actual reason
-    if (msg.includes("Gemini") || msg.includes("invalid") || msg.includes("key") || msg.includes("available") || msg.includes("error")) {
-      return NextResponse.json({ error: msg }, { status: 502 });
+    if (msg.includes("invalid") || msg.includes("key") || msg.includes("expired")) {
+      console.error("StudyMate API key error:", msg);
+      return NextResponse.json({ error: "AI service configuration error. Please contact support.", retryable: false }, { status: 502 });
+    }
+    if (msg.includes("available") || msg.includes("model")) {
+      console.error("StudyMate model error:", msg);
+      return NextResponse.json({ error: "Requested AI model is not available. Admin se contact karo.", retryable: false }, { status: 502 });
     }
     console.error("StudyMate POST error:", e);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "AI service error. Dobara try karo." }, { status: 500 });
   }
 }
 

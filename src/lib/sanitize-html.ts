@@ -1,58 +1,50 @@
-/**
- * Sanitize blog body HTML for safe display. Allows only safe tags and strips scripts/events.
- */
-const ALLOWED = new Set(["p", "br", "strong", "b", "em", "i", "a", "img", "pre", "code", "ul", "ol", "li", "h1", "h2", "h3", "h4", "div", "span", "figure", "figcaption", "iframe"]);
+import DOMPurify from "isomorphic-dompurify";
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+const ALLOWED_TAGS = [
+  "p", "br", "strong", "b", "em", "i", "a", "img", "pre", "code",
+  "ul", "ol", "li", "h1", "h2", "h3", "h4", "div", "span",
+  "figure", "figcaption", "iframe",
+];
+
+const ALLOWED_ATTR = ["href", "src", "alt", "rel", "title", "allowfullscreen", "class"];
+
+const YOUTUBE_VIMEO_RE =
+  /^https:\/\/(www\.)?(youtube\.com|youtube-nocookie\.com|player\.vimeo\.com)\//i;
 
 export function sanitizeBlogHtml(html: string): string {
   if (!html || typeof html !== "string") return "";
-  let out = html;
-  // Strip <script>...</script> blocks entirely
-  out = out.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-  // Strip <style>...</style> blocks (custom CSS should go through scopeCustomCss)
-  out = out.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
-  // Strip on* event-handler attributes — handle whitespace/newline between attr and =
-  out = out.replace(/\s+on\w+\s*=\s*("([^"]*)"|'([^']*)'|[^\s>]+)/gi, "");
-  // Strip inline javascript:/vbscript:/data: URLs (defence-in-depth before per-tag rebuild)
-  out = out.replace(/(href|src|formaction|action)\s*=\s*("|')\s*(javascript|vbscript|data)\s*:[^"']*\2/gi, "$1=\"#\"");
 
-  out = out.replace(/<(\w+)(\s[^>]*)?\/?>/gi, (m, name, rest = "") => {
-    const tag = name.toLowerCase();
-    if (!ALLOWED.has(tag)) return "";
-    if (tag === "a") {
-      const href = rest.match(/href\s*=\s*["']([^"']+)["']/i);
-      if (!href) return "";
-      const u = href[1].trim();
-      if (!/^(https?:\/\/|\/|#|mailto:)/i.test(u)) return "";
-      const rel = rest.match(/rel\s*=\s*["']([^"']+)["']/i);
-      const safeRel = rel ? ` rel="${escapeHtml(rel[1].slice(0, 100))}"` : "";
-      return `<a href="${escapeHtml(u)}"${safeRel}>`;
+  // DOMPurify hook: enforce iframe src whitelist after sanitization.
+  // Runs once per call — not a module-level side-effect so it's safe for SSR.
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "IFRAME") {
+      const src = node.getAttribute("src") ?? "";
+      if (!YOUTUBE_VIMEO_RE.test(src)) {
+        node.remove();
+      } else {
+        node.setAttribute("title", "video");
+        node.setAttribute("class", "w-full aspect-video");
+        // Explicitly forbid srcdoc — it bypasses src restrictions
+        node.removeAttribute("srcdoc");
+      }
     }
-    if (tag === "img") {
-      const src = rest.match(/src\s*=\s*["']([^"']+)["']/i);
-      if (!src || !/^https?:\/\//i.test(src[1])) return "";
-      const alt = rest.match(/alt\s*=\s*["']([^"']*)["']/i);
-      const altStr = alt ? ` alt="${escapeHtml(alt[1].slice(0, 200))}"` : "";
-      return `<img src="${escapeHtml(src[1])}"${altStr} />`;
+    // Force external links to open safely
+    if (node.tagName === "A" && node.getAttribute("href")?.startsWith("http")) {
+      node.setAttribute("rel", "noopener noreferrer");
     }
-    if (tag === "iframe") {
-      const src = rest.match(/src\s*=\s*["']([^"']+)["']/i);
-      if (!src) return "";
-      const s = src[1];
-      // Only allow embeds from YouTube/Vimeo with strict origin check
-      if (!/^https:\/\/(www\.)?(youtube\.com|youtube-nocookie\.com|player\.vimeo\.com)\//i.test(s)) return "";
-      return `<iframe src="${escapeHtml(s)}" title="video" class="w-full aspect-video" allowfullscreen></iframe>`;
-    }
-    // For all other allowed tags (p, div, span, ul, li, etc.) drop EVERY attribute.
-    // No legitimate need for style/class/id on user-supplied blog body markup, and
-    // this prevents `style="background:url(...)"`, `class="malicious"` injections.
-    return `<${tag}>`;
   });
-  out = out.replace(/<\/(\w+)>/gi, (m, name) => (ALLOWED.has(name.toLowerCase()) ? m : ""));
-  return out;
+
+  const clean = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS,
+    ALLOWED_ATTR,
+    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|#|\/)/i,
+    FORBID_ATTR: ["srcdoc", "formaction", "action", "data", "style", "id"],
+    FORCE_BODY: true,
+  });
+
+  DOMPurify.removeHook("afterSanitizeAttributes");
+
+  return clean;
 }
 
 /** Sanitize custom CSS for blog post. Removes script, expression, javascript: url, etc. */

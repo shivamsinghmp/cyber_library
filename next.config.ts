@@ -35,9 +35,19 @@ const nextConfig: NextConfig = {
   images: {
     // Serve WebP/AVIF for better compression
     formats: ["image/avif", "image/webp"],
-    // Allow any HTTPS image (admin can configure remote logos)
+    // Allowlist only domains actually used — prevents SSRF via the image optimizer.
+    // To add a new domain: add an entry here, not a wildcard.
     remotePatterns: [
-      { protocol: "https", hostname: "**" },
+      // Google OAuth profile pictures
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "*.googleusercontent.com" },
+      // YouTube thumbnails (study room / blog embeds)
+      { protocol: "https", hostname: "i.ytimg.com" },
+      { protocol: "https", hostname: "img.youtube.com" },
+      // WhatsApp / Meta CDN (profile images from WhatsApp Business API)
+      { protocol: "https", hostname: "*.fbcdn.net" },
+      // Self-hosted / DO Spaces (if used for uploads)
+      { protocol: "https", hostname: "*.digitaloceanspaces.com" },
     ],
     // Cache optimized images for 7 days
     minimumCacheTTL: 604800,
@@ -74,7 +84,8 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options",    value: "nosniff" },
           { key: "X-Frame-Options",            value: "SAMEORIGIN" },
-          { key: "X-XSS-Protection",           value: "1; mode=block" },
+          // X-XSS-Protection intentionally omitted — deprecated in modern browsers,
+          // harmful in IE (mode=block is exploitable), and CSP provides better coverage.
           { key: "Referrer-Policy",            value: "strict-origin-when-cross-origin" },
           { key: "Strict-Transport-Security",  value: "max-age=63072000; includeSubDomains; preload" },
           { key: "Permissions-Policy",         value: "camera=(), microphone=(), geolocation=(), payment=(self), usb=()" },
@@ -98,19 +109,17 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Google Meet Add-on: MUST come after the global rule above so it overrides.
-      // The panel runs inside a Google Meet iframe (different origin), so we must:
-      //   1. Override frame-ancestors to allow meet.google.com
-      //   2. Override X-Frame-Options — CSP frame-ancestors takes precedence in Chrome,
-      //      but setting ALLOWALL avoids legacy-browser confusion. (Non-standard value;
-      //      modern Chrome ignores it and uses the CSP directive instead.)
+      // Google Meet Add-on: overrides global headers so the panel can be embedded
+      // inside Google Meet. CSP frame-ancestors handles the allow-list; X-Frame-Options
+      // is explicitly removed for this route because it has no valid value that permits
+      // a third-party origin (ALLOWALL is non-standard and ignored by browsers).
+      // Modern browsers use CSP frame-ancestors and ignore X-Frame-Options when both
+      // are present — so CSP alone is sufficient and correct here.
       {
         source: "/meet-addon/:path*",
         headers: [
           {
             key: "Content-Security-Policy",
-            // Full policy for meet-addon: allows Google Meet to embed the panel,
-            // and explicitly allows YouTube IFrame API for the music player.
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com https://www.googletagmanager.com",
@@ -119,15 +128,15 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               "connect-src 'self' https://www.youtube.com https://s.ytimg.com https://*.googlevideo.com",
               "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
+              // frame-ancestors permits Google Meet to embed this panel — no X-Frame-Options needed
               "frame-ancestors https://*.meet.google.com https://meet.google.com 'self'",
               "object-src 'none'",
               "base-uri 'self'",
             ].join("; "),
           },
-          {
-            key: "X-Frame-Options",
-            value: "ALLOWALL",
-          },
+          // X-Frame-Options intentionally omitted: CSP frame-ancestors supersedes it
+          // in all modern browsers, and there is no X-Frame-Options value that allows
+          // a specific third-party origin without opening clickjacking to all origins.
           {
             key: "Permissions-Policy",
             value: "display-capture=*",

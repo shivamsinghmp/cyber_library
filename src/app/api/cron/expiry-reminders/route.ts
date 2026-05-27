@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
-import { getAppSetting } from "@/lib/app-settings";
 
 const SUBSCRIPTION_DAYS = 30;
 
@@ -10,10 +9,16 @@ const SUBSCRIPTION_DAYS = 30;
  */
 export async function GET(request: Request) {
   try {
-    const CRON_SECRET = process.env.CRON_SECRET || (await getAppSetting("CRON_SECRET"));
-    const authHeader  = request.headers.get("authorization");
-    const token       = authHeader?.replace(/^Bearer\s+/i, "").trim();
-    if (!CRON_SECRET || token !== CRON_SECRET) {
+    // Security tokens must only come from env — DB fallback allows privilege escalation
+    // if the DB is compromised. Hard-fail if the env var is not set.
+    const CRON_SECRET = process.env.CRON_SECRET?.trim();
+    if (!CRON_SECRET) {
+      console.error("[cron] CRON_SECRET env var not set — refusing to run");
+      return NextResponse.json({ error: "Service misconfigured" }, { status: 503 });
+    }
+    const authHeader = request.headers.get("authorization");
+    const token      = authHeader?.replace(/^Bearer\s+/i, "").trim();
+    if (!token || token !== CRON_SECRET) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
