@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Calendar, ArrowLeft, Clock, Eye, BookOpen, ChevronRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
-export const revalidate = 300; // ISR: cache each post for 5 min, then revalidate on next request
+export const revalidate = 60; // ISR: revalidate every 60s — ensures metadata updates quickly after admin edits
 import { sanitizeCustomCss, scopeCustomCss } from "@/lib/sanitize-html";
 import DOMPurify from "isomorphic-dompurify";
 import { BlogEngagement } from "@/components/BlogEngagement";
