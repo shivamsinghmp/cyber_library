@@ -73,13 +73,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const post = await prisma.blogPost.findFirst({
       where: { slug, publishedAt: { not: null } },
-      select: { title: true, metaTitle: true, metaDescription: true, excerpt: true, coverImage: true },
+      select: { title: true, metaTitle: true, metaDescription: true, excerpt: true, coverImage: true, publishedAt: true },
     });
     if (!post) return { title: "Post not found" };
+    const title = post.metaTitle || post.title;
+    const description = post.metaDescription || post.excerpt || undefined;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
     return {
-      title: post.metaTitle || post.title,
-      description: post.metaDescription || post.excerpt || undefined,
-      openGraph: post.coverImage ? { images: [post.coverImage] } : undefined,
+      title,
+      description,
+      alternates: { canonical: `/blog/${slug}` },
+      openGraph: {
+        title,
+        description,
+        url: `${siteUrl}/blog/${slug}`,
+        type: "article",
+        publishedTime: post.publishedAt?.toISOString(),
+        authors: ["Let's Study"],
+        ...(post.coverImage ? { images: [{ url: post.coverImage, width: 1200, height: 630, alt: title }] } : {}),
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        ...(post.coverImage ? { images: [post.coverImage] } : {}),
+      },
     };
   } catch {
     return { title: "Blog" };
@@ -114,8 +132,31 @@ export default async function BlogPostPage({ params }: Props) {
   const sanitizedBody = injectHeadingIds(DOMPurify.sanitize(post.body));
   const toc = extractToc(post.body);
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt ?? undefined,
+    ...(post.coverImage ? { image: post.coverImage } : {}),
+    datePublished: post.publishedAt?.toISOString(),
+    dateModified: post.updatedAt?.toISOString() ?? post.publishedAt?.toISOString(),
+    author: { "@type": "Organization", name: "Let's Study", url: siteUrl },
+    publisher: {
+      "@type": "Organization",
+      name: "Let's Study",
+      url: siteUrl,
+      logo: { "@type": "ImageObject", url: `${siteUrl}/icon-512.png` },
+    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${siteUrl}/blog/${post.slug}` },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <ReadingProgress />
 
       <div className="relative min-h-screen" style={{ background: "var(--page-bg)" }}>

@@ -42,11 +42,31 @@ export default async function HomePage() {
     batchGetAppSettings(["SITE_HEADLINE"]),
   ]);
 
+  const faqSchema = faqs.length > 0
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.question,
+          acceptedAnswer: { "@type": "Answer", text: f.answer },
+        })),
+      }
+    : null;
+
   return (
-    <HomeClient
-      recentBlogs={recentBlogs}
-      initialHeadline={settings.SITE_HEADLINE}
-      initialFaqs={faqs}
-    />
+    <>
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      )}
+      <HomeClient
+        recentBlogs={recentBlogs}
+        initialHeadline={settings.SITE_HEADLINE}
+        initialFaqs={faqs}
+      />
+    </>
   );
 }

@@ -3,8 +3,21 @@ import type { Metadata } from "next";
 import { Users, Clock, Zap, Heart } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "About",
-  description: "Let's Study — a 24/7 body doubling study hub built for UPSC, JEE, NEET and anyone who wants to do real deep work.",
+  title: "About Let's Study — 24/7 Virtual Study Room & Focus Hub",
+  description: "Let's Study is a 24/7 body doubling study hub built for UPSC, JEE, NEET and anyone who wants to do real deep work. Learn how we use body doubling, Pomodoro sprints and community accountability to help you actually study.",
+  keywords: ["about lets study", "virtual study room", "body doubling online", "study accountability", "focus community India"],
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About Let's Study — 24/7 Virtual Study Room & Focus Hub",
+    description: "A 24/7 body doubling study hub built for UPSC, JEE, NEET and anyone who wants to do real deep work.",
+    url: "https://cyberlib.in/about",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "About Let's Study",
+    description: "A 24/7 body doubling study hub for UPSC, JEE, NEET and deep work.",
+  },
 };
 
 const PILLARS = [
