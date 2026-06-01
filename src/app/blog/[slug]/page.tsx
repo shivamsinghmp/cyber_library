@@ -52,32 +52,51 @@ function extractToc(html: string): TocItem[] {
   return items;
 }
 
-/* Inject id attributes into h2/h3 so ToC links work */
+/* Inject id attributes into h2/h3 so ToC links work.
+   Also normalizes heading levels so the page always has h1→h2→h3 order
+   (prevents Lighthouse "headings not in descending order" failures when
+   blog authors write h3 before h2 or use h1 inside content). */
 function injectHeadingIds(html: string): string {
+  // Find the minimum heading level used in content (could be h1/h2/h3/h4)
+  const levels = Array.from(html.matchAll(/<h([1-6])/gi), (m) => parseInt(m[1]));
+  const minLevel = levels.length > 0 ? Math.min(...levels) : 2;
+  // Shift so minimum level becomes h2 (below the page h1)
+  const shift = minLevel <= 2 ? 0 : 2 - minLevel;
+
   const slugged = new Map<string, number>();
-  return html.replace(/<h([23])([^>]*)>(.*?)<\/h[23]>/gi, (_, lvl, attrs, inner) => {
+  return html.replace(/<h([1-6])([^>]*)>(.*?)<\/h[1-6]>/gi, (_, lvl, attrs, inner) => {
+    const newLvl = Math.min(6, Math.max(2, parseInt(lvl) + shift));
     const text = decodeEntities(inner.replace(/<[^>]+>/g, "")).trim();
     const base = text.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
     const count = slugged.get(base) ?? 0;
     slugged.set(base, count + 1);
     const id = count === 0 ? base : `${base}-${count}`;
-    return `<h${lvl}${attrs} id="${id}">${inner}</h${lvl}>`;
+    return `<h${newLvl}${attrs} id="${id}">${inner}</h${newLvl}>`;
   });
 }
 
 /* ─── metadata ───────────────────────────────────────────────────────────── */
 type Props = { params: Promise<{ slug: string }> };
 
+function bodyToPlainText(html: string, maxLen = 155): string {
+  const text = html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > maxLen ? text.slice(0, maxLen - 1) + "…" : text;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   try {
     const post = await prisma.blogPost.findFirst({
       where: { slug, publishedAt: { not: null } },
-      select: { title: true, metaTitle: true, metaDescription: true, excerpt: true, coverImage: true, publishedAt: true },
+      select: { title: true, metaTitle: true, metaDescription: true, excerpt: true, body: true, coverImage: true, publishedAt: true },
     });
     if (!post) return { title: "Post not found" };
     const title = post.metaTitle || post.title;
-    const description = post.metaDescription || post.excerpt || undefined;
+    // Fallback chain: metaDescription → excerpt → first 155 chars of body
+    const description = post.metaDescription || post.excerpt || bodyToPlainText(post.body || "")  || undefined;
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
     return {
       title,
