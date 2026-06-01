@@ -12,6 +12,7 @@ async function invalidateBlogCaches(slug?: string) {
   await invalidateCache("public:recent-blogs");
   revalidatePath("/");
   revalidatePath("/blog");
+  revalidatePath("/sitemap.xml");
   if (slug) revalidatePath(`/blog/${slug}`);
 }
 

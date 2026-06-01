@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
+import { revalidatePath } from "next/cache";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -57,6 +58,9 @@ export async function PUT(
         ...(parsed.data.isActive !== undefined && { isActive: parsed.data.isActive }),
       },
     });
+    revalidatePath("/store");
+    revalidatePath(`/store/${id}`);
+    revalidatePath("/sitemap.xml");
     return NextResponse.json(product);
   } catch (e) {
     console.error("PUT /api/admin/products/[id]:", e);
@@ -74,6 +78,8 @@ export async function DELETE(
     if (auth.error) return auth.error;
     const { id } = await params;
     await prisma.digitalProduct.delete({ where: { id } });
+    revalidatePath("/store");
+    revalidatePath("/sitemap.xml");
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("DELETE /api/admin/products/[id]:", e);

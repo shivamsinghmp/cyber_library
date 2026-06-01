@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
+import { revalidatePath } from "next/cache";
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
         isActive: parsed.data.isActive,
       },
     });
+    revalidatePath("/store");
+    revalidatePath("/sitemap.xml");
     return NextResponse.json(product, { status: 201 });
   } catch (e) {
     console.error("POST /api/admin/products:", e);
