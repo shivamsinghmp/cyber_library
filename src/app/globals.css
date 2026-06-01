@@ -6,8 +6,8 @@
 ══════════════════════════════════════════════════════════════════════════ */
 :root {
   /* ── Brand Colors ──────────────────────────── */
-  --accent:        #6366F1;
-  --accent-hover:  #4F46E5;
+  --accent:        #4F46E5; /* indigo-600 — passes WCAG AA 4.5:1 on white & pale bg */
+  --accent-hover:  #4338CA; /* indigo-700 — hover state */
   --accent-light:  #818CF8;
   --accent-pale:   #EEF2FF;
   --accent-border: #C7D2FE;
