@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import {
   Square, Timer, BookOpen, Flame, CalendarCheck,
   Zap, Trophy, ChevronRight, Play, Star, Target,
-  TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight, Coins,
+  TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight, Coins, Gift,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -377,27 +377,60 @@ export function DashboardContent({ userName }: { userName: string }) {
       {/* ── Subscription Status Card ───────────────────────────────── */}
       {!subscription.loading && (() => {
         if (!subscription.active) {
+          const trialExpired = subscription.trialUsed;
           return (
             <motion.div variants={anim.container} initial="hidden" animate="show">
               <motion.div variants={anim.item}
-                className="card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-amber-200 bg-amber-50/60"
+                className={`card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
+                  trialExpired
+                    ? "border-red-200 bg-red-50/60"
+                    : "border-amber-200 bg-amber-50/60"
+                }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl ${
+                    trialExpired ? "bg-red-100" : "bg-amber-100"
+                  }`}>
+                    {trialExpired
+                      ? <Gift className="h-5 w-5 text-red-500" />
+                      : <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    }
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-amber-800">No Active Subscription</p>
-                    <p className="text-xs text-amber-700">Subscribe to unlock all features — study rooms, analytics & more.</p>
+                    {trialExpired ? (
+                      <>
+                        <p className="text-sm font-bold text-red-800">Your Free Trial Has Ended</p>
+                        <p className="text-xs text-red-700">
+                          Trial khatam ho gaya — subscribe karo aur apni study journey jaari rakho.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-bold text-amber-800">No Active Subscription</p>
+                        <p className="text-xs text-amber-700">Subscribe to unlock all features — study rooms, analytics & more.</p>
+                      </>
+                    )}
                   </div>
                 </div>
-                <Link
-                  href="/pricing"
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg,#f97316,#ef4444)" }}
-                >
-                  View Plans <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                <div className="flex shrink-0 gap-2">
+                  {trialExpired ? (
+                    <Link
+                      href="/pricing"
+                      className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                      style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+                    >
+                      <Crown className="h-3.5 w-3.5" /> Upgrade Now
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/pricing"
+                      className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                      style={{ background: "linear-gradient(135deg,#f97316,#ef4444)" }}
+                    >
+                      View Plans <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
+                </div>
               </motion.div>
             </motion.div>
           );
@@ -405,6 +438,55 @@ export function DashboardContent({ userName }: { userName: string }) {
 
         const end = new Date(subscription.endDate!);
         const daysLeft = Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
+
+        // ── Trial card ──────────────────────────────────────────────
+        if (subscription.isTrial) {
+          const trialExpiringSoon = daysLeft <= 2;
+          return (
+            <motion.div variants={anim.container} initial="hidden" animate="show">
+              <motion.div variants={anim.item}
+                className={`card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${
+                  trialExpiringSoon ? "border-red-200 bg-red-50/60" : "border-amber-200 bg-amber-50/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+                    style={{ background: trialExpiringSoon ? "linear-gradient(135deg,#ef4444,#f97316)" : "linear-gradient(135deg,#f59e0b,#d97706)" }}
+                  >
+                    <Gift className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-bold text-[var(--foreground)]">
+                      7-Day Free Trial
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white"
+                        style={{ background: trialExpiringSoon ? "linear-gradient(135deg,#ef4444,#f97316)" : "linear-gradient(135deg,#f59e0b,#d97706)" }}
+                      >
+                        {daysLeft === 0 ? "Ends today" : `${daysLeft}d left`}
+                      </span>
+                    </p>
+                    <p className="text-xs text-[var(--muted-text)]">
+                      Trial ends {end.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      {trialExpiringSoon && " · Upgrade now to keep access!"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Link
+                    href="/pricing"
+                    className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white transition hover:opacity-90"
+                    style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+                  >
+                    <Crown className="h-3.5 w-3.5" /> Upgrade to Pro
+                  </Link>
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        }
+
+        // ── Paid plan card ──────────────────────────────────────────
         const isExpiringSoon = daysLeft <= 7;
         const planLabel = subscription.planType === "MONTHLY" ? "Monthly" : "Yearly";
 

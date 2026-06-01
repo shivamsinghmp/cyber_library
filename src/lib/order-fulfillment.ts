@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { awardCoins } from "@/lib/coins";
 import { generateTransactionId } from "@/lib/transactionId";
 import { addStudentToCalendarEvent } from "@/lib/google-calendar";
 import { sendWhatsAppTemplate } from "@/lib/whatsapp";
@@ -101,18 +102,26 @@ export async function fulfillOrder({
     }
   } else if (type === "COIN_PACK") {
     const packId = ids[0];
-    const pack = COIN_PACKS[packId];
-    if (pack) {
-      orderDetails = [{ name: `${pack.label} (${pack.coins} coins)`, price: amountRupees }];
-      await prisma.$transaction([
-        prisma.profile.update({
-          where: { userId },
-          data: { coinBalance: { increment: pack.coins } },
-        }),
-        prisma.studyCoinLog.create({
-          data: { userId, coins: pack.coins, reason: `COIN_PACK_${packId}` },
-        }),
-      ]);
+    let coinsToCredit = 0;
+    let packLabel = "";
+    if (packId.startsWith("COINS_CUSTOM_")) {
+      const rupees = parseInt(packId.replace("COINS_CUSTOM_", ""), 10);
+      coinsToCredit = rupees * 10;
+      packLabel = `Custom Pack (${coinsToCredit} coins)`;
+    } else {
+      const pack = COIN_PACKS[packId];
+      if (pack) { coinsToCredit = pack.coins; packLabel = `${pack.label} (${pack.coins} coins)`; }
+    }
+    if (coinsToCredit > 0) {
+      orderDetails = [{ name: packLabel, price: amountRupees }];
+      await awardCoins(userId, coinsToCredit, `COIN_PACK_${packId}`, undefined, undefined, {
+        sourceCategory: "coin_pack",
+        sourceLabel:    `Coin Pack: ${packLabel}`,
+        referenceType:  "payment",
+        referenceId:    paymentGatewayId ?? packId,
+        referenceName:  packLabel,
+        deviceType:     "web_browser",
+      });
     }
   } else if (type === "SUBSCRIPTION") {
     // ids[0] = planType ("MONTHLY" | "YEARLY")
@@ -156,6 +165,18 @@ export async function fulfillOrder({
     fulfillMeta.planType        = planType;
     fulfillMeta.membershipStart = now;
     fulfillMeta.membershipEnd   = endDate;
+
+    // Log trial→paid conversion (fire-and-forget)
+    const { logTrialEvent } = await import("@/lib/trial-logger");
+    const trialSub = await prisma.userSubscription.findFirst({
+      where:  { userId, planType: "TRIAL" },
+      select: { startDate: true },
+      orderBy: { startDate: "desc" },
+    });
+    const daysUsed = trialSub
+      ? Math.ceil((now.getTime() - trialSub.startDate.getTime()) / 86_400_000)
+      : undefined;
+    logTrialEvent({ userId, event: "converted", planBought: planType, daysUsed });
   }
 
   // 2. Create the unified Transaction

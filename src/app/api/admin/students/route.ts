@@ -52,9 +52,11 @@ export async function GET(request: Request) {
           select: {
             phone: true,
             whatsappNumber: true,
+            whatsappMarketing: true,
             studyGoal: true,
             targetExam: true,
             totalStudyHours: true,
+            coinBalance: true,
           }
         }
       },

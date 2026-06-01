@@ -228,15 +228,6 @@ function CheckoutForm() {
     if (isProductPurchase) params.set("digital", "1");
     router.push(`/success?${params.toString()}`);
   }, [displayName, total, discount, appliedCoupon?.code, isCartMode, isRewardEnrollment, isProductPurchase, isSubscription, rewardId, router, customRedirectUrl]);
-  async function completeWithoutPayment() {
-    if (isCartMode && payableItems.length > 0) {
-        clearCart();
-    }
-    toast.success("Subscription Activated Successfully!");
-    const t = setTimeout(() => { redirectToSuccess(); }, 1500);
-    return () => clearTimeout(t);
-  }
-
   function loadRazorpayScript(): Promise<void> {
     if (typeof window !== "undefined" && window.Razorpay) return Promise.resolve();
     return new Promise((resolve) => {
@@ -319,7 +310,7 @@ function CheckoutForm() {
         key: keyId,
         amount,
         order_id: orderId,
-        name: "The Cyber Library",
+        name: "Let's Study",
         description: displayName,
         handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
           let txnId: string | null = null;

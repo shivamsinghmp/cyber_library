@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
-import { User, Mail, Lock, Target, Phone, Eye, EyeOff, ShieldCheck, Loader2 } from "lucide-react";
+import { User, Mail, Lock, Target, Phone, Eye, EyeOff, ShieldCheck, Loader2, Tag } from "lucide-react";
 import toast from "react-hot-toast";
 import { signIn } from "next-auth/react";
 
@@ -50,8 +50,9 @@ function SignupContent() {
   const [showPassword, setShowPassword]             = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [logoUrl, setLogoUrl]   = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState("The Cyber Library");
+  const [siteTitle, setSiteTitle] = useState("Let's Study");
 
+  const [whatsappMarketing, setWhatsappMarketing] = useState(true);
   const [otpSent, setOtpSent]         = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpValue, setOtpValue]       = useState("");
@@ -75,7 +76,7 @@ function SignupContent() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  const logoSrc      = logoUrl?.trim() || "/logo.png";
+  const logoSrc      = logoUrl?.trim() || "/favicon.svg";
   const isExternalLogo = logoSrc.startsWith("http");
 
   const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -129,7 +130,7 @@ function SignupContent() {
     try {
       const res  = await fetch("/api/auth/signup", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, whatsappNumber: formatNumber(data.whatsappNumber), otp: otpValue, ref: refCode || undefined }),
+        body: JSON.stringify({ ...data, whatsappNumber: formatNumber(data.whatsappNumber), otp: otpValue, whatsappMarketing, ref: refCode || undefined }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -256,6 +257,17 @@ function SignupContent() {
             </p>
           </div>
 
+          {/* Referral Code Banner */}
+          {refCode && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+              <Tag className="h-4 w-4 shrink-0 text-emerald-600" />
+              <div>
+                <p className="text-xs font-bold text-emerald-700">Referral Code Apply Ho Gaya! 🎉</p>
+                <p className="text-[11px] text-emerald-600 font-mono">{refCode}</p>
+              </div>
+            </div>
+          )}
+
           {/* Form card */}
           <div className="rounded-2xl border bg-white p-6"
             style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-md)" }}>
@@ -369,6 +381,28 @@ function SignupContent() {
                   <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--muted-text)]">▾</span>
                 </div>
               </Field>
+
+              {/* WhatsApp Marketing Opt-in */}
+              <label className="flex items-start gap-3 cursor-pointer select-none rounded-xl border px-4 py-3 transition-colors"
+                style={{
+                  borderColor: whatsappMarketing ? "var(--accent-border)" : "var(--border)",
+                  background: whatsappMarketing ? "var(--accent-pale)" : "transparent",
+                }}>
+                <input
+                  type="checkbox"
+                  checked={whatsappMarketing}
+                  onChange={e => setWhatsappMarketing(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-[var(--accent)]"
+                />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                    📲 WhatsApp updates chahiye
+                  </p>
+                  <p className="text-[11px] mt-0.5" style={{ color: "var(--muted-text)" }}>
+                    Study tips, offers, aur important updates WhatsApp pe receive karo. Kabhi bhi unsubscribe kar sakte ho.
+                  </p>
+                </div>
+              </label>
 
               {/* Submit error */}
               {submitError && (

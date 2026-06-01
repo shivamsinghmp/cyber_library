@@ -32,7 +32,12 @@ export async function POST() {
       return NextResponse.json({ success: false, alreadyCheckedIn: true, coins: checkinCoins });
     }
 
-    await awardCoins(userId, checkinCoins, CHECKIN_REASON);
+    await awardCoins(userId, checkinCoins, CHECKIN_REASON, undefined, undefined, {
+      sourceCategory: "checkin_bonus",
+      sourceLabel:    "Daily check-in bonus",
+      referenceType:  "system",
+      deviceType:     "web_browser",
+    });
 
     // Calculate streak with a single query — fetch last 365 checkin dates
     const windowStart = new Date(todayStart);
@@ -62,7 +67,12 @@ export async function POST() {
     else if (streak % 7 === 0 && streak > 7) { bonusCoins = 10; }
 
     if (bonusCoins > 0) {
-      await awardCoins(userId, bonusCoins, bonusReason);
+      await awardCoins(userId, bonusCoins, bonusReason, undefined, undefined, {
+        sourceCategory: "daily_streak",
+        sourceLabel:    `Streak bonus — ${streak} day streak`,
+        referenceType:  "system",
+        deviceType:     "web_browser",
+      });
     }
 
     return NextResponse.json({ success: true, coins: checkinCoins, streak, bonusCoins });

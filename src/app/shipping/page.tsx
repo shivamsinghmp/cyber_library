@@ -12,7 +12,7 @@ export default function ShippingPage() {
         <section>
           <h2 className="text-base font-semibold text-[var(--cream)] mb-2">1. Digital delivery only</h2>
           <p>
-            The Cyber Library provides only digital products and services. We do not ship physical
+            Let's Study provides only digital products and services. We do not ship physical
             goods. All offerings—including access to focus sessions, study slots, and membership
             plans—are delivered electronically.
           </p>

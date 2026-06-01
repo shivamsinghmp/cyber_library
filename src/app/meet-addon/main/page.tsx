@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { SpotifyPlayer } from "../panel/components/SpotifyPlayer";
 import { AIChatBot }    from "../panel/components/AIChatBot";
+import { PlanLockedScreen } from "../panel/components/PlanLockedScreen";
 
 function getToken(): string | null {
   try { return localStorage.getItem("vl_meet_addon_token"); } catch { return null; }
@@ -137,6 +138,8 @@ export default function MeetAddonMainStagePage() {
   const [studentName, setStudentName] = useState<string>("");
   const [mounted, setMounted] = useState(false);
   const [zenMode, setZenMode] = useState(false);
+  const [planAccess, setPlanAccess] = useState<{ allowed: boolean; state: string; daysLeft?: number } | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
 
   const [spotifyOpen, setSpotifyOpen] = useState(false);
   const [chatOpen,    setChatOpen]    = useState(false);
@@ -194,14 +197,25 @@ export default function MeetAddonMainStagePage() {
   }, []);
 
   useEffect(() => {
-    if (!token || studentName) return;
+    if (!token) { setPlanAccess(null); return; }
+    setPlanLoading(true);
     fetch("/api/meet-addon/me", { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
-      .then((d: { name?: string } | null) => { if (d?.name) { setStudentName(d.name); localStorage.setItem("vl_meet_addon_name", d.name); } })
-      .catch(() => {});
-  }, [token, studentName]);
+      .then((d: { name?: string; planAccess?: { allowed: boolean; state: string; daysLeft?: number } } | null) => {
+        if (!d) { setPlanAccess({ allowed: false, state: "no_plan" }); return; }
+        if (d.name) { setStudentName(d.name); localStorage.setItem("vl_meet_addon_name", d.name); }
+        setPlanAccess(d.planAccess ?? { allowed: false, state: "no_plan" });
+      })
+      .catch(() => setPlanAccess({ allowed: false, state: "no_plan" }))
+      .finally(() => setPlanLoading(false));
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { fetchData(); const id = setInterval(fetchData, 30000); return () => clearInterval(id); }, [fetchData]);
+  useEffect(() => {
+    if (!planAccess?.allowed) return;
+    fetchData();
+    const id = setInterval(fetchData, 30000);
+    return () => clearInterval(id);
+  }, [fetchData, planAccess?.allowed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     async function initMeet() {
@@ -275,6 +289,18 @@ export default function MeetAddonMainStagePage() {
     );
   }
 
+  if (planLoading || !planAccess) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "var(--page-bg)" }}>
+        <div className="w-8 h-8 rounded-full border-4 border-[#C7D2FE] border-t-[#6366F1] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!planAccess.allowed) {
+    return <PlanLockedScreen state={planAccess.state} daysLeft={planAccess.daysLeft} />;
+  }
+
   return (
     <div className={`min-h-[100dvh] flex flex-col overflow-hidden relative`} style={{ background: "var(--page-bg)" }}>
 
@@ -337,7 +363,7 @@ export default function MeetAddonMainStagePage() {
             <div className="w-8 h-8 rounded-xl bg-[#EEF2FF] border border-[#C7D2FE] flex items-center justify-center">
               <span className="text-base">📚</span>
             </div>
-            <span className="text-xs font-black uppercase tracking-widest text-[#6366F1]">Cyber Library</span>
+            <span className="text-xs font-black uppercase tracking-widest text-[#6366F1]">Let's Study</span>
           </div>
           {studentName && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#EEF2FF] border border-[#C7D2FE]">
@@ -404,6 +430,26 @@ export default function MeetAddonMainStagePage() {
           </button>
         </div>
       </div>
+
+      {/* ── Trial Banner ── */}
+      {!zenMode && planAccess?.state === "trial" && (
+        <div className="relative z-10 mx-6 mt-3 flex items-center justify-between gap-4 px-5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 flex-shrink-0">
+          <span className="text-xs font-semibold text-amber-700">
+            ⚠️ Free trial chal raha hai —{" "}
+            <strong>{planAccess.daysLeft} din bache hain.</strong>{" "}
+            Add-on poora unlock rakhne ke liye plan lein.
+          </span>
+          <a
+            href="/pricing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] font-black uppercase tracking-wider text-white px-3 py-1.5 rounded-lg shrink-0"
+            style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+          >
+            Plan Lein →
+          </a>
+        </div>
+      )}
 
       {/* ── Daily Promise ── */}
       <AnimatePresence>
@@ -648,7 +694,7 @@ export default function MeetAddonMainStagePage() {
         <div className="relative z-10 flex items-center justify-between px-6 py-2 border-t border-[#E2E8F0] bg-white/70 flex-shrink-0">
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider">Live • Cyber Library Focus Session</span>
+            <span className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider">Live • Let's Study Focus Session</span>
           </div>
           <span className="text-[10px] text-[#CBD5E1] font-mono">cyberlib.in</span>
         </div>

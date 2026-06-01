@@ -27,7 +27,7 @@ type MeetAddonData = {
 
 const HOW_TO_STEPS = [
   { num: "01", title: "Open Google Meet", desc: "Join your scheduled study room session via the Meet link." },
-  { num: "02", title: "Launch the Add-on", desc: "Click the Cyber Library icon in Meet's sidebar to open the panel." },
+  { num: "02", title: "Launch the Add-on", desc: "Click the Let's Study icon in Meet's sidebar to open the panel." },
   { num: "03", title: "Enter Link Code", desc: "Generate a code below and paste it in the sidebar to sync your account." },
   { num: "04", title: "Start Focusing", desc: "Your Pomodoro timer, tasks, and coins all sync automatically." },
 ];

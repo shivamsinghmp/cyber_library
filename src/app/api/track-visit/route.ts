@@ -19,8 +19,10 @@ type VisitRow = {
 
 // Worker-local in-memory queue — batches DB writes across requests.
 const visitQueue: VisitRow[] = [];
-const FLUSH_EVERY_MS = 30_000;
-const EAGER_FLUSH_AT = 50;
+// Flush every 5 seconds so admin traffic dashboard shows fresh data quickly.
+// Eager-flush after 10 visits to avoid delay on busier pages.
+const FLUSH_EVERY_MS = 5_000;
+const EAGER_FLUSH_AT = 10;
 // Purge rows older than 90 days once per day per worker (DPDP Act retention policy)
 const RETENTION_DAYS = 90;
 let lastRetentionPurge = 0;

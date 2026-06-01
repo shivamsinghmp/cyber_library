@@ -24,8 +24,8 @@ export async function GET() {
     });
 
     const referredUsers = await prisma.user.findMany({
-      where: { referredById: userId, deletedAt: null },
-      select: { id: true, name: true, email: true, createdAt: true, referralRewarded: true },
+      where: { referredById: userId },
+      select: { id: true, name: true, email: true, createdAt: true, referralRewarded: true, deletedAt: true },
       orderBy: { createdAt: "desc" },
     });
 
@@ -34,16 +34,22 @@ export async function GET() {
       ? `${baseUrl}/signup?ref=${encodeURIComponent(dbUser.referralCode)}`
       : null;
 
+    const activeCount   = referredUsers.filter(u => !u.deletedAt).length;
+    const inactiveCount = referredUsers.filter(u =>  u.deletedAt).length;
+
     return NextResponse.json({
-      referralCode: dbUser?.referralCode ?? null,
+      referralCode:  dbUser?.referralCode ?? null,
       referralLink,
       referredCount: referredUsers.length,
+      activeCount,
+      inactiveCount,
       referredUsers: referredUsers.map((u) => ({
-        id: u.id,
-        name: u.name ?? u.email,
-        email: u.email,
+        id:       u.id,
+        name:     u.name ?? u.email,
+        email:    u.email,
         joinedAt: u.createdAt,
         rewarded: u.referralRewarded,
+        active:   !u.deletedAt,
       })),
     });
   } catch (e) {

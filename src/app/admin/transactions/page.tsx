@@ -8,6 +8,24 @@ import { AdminTh } from "@/components/ui";
 
 type OrderItem = { slotId: string; name: string; price: number };
 
+function deriveTxnType(orderDetails: unknown): "coin" | "subscription" | "slot" | "product" | "other" {
+  const items = Array.isArray(orderDetails) ? orderDetails : orderDetails ? [orderDetails] : [];
+  const name = (items[0] as OrderItem)?.name?.toLowerCase() ?? "";
+  if (name.includes("coin")) return "coin";
+  if (name.includes("membership") || name.includes("subscription")) return "subscription";
+  if (name.includes("slot")) return "slot";
+  if (name.includes("pack") && !name.includes("coin")) return "product";
+  return "other";
+}
+
+const TXN_TYPE_BADGE: Record<string, { label: string; cls: string }> = {
+  coin:         { label: "🪙 Coin Pack",    cls: "bg-amber-100 text-amber-700" },
+  subscription: { label: "⭐ Subscription", cls: "bg-indigo-100 text-indigo-700" },
+  slot:         { label: "🎟️ Slot",          cls: "bg-blue-100 text-blue-700" },
+  product:      { label: "📦 Product",      cls: "bg-purple-100 text-purple-700" },
+  other:        { label: "📄 Other",        cls: "bg-gray-100 text-gray-600" },
+};
+
 type TransactionRow = {
   id: string;
   transactionId: string;
@@ -44,6 +62,7 @@ export default function AdminTransactionsPage() {
   const { data, loading } = useFetch<TransactionRow[]>("/api/admin/transactions");
   const transactions = data ?? [];
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   function handleDownloadInvoice(txn: TransactionRow) {
     const details = normalizeOrderDetails(txn.orderDetails);
@@ -63,7 +82,15 @@ export default function AdminTransactionsPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:py-8">
       <h1 className="mb-2 text-2xl font-semibold text-[var(--cream)] md:text-3xl">Transactions</h1>
-      <p className="mb-6 text-sm text-[var(--cream-muted)]">All student orders and subscription payments processed through The Cyber Library.</p>
+      <p className="mb-4 text-sm text-[var(--cream-muted)]">All student orders and subscription payments processed through Let's Study.</p>
+
+      <div className="mb-5 flex flex-wrap gap-2">
+        {[["all", "All"], ["coin", "🪙 Coin Packs"], ["subscription", "⭐ Subscriptions"], ["slot", "🎟️ Slots"], ["product", "📦 Products"]].map(([val, label]) => (
+          <button key={val} onClick={() => setTypeFilter(val)} className={`rounded-full px-3 py-1 text-xs font-medium transition ${typeFilter === val ? "bg-[var(--foreground)] text-white" : "border border-gray-200 bg-white text-gray-600 hover:bg-gray-50"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
       {loading ? (
         <div className="rounded-2xl border border-gray-200 bg-gray-50 px-6 py-12 text-center text-sm text-[var(--cream-muted)]">Loading…</div>
@@ -79,6 +106,7 @@ export default function AdminTransactionsPage() {
               <tr className="border-b border-gray-200 bg-white">
                 <AdminTh>Transaction ID</AdminTh>
                 <AdminTh>User</AdminTh>
+                <AdminTh>Type</AdminTh>
                 <AdminTh>Amount</AdminTh>
                 <AdminTh>Status</AdminTh>
                 <AdminTh>Date</AdminTh>
@@ -86,7 +114,7 @@ export default function AdminTransactionsPage() {
               </tr>
             </thead>
             <tbody>
-              {transactions.map((txn) => {
+              {transactions.filter((txn) => typeFilter === "all" || deriveTxnType(txn.orderDetails) === typeFilter).map((txn) => {
                 const isExpanded = expandedId === txn.id;
                 const details = normalizeOrderDetails(txn.orderDetails);
                 const hasDetails = details.length > 0;
@@ -98,6 +126,9 @@ export default function AdminTransactionsPage() {
                         <p className="font-medium text-gray-900">{txn.user?.name || "—"}</p>
                         <p className="text-xs text-[var(--cream-muted)]">{txn.user?.email}</p>
                         {txn.user?.studentId && <p className="text-[10px] text-gray-400">{txn.user.studentId}</p>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {(() => { const t = deriveTxnType(txn.orderDetails); const b = TXN_TYPE_BADGE[t]; return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${b.cls}`}>{b.label}</span>; })()}
                       </td>
                       <td className="px-4 py-3 font-semibold text-gray-900">₹{txn.amount}</td>
                       <td className="px-4 py-3">

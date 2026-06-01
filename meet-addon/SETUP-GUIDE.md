@@ -1,6 +1,6 @@
 # Google Meet Add-on – Full Setup Guide (Step-by-Step)
 
-Yeh guide Virtual Library / CyberLib ke Google Meet add-on ko **zero se deploy** karne ke liye hai.
+Yeh guide Virtual Library / Let's Study ke Google Meet add-on ko **zero se deploy** karne ke liye hai.
 
 ---
 
@@ -16,7 +16,7 @@ Yeh guide Virtual Library / CyberLib ke Google Meet add-on ko **zero se deploy**
 1. Browser mein jao: [Google Cloud Console](https://console.cloud.google.com/)
 2. Top bar mein **project dropdown** (project name) pe click karo.
 3. **"New Project"** pe click karo.
-4. **Project name** daalo (e.g. `Virtual Library` ya `CyberLib Meet Addon`).
+4. **Project name** daalo (e.g. `Virtual Library` ya `Let's Study Meet Addon`).
 5. **Create** dabao. Jab project ban jaye, us project ko **select** kar lo.
 
 ---
@@ -75,7 +75,7 @@ Yeh guide Virtual Library / CyberLib ke Google Meet add-on ko **zero se deploy**
 5. Apni project ki file `meet-addon/deployment.json` kholo. Uska content copy karo.  
    Agar domain alag hai (e.g. `yourdomain.com`) to pehle values change karo:
 
-   - `name` → Apne add-on ka naam (e.g. "Virtual Library" ya "CyberLib").
+   - `name` → Apne add-on ka naam (e.g. "Virtual Library" ya "Let's Study").
    - `logoUrl` → Logo ka full URL (e.g. `https://cyberlib.in/logo.svg`).
    - `sidePanelUrl` → **Zaroor** aapki live site ka panel URL, e.g.  
      `https://cyberlib.in/meet-addon/panel`

@@ -55,37 +55,38 @@ const getLayoutSettings = unstable_cache(
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getLayoutSettings();
-  const siteTitle = settings.SITE_TITLE?.trim() || "The Cyber Library | Live 24/7 Focus Hub & Study Rooms";
-  const siteDescription = "Join the ultimate cyber library & focus hub. Study with ambitious peers via live Google Meet body doubling. Pomodoro sprints, silent accountability, and extreme productivity for UPSC, JEE, NEET & Professionals.";
+  const siteTitle = settings.SITE_TITLE?.trim() || "Let's Study | Live 24/7 Focus Hub & Study Rooms";
+  const siteDescription = "Join Let's Study — the ultimate virtual focus hub. Study with peers via live sessions. Pomodoro sprints, streaks, and accountability for UPSC, JEE, NEET & Professionals.";
 
   return {
     title: {
-      template: `%s | The Cyber Library`,
+      template: `%s | Let's Study`,
       default: siteTitle,
     },
     description: siteDescription,
-    keywords: ["the cyber library", "cyber library", "virtual library", "study room", "pomodoro timer", "body doubling", "study with me", "UPSC focus group", "JEE study room", "NEET study group", "online library"],
-    authors: [{ name: "The Cyber Library Team" }],
+    keywords: ["let's study", "lets study", "virtual study room", "study room", "pomodoro timer", "body doubling", "study with me", "UPSC focus group", "JEE study room", "NEET study group", "online library"],
+    authors: [{ name: "Let's Study Team" }],
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in"),
     alternates: { canonical: "/" },
     openGraph: {
-      title: siteTitle,
+      title: "Let's Study | Live 24/7 Focus Hub",
       description: siteDescription,
-      url: "/",
-      siteName: "The Cyber Library",
+      url: "https://cyberlib.in",
+      siteName: "Let's Study",
       locale: "en_IN",
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: siteTitle,
+      title: "Let's Study | Live 24/7 Focus Hub",
       description: siteDescription,
     },
     icons: {
-      icon: settings.SITE_FAVICON_URL?.trim() || "/favicon.png",
-      shortcut: settings.SITE_FAVICON_URL?.trim() || "/favicon.png",
-      apple: settings.SITE_FAVICON_URL?.trim() || "/favicon.png",
+      icon: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
+      shortcut: settings.SITE_FAVICON_URL?.trim() || "/favicon.svg",
+      apple: settings.SITE_FAVICON_URL?.trim() || "/icon-512.png",
     },
+    manifest: "/manifest.json",
   };
 }
 
@@ -106,10 +107,10 @@ export default async function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "The Cyber Library",
+    name: "Let's Study",
     url: siteUrl,
     description: "Live 24/7 Focus Hub & Study Rooms for body doubling.",
-    publisher: { "@type": "Organization", name: "The Cyber Library", url: siteUrl },
+    publisher: { "@type": "Organization", name: "Let's Study", url: siteUrl },
   };
 
   return (
@@ -118,6 +119,7 @@ export default async function RootLayout({
         {/* DNS prefetch for external resources */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Favicon handled by generateMetadata() icons + manifest fields — no extra link tags needed */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

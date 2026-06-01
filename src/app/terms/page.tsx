@@ -7,7 +7,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
-  description: "Read the Terms & Conditions for using The Cyber Library platform.",
+  description: "Read the Terms & Conditions for using Let's Study platform.",
 };
 
 const SECTIONS = [
@@ -18,7 +18,7 @@ const SECTIONS = [
     color: "text-[var(--accent)] bg-[var(--accent-pale)]",
     content: (
       <p>
-        By accessing or using The Cyber Library (&ldquo;the Service&rdquo;), you agree to be bound by these
+        By accessing or using Let's Study (&ldquo;the Service&rdquo;), you agree to be bound by these
         Terms and Conditions and our Privacy Policy. If you do not agree, please do not use the
         Service.
       </p>
@@ -31,7 +31,7 @@ const SECTIONS = [
     color: "text-violet-600 bg-violet-50",
     content: (
       <p>
-        The Cyber Library provides an online focus environment via video sessions (e.g. Google
+        Let's Study provides an online focus environment via video sessions (e.g. Google
         Meet), slot bookings, and related features including body-doubling sessions and optional
         Pomodoro-style structure. Access is subject to the plan you purchase and our Code of Conduct.
       </p>
@@ -84,7 +84,7 @@ const SECTIONS = [
     content: (
       <p>
         The Service, including its design, branding, and content (excluding user-generated
-        content), is owned by The Cyber Library or its licensors. You may not copy, modify, or
+        content), is owned by Let's Study or its licensors. You may not copy, modify, or
         distribute our materials without prior written permission.
       </p>
     ),
@@ -141,7 +141,7 @@ export default function TermsPage() {
             Last updated: <span className="font-semibold text-[var(--body-text)]">March 2025</span>
           </p>
           <p className="text-[var(--body-text)] text-lg leading-relaxed max-w-xl mx-auto">
-            Please read these terms carefully before using The Cyber Library platform and its services.
+            Please read these terms carefully before using Let's Study platform and its services.
           </p>
         </div>
       </section>

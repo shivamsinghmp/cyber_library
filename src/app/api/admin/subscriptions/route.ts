@@ -9,12 +9,14 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") ?? "ALL";
+    const planType = searchParams.get("planType") ?? "ALL";
     const search = searchParams.get("search") ?? "";
     const page = Math.max(1, Number(searchParams.get("page") ?? 1));
     const limit = 20;
 
     const where: Record<string, unknown> = {};
     if (status !== "ALL") where.status = status;
+    if (planType !== "ALL") where.planType = planType;
 
     const rows = await prisma.userSubscription.findMany({
       where,
@@ -51,13 +53,14 @@ export async function GET(request: Request) {
     }));
 
     // summary counts
-    const [active, expired, cancelled] = await Promise.all([
-      prisma.userSubscription.count({ where: { status: "ACTIVE" } }),
+    const [active, expired, cancelled, trial] = await Promise.all([
+      prisma.userSubscription.count({ where: { status: "ACTIVE", planType: { not: "TRIAL" } } }),
       prisma.userSubscription.count({ where: { status: "EXPIRED" } }),
       prisma.userSubscription.count({ where: { status: "CANCELLED" } }),
+      prisma.userSubscription.count({ where: { planType: "TRIAL", status: "ACTIVE" } }),
     ]);
 
-    return NextResponse.json({ data, hasMore, page, summary: { active, expired, cancelled } });
+    return NextResponse.json({ data, hasMore, page, summary: { active, expired, cancelled, trial } });
   } catch (e) {
     console.error("GET /api/admin/subscriptions:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
@@ -70,13 +73,31 @@ export async function POST(request: Request) {
     if (auth.error) return auth.error;
 
     const { userId, planType, months } = await request.json();
-    if (!userId || !["MONTHLY", "YEARLY"].includes(planType)) {
+    if (!userId?.trim() || !["MONTHLY", "YEARLY"].includes(planType)) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const durationMonths = planType === "YEARLY" ? 12 : Math.max(1, Number(months) || 1);
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const search = userId.trim();
+
+    // Accept internal cuid, Student ID (VL-...), or email
+    const user = await prisma.user.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [
+          { id: search },
+          { studentId: { equals: search, mode: "insensitive" } },
+          { email: { equals: search, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, name: true, email: true, studentId: true },
+    });
+    if (!user) {
+      return NextResponse.json({
+        error: `Student nahi mila. Student ID (VL-...), email, ya internal ID check karo.`,
+        searched: search,
+      }, { status: 404 });
+    }
 
     const now = new Date();
     const endDate = new Date(now);
@@ -84,15 +105,20 @@ export async function POST(request: Request) {
 
     // Cancel any existing active subscription first
     await prisma.userSubscription.updateMany({
-      where: { userId, status: "ACTIVE", endDate: { gt: now } },
+      where: { userId: user.id, status: "ACTIVE", endDate: { gt: now } },
       data: { status: "CANCELLED" },
     });
 
     const sub = await prisma.userSubscription.create({
-      data: { userId, planType, startDate: now, endDate, status: "ACTIVE", amountPaid: 0 },
+      data: { userId: user.id, planType, startDate: now, endDate, status: "ACTIVE", amountPaid: 0 },
     });
 
-    return NextResponse.json({ ok: true, id: sub.id });
+    return NextResponse.json({
+      ok: true,
+      id: sub.id,
+      endDate: sub.endDate,
+      user: { name: user.name, email: user.email, studentId: user.studentId },
+    });
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }

@@ -44,7 +44,7 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
             </motion.h1>
 
             <motion.p variants={fadeIn} className="max-w-lg text-lg leading-relaxed" style={{ color: "var(--body-text)" }}>
-              Ghar pe focus nahi hota? Phone haath mein aa jaata hai? Cyber Library mein aao — yahan students saath milke padhte hain, cameras on, mics off. Koi bakwaas nahi, sirf padhai.
+              Ghar pe focus nahi hota? Phone haath mein aa jaata hai? Let's Study mein aao — yahan students saath milke padhte hain, cameras on, mics off. Koi bakwaas nahi, sirf padhai.
             </motion.p>
 
             <motion.div variants={fadeIn} className="flex flex-wrap gap-4">

@@ -21,6 +21,7 @@ const PROBLEMS = [
   { emoji: "📅", problem: "Roz ka schedule nahi banta",              fix: "Fixed slots se automatic discipline aa jaati hai" },
   { emoji: "😔", problem: "Motivation aata jaata rehta hai",          fix: "Streak aur leaderboard roz aane ki wajah ban jaate hain" },
   { emoji: "😰", problem: "Exam pressure se burnout ho jaata hai",    fix: "Pomodoro breaks ensure karte hain ki dimag fresh rahe" },
+  { emoji: "📊", problem: "Pata nahi chalta ki progress ho rahi hai ya nahi", fix: "Roz WhatsApp pe daily progress update aata hai — streak, hours, aur next target sab clear" },
 ];
 
 const FEATURES = [
@@ -65,6 +66,13 @@ const FEATURES = [
     desc: "No social media, no chatting, no BS. Sirf padhai. Yahan aake time waste karna literally impossible hai.",
     gradient: "linear-gradient(145deg, #F87171, #DC2626)",
     glow: "rgba(220,38,38,0.40)",
+  },
+  {
+    icon: "💬",
+    title: "WhatsApp Daily Progress Update",
+    desc: "Roz WhatsApp pe aata hai — aaj kitna padha, streak kaisi hai, aur kal ke liye motivation. Consistency kabhi nahi tooti.",
+    gradient: "linear-gradient(145deg, #4ADE80, #16A34A)",
+    glow: "rgba(22,163,74,0.40)",
   },
 ];
 
@@ -148,12 +156,13 @@ const COMPARISON = [
   { point: "Schedule",               us: "Fixed daily slots",            others: "Kabhi bhi, matlab kabhi nahi" },
   { point: "Cost",                   us: "Free to start",                others: "Costly coaching centers" },
   { point: "Community",              us: "India ke serious students",    others: "Akele struggle" },
+  { point: "Daily update",           us: "WhatsApp pe progress report",  others: "Khud track karo ya bhool jao" },
 ];
 
 const TESTIMONIALS = [
   {
     name: "Priya S.",    role: "UPSC 2024 Aspirant",
-    quote: "Mains mein 6 ghante daily reading ho gayi — pehle 2 ghante bhi mushkil the. Cyber Library ne literally meri preparation badal di.",
+    quote: "Mains mein 6 ghante daily reading ho gayi — pehle 2 ghante bhi mushkil the. Let's Study ne literally meri preparation badal di.",
     initial: "P", color: "linear-gradient(135deg, #6366F1, #8B5CF6)",
   },
   {
@@ -175,6 +184,7 @@ const FAQ = [
   { q: "Kaunsi exams ke students yahan hain?", a: "UPSC, JEE, NEET, GATE, CAT, boards — sab tarah ke students yahan padhte hain." },
   { q: "Internet slow ho toh?", a: "Google Meet basic internet pe bhi kaam karta hai. Camera off karke bhi join kar sakte ho." },
   { q: "Kya mobile se join kar sakte hain?", a: "Haan, Google Meet mobile pe bhi chalta hai. Laptop nahi hai toh bhi chalega." },
+  { q: "WhatsApp update kaise milega?", a: "Join karne ke baad WhatsApp number save karo aur group mein add ho jao — roz raat ko progress update aata hai apne aap." },
 ];
 
 export default function WhyJoinPage() {
@@ -219,7 +229,7 @@ export default function WhyJoinPage() {
 
             <motion.p variants={fadeIn} className="mx-auto max-w-2xl text-lg leading-relaxed"
               style={{ color: "var(--body-text)" }}>
-              Cyber Library ek aisa jagah hai jahan real students roz aake padhte hain — cameras on, mics off, zero distractions.
+              Let's Study ek aisa jagah hai jahan real students roz aake padhte hain — cameras on, mics off, zero distractions.
               Ek baar try karo, fark khud pata chalega.
             </motion.p>
 
@@ -282,7 +292,7 @@ export default function WhyJoinPage() {
                 Ye Sab Sound Familiar Karta Hai?
               </motion.h2>
               <motion.p variants={fadeIn} className="mt-4 text-lg" style={{ color: "var(--body-text)" }}>
-                Ye problems sirf tumhare nahi hain — almost every student face karta hai. Aur Cyber Library inhe fix karta hai.
+                Ye problems sirf tumhare nahi hain — almost every student face karta hai. Aur Let's Study inhe fix karta hai.
               </motion.p>
             </div>
 
@@ -555,7 +565,7 @@ export default function WhyJoinPage() {
             <div className="mb-14 text-center">
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                Cyber Library vs Ghar Pe Akele Padhna
+                Let's Study vs Ghar Pe Akele Padhna
               </motion.h2>
             </div>
 
@@ -570,7 +580,7 @@ export default function WhyJoinPage() {
                   background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
                   color: "white",
                 }}>
-                  ✨ Cyber Library
+                  ✨ Let's Study
                 </div>
                 <div className="p-4" style={{ color: "var(--muted-text)", background: "var(--page-bg)" }}>Ghar Pe Akele</div>
               </div>

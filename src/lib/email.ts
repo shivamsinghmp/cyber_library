@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Email via Resend API only.
  * RESEND_API_KEY and RESEND_FROM must be set in .env.
  * Every sent email is logged to EmailLog with resendId for webhook tracking.
@@ -22,7 +22,7 @@ async function getFromAddress(): Promise<string> {
   return (
     process.env.RESEND_FROM?.trim() ||
     (await getAppSetting("RESEND_FROM")) ||
-    "The Cyber Library <no-reply@cyberlib.in>"
+    "Let's Study <no-reply@cyberlib.in>"
   );
 }
 
@@ -117,7 +117,7 @@ function defaultOtpHtml(code: string, name: string | null | undefined, context: 
   return `
 <div style="font-family:Inter,sans-serif;padding:32px;background:#f4f4f5;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e4e4e7;padding:36px;">
-    <p style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6366f1;margin:0 0 12px;">The Cyber Library</p>
+    <p style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6366f1;margin:0 0 12px;">Let's Study</p>
     <h1 style="font-size:22px;font-weight:800;color:#09090b;margin:0 0 8px;">${headline}</h1>
     <p style="color:#52525b;font-size:14px;margin:0 0 28px;">${greeting}<br/>${subtext}</p>
     <div style="background:#f4f4f5;border-radius:12px;padding:20px;text-align:center;margin-bottom:28px;">
@@ -134,7 +134,7 @@ function defaultVerifyHtml(verifyUrl: string, name: string | null | undefined): 
   return `
 <div style="font-family:Inter,sans-serif;padding:32px;background:#f4f4f5;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e4e4e7;padding:36px;">
-    <p style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6366f1;margin:0 0 12px;">The Cyber Library</p>
+    <p style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6366f1;margin:0 0 12px;">Let's Study</p>
     <h1 style="font-size:22px;font-weight:800;color:#09090b;margin:0 0 8px;">Verify Your Email</h1>
     <p style="color:#52525b;font-size:14px;margin:0 0 28px;">${greeting}<br/>Click the button below to verify your email address.</p>
     <a href="${verifyUrl}" style="display:inline-block;background:#6366f1;color:#fff;font-weight:700;font-size:14px;padding:14px 28px;border-radius:12px;text-decoration:none;">Verify Email →</a>
@@ -154,8 +154,8 @@ export async function sendOtpEmail(
 ) {
   const templatePurpose = context === "verify" ? "OTP_VERIFY" : "OTP_RESET";
   const defaultSubject  = context === "verify"
-    ? "Verify your The Cyber Library account"
-    : "Your password reset OTP — The Cyber Library";
+    ? "Verify your Let's Study account"
+    : "Your password reset OTP — Let's Study";
 
   let subject = defaultSubject;
   let html    = "";
@@ -179,7 +179,7 @@ export async function sendOtpEmail(
 // ─── Email Verification (magic link) ──────────────────────────────────────────
 
 export async function sendMagicLinkEmail(to: string, verifyUrl: string, name?: string | null) {
-  let subject = "Verify your The Cyber Library account";
+  let subject = "Verify your Let's Study account";
   let html    = "";
 
   try {
@@ -239,8 +239,8 @@ export async function sendPurchaseReceipt({
     d.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
 
   const subject = isSubscription
-    ? `🎉 Welcome to Premium — The Cyber Library`
-    : `Payment Confirmed — The Cyber Library`;
+    ? `🎉 Welcome to Premium — Let's Study`
+    : `Payment Confirmed — Let's Study`;
 
   const rows = items
     .map(
@@ -288,8 +288,8 @@ export async function sendPurchaseReceipt({
 
     <!-- Header with gradient -->
     <div style="background:linear-gradient(135deg,#1e1b4b 0%,#3730a3 60%,#4c1d95 100%);border-radius:20px 20px 0 0;padding:32px 36px 28px;text-align:center;">
-      <img src="${logoUrl}" alt="The Cyber Library" width="64" height="64" style="border-radius:16px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;" />
-      <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#a5b4fc;">THE CYBER LIBRARY</p>
+      <img src="${logoUrl}" alt="Let's Study" width="64" height="64" style="border-radius:16px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto;" />
+      <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#a5b4fc;">LET'S STUDY</p>
       <p style="margin:4px 0 0;font-size:12px;color:#6366f1;letter-spacing:3px;opacity:0.7;">LEARN · GROW · CONNECT</p>
     </div>
 
@@ -306,7 +306,7 @@ export async function sendPurchaseReceipt({
         </h1>
         <p style="margin:0;color:#6b7280;font-size:14px;">
           ${isSubscription
-            ? `${firstName}, you're now a Premium Member of The Cyber Library.`
+            ? `${firstName}, you're now a Premium Member of Let's Study.`
             : `Hi ${firstName}, your payment was successful.`}
         </p>
       </div>
@@ -400,7 +400,7 @@ export async function sendPurchaseReceipt({
 
     <!-- Footer -->
     <div style="background:#1e1b4b;border-radius:0 0 20px 20px;padding:20px 36px;text-align:center;">
-      <p style="margin:0 0 4px;font-size:11px;color:#6366f1;letter-spacing:2px;text-transform:uppercase;">The Cyber Library</p>
+      <p style="margin:0 0 4px;font-size:11px;color:#6366f1;letter-spacing:2px;text-transform:uppercase;">Let's Study</p>
       <p style="margin:0;font-size:11px;color:#4c4477;">© ${new Date().getFullYear()} cyberlib.in — All rights reserved</p>
     </div>
 
@@ -408,7 +408,7 @@ export async function sendPurchaseReceipt({
 </body>
 </html>`;
 
-  const text = `${isSubscription ? "Welcome to Premium! — The Cyber Library" : "Payment Confirmed — The Cyber Library"}\n\nHi ${firstName},\n\nTotal: ₹${totalAmount}\nTransaction: ${transactionId}\nDate: ${date}\n\nView receipt: ${receiptUrl}\n\nSupport: support@cyberlib.in`;
+  const text = `${isSubscription ? "Welcome to Premium! — Let's Study" : "Payment Confirmed — Let's Study"}\n\nHi ${firstName},\n\nTotal: ₹${totalAmount}\nTransaction: ${transactionId}\nDate: ${date}\n\nView receipt: ${receiptUrl}\n\nSupport: support@cyberlib.in`;
 
   return sendAndLog({ to, toName: customerName, subject, html, text, purpose: "RECEIPT" });
 }

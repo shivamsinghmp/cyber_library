@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       await new Promise((r) => setTimeout(r, 100));
     }
 
-    console.log(`sync-calendar: slot=${slotId} added=${added} failed=${failed}`);
+    console.info(`[sync-calendar] slot=${slotId} added=${added} failed=${failed}`);
     return NextResponse.json({
       success: true,
       added,

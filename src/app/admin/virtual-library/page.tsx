@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -59,7 +59,7 @@ export default function AdminVirtualLibraryPage() {
           })
         )
       );
-      toast.success("The Cyber Library settings saved");
+      toast.success("Let's Study settings saved");
     } catch {
       toast.error("Failed to save");
     }
@@ -86,7 +86,7 @@ export default function AdminVirtualLibraryPage() {
         </Link>
         <h1 className="mt-2 flex items-center gap-2 text-2xl font-bold text-gray-900">
           <ImageIcon className="h-7 w-7 text-[var(--accent)]" />
-          Edit The Cyber Library
+          Edit Let's Study
         </h1>
         <p className="mt-1 text-sm text-[var(--cream-muted)]">
           Logo, favicon, site title, tagline and main headline. Leave blank to use defaults.
@@ -118,7 +118,7 @@ export default function AdminVirtualLibraryPage() {
           <textarea
             value={values.FOOTER_TEXT}
             onChange={(e) => setValue("FOOTER_TEXT", e.target.value)}
-            placeholder="© 2026 The Cyber Library – The Focus Hub."
+            placeholder="© 2026 Let's Study – The Focus Hub."
             rows={2}
             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-[var(--cream)] placeholder:text-gray-300 focus:border-indigo-400 focus:outline-none resize-none"
           />
@@ -147,7 +147,7 @@ export default function AdminVirtualLibraryPage() {
             type="text"
             value={values.SITE_TITLE}
             onChange={(e) => setValue("SITE_TITLE", e.target.value)}
-            placeholder="The Cyber Library"
+            placeholder="Let's Study"
             className="admin-input"
           />
           <p className="mt-1 text-[10px] text-[var(--cream-muted)]">Browser title and name next to logo</p>

@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LoginCard } from "./components/LoginCard";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { AIChatBot }    from "./components/AIChatBot";
+import { PlanLockedScreen } from "./components/PlanLockedScreen";
 
 const TOKEN_KEY = "vl_meet_addon_token";
 const TIMER_STORAGE_KEY = "vl_meet_timer_state";
@@ -96,6 +97,9 @@ export default function MeetAddonPanelPage() {
   const [slotTodaySeconds, setSlotTodaySeconds] = useState(0);
   const [slotLiveSeconds, setSlotLiveSeconds] = useState(0);
 
+  const [planAccess, setPlanAccess] = useState<{ allowed: boolean; state: string; daysLeft?: number } | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
+
   const [brainDumps, setBrainDumps] = useState<{ id: string; title?: string; text: string }[]>([]);
   const [dumpTitle, setDumpTitle] = useState("");
   const [dumpInput, setDumpInput] = useState("");
@@ -141,6 +145,24 @@ export default function MeetAddonPanelPage() {
     }
     initMeetAddon();
   }, []);
+
+  // Fetch plan access whenever token changes
+  useEffect(() => {
+    if (!token) { setPlanAccess(null); return; }
+    setPlanLoading(true);
+    fetch("/api/meet-addon/me", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { name?: string; planAccess?: { allowed: boolean; state: string; daysLeft?: number } } | null) => {
+        if (!d) { setPlanAccess({ allowed: false, state: "no_plan" }); return; }
+        if (d.name && !studentName) {
+          setStudentName(d.name);
+          localStorage.setItem("vl_meet_addon_name", d.name);
+        }
+        setPlanAccess(d.planAccess ?? { allowed: false, state: "no_plan" });
+      })
+      .catch(() => setPlanAccess({ allowed: false, state: "no_plan" }))
+      .finally(() => setPlanLoading(false));
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setTokenState(getToken());
@@ -206,7 +228,7 @@ export default function MeetAddonPanelPage() {
     finally { setTasksLoading(false); }
   };
 
-  useEffect(() => { if (token) fetchTasks(); }, [token]);
+  useEffect(() => { if (token && planAccess?.allowed) fetchTasks(); }, [token, planAccess?.allowed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [activePolls, setActivePolls] = useState<any[]>([]);
   const [pollSubmitting, setPollSubmitting] = useState(false);
@@ -221,11 +243,11 @@ export default function MeetAddonPanelPage() {
   };
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !planAccess?.allowed) return;
     fetchPolls();
     const id = setInterval(fetchPolls, 10000);
     return () => clearInterval(id);
-  }, [token]);
+  }, [token, planAccess?.allowed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentPoll = activePolls[0] || null;
 
@@ -424,6 +446,26 @@ export default function MeetAddonPanelPage() {
     return <LoginCard onLogin={(t) => { saveToken(t); setTokenState(t); }} />;
   }
 
+  // ── PLAN ACCESS LOADING ──────────────────────────────────────────────────────
+  if (planLoading || !planAccess) {
+    return (
+      <div className="min-h-[100dvh] bg-[var(--page-bg)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin" />
+      </div>
+    );
+  }
+
+  // ── PLAN ACCESS GATE ────────────────────────────────────────────────────────
+  if (!planAccess.allowed) {
+    return (
+      <PlanLockedScreen
+        state={planAccess.state}
+        daysLeft={planAccess.daysLeft}
+        onBack={() => { clearToken(); setTokenState(null); setPlanAccess(null); }}
+      />
+    );
+  }
+
   if (token && tasksLoading) {
     return (
       <div className="min-h-[100dvh] bg-[var(--page-bg)] flex items-center justify-center">
@@ -579,6 +621,24 @@ export default function MeetAddonPanelPage() {
                     <Check className="w-5 h-5" strokeWidth={3} />
                   </button>
                 )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Trial Banner ── */}
+          {!zenMode && planAccess?.state === "trial" && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+              className="w-full flex justify-center mb-3">
+              <div className="flex items-center justify-between gap-4 px-5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 w-full max-w-md">
+                <span className="text-xs font-semibold text-amber-700">
+                  ⚠️ Free trial —{" "}
+                  <strong>{planAccess.daysLeft} din bache hain.</strong>
+                </span>
+                <a href="/pricing" target="_blank" rel="noopener noreferrer"
+                  className="text-[10px] font-black uppercase tracking-wider text-white px-3 py-1.5 rounded-lg shrink-0"
+                  style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}>
+                  Plan Lein →
+                </a>
               </div>
             </motion.div>
           )}

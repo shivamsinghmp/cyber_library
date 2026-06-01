@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { Suspense } from "react";
 import { getAppSetting } from "@/lib/app-settings";
 import { Facebook, Instagram, Twitter, Github, Youtube } from "lucide-react";
@@ -56,7 +56,7 @@ const DEFAULT_FOOTER: FooterConfig = {
     { platform: "twitter",   url: "https://twitter.com" },
     { platform: "github",    url: "https://github.com" },
   ],
-  copyright: `© ${new Date().getFullYear()} The Cyber Library. All rights reserved.`,
+  copyright: `© ${new Date().getFullYear()} Let's Study. All rights reserved.`,
 };
 
 function resolveIcon(platform: string) {
@@ -89,15 +89,15 @@ function FooterInner({ config }: { config: FooterConfig }) {
             <div className="flex items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logo.png"
-                alt="The Cyber Library"
+                src="/favicon.svg"
+                alt="Let's Study"
                 width={36}
                 height={36}
                 className="h-9 w-9 object-contain flex-shrink-0"
                 style={{ filter: "drop-shadow(0 3px 8px rgba(99,102,241,0.35))" }}
               />
               <div>
-                <p className="text-base font-extrabold leading-tight" style={{ color: "var(--foreground)" }}>The Cyber Library</p>
+                <p className="text-base font-extrabold leading-tight" style={{ color: "var(--foreground)" }}>Let's Study</p>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.15em]" style={{ color: "var(--accent)" }}>The Focus Hub</p>
               </div>
             </div>

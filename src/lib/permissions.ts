@@ -83,7 +83,7 @@ export async function autoCheckApiAccess(req: Request): Promise<boolean> {
 
   if (url.includes("/admin/staff") || url.includes("/admin/students") || url.includes("/admin/authors") || url.includes("/admin/referrals")) {
     requiredModule = "STAFF_MGMT";
-  } else if (url.includes("/admin/transactions") || url.includes("/admin/products") || url.includes("/admin/coupons") || url.includes("/admin/rewards") || url.includes("/admin/coin-engine") || url.includes("/admin/razorpay")) {
+  } else if (url.includes("/admin/transactions") || url.includes("/admin/products") || url.includes("/admin/coupons") || url.includes("/admin/rewards") || url.includes("/admin/coin-engine")) {
     requiredModule = "FINANCE";
   } else if (url.includes("/admin/whatsapp") || url.includes("/admin/leads") || url.includes("/admin/forms") || url.includes("/admin/faqs") || url.includes("/admin/email") || url.includes("/admin/support") || url.includes("/admin/feedback")) {
     requiredModule = "ENGAGEMENT";

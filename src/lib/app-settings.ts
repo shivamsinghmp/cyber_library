@@ -34,6 +34,8 @@ export const APP_SETTING_KEYS = {
   RESEND_API_KEY:                 { label: "Resend API Key (for transactional emails)",           secret: true  },
   RESEND_FROM:                    { label: "Resend sender address (e.g. no-reply@cyberlib.in)",   secret: false },
   CHECKIN_COINS:                  { label: "Daily Check-in Coins (default: 5)",                   secret: false },
+  TRIAL_DAYS:                     { label: "Free trial duration in days (default: 7)",              secret: false },
+  TRIAL_WARNING_DAYS:             { label: "Days before trial expiry to send warning (default: 3)", secret: false },
   GEMINI_API_KEY:                 { label: "Google Gemini API Key (AI Studio — aistudio.google.com/apikey)", secret: true  },
   VERTEX_PROJECT_ID:              { label: "Vertex AI — Google Cloud Project ID (legacy)",           secret: false },
   VERTEX_LOCATION:                { label: "Vertex AI — Region (legacy)",                            secret: false },

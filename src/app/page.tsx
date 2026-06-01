@@ -31,7 +31,7 @@ const getCachedFaqs = unstable_cache(
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await batchGetAppSettings(["SITE_TITLE"]);
-  const title = settings.SITE_TITLE?.trim() || "The Cyber Library | Live 24/7 Focus Hub & Study Rooms";
+  const title = settings.SITE_TITLE?.trim() || "Let's Study | Live 24/7 Focus Hub & Study Rooms";
   return { title: { absolute: title } };
 }
 

@@ -6,8 +6,8 @@ import { prisma } from "@/lib/prisma";
 export const revalidate = 60; // ISR: rebuild at most every 60 s, serve static otherwise
 
 export const metadata: Metadata = {
-  title: "Blog – Padhai Tips & Focus Strategies | The Cyber Library",
-  description: "Focus kaise kare, exam preparation, study habits aur deep work ke baare mein tips. The Cyber Library ka official blog.",
+  title: "Blog – Padhai Tips & Focus Strategies | Let's Study",
+  description: "Focus kaise kare, exam preparation, study habits aur deep work ke baare mein tips. Let's Study ka official blog.",
 };
 
 function formatDate(s: Date | string) {

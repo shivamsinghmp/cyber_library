@@ -20,7 +20,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<void> {
   const w = 210;
   const m = 20;
 
-  // Colors based on the required layout but adapted to "The Cyber Library" luxury feel
+  // Colors based on the required layout but adapted to "Let's Study" luxury feel
   const PRIMARY_BG = [20, 25, 30]; // Deep Charcoal/Navy for the big header
   const TABLE_HEADER = [35, 45, 55]; // Slightly lighter for table
   const TEXT_DARK = [40, 40, 40];
@@ -72,7 +72,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<void> {
   }
   
   // From details
-  doc.text("The Cyber Library", w - m, y, { align: "right" });
+  doc.text("Let's Study", w - m, y, { align: "right" });
   doc.text("support@cyberlib.in", w - m, y + 6, { align: "right" });
   doc.text("www.cyberlib.in", w - m, y + 12, { align: "right" });
 
@@ -112,7 +112,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<void> {
   y += rowH;
 
   // --- TABLE ROWS ---
-  const items = data.items.length > 0 ? data.items : [{ name: "Cyber Library Subscription", price: data.amount }];
+  const items = data.items.length > 0 ? data.items : [{ name: "Let's Study Subscription", price: data.amount }];
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);

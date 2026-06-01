@@ -90,7 +90,7 @@ export function LoginCard({ onLogin }: Props) {
             style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
             <span className="text-2xl">📚</span>
           </div>
-          <h1 className="text-lg font-black tracking-widest text-[#0F172A] uppercase">Cyber Library</h1>
+          <h1 className="text-lg font-black tracking-widest text-[#0F172A] uppercase">Let's Study</h1>
           <p className="text-xs text-[#64748B] mt-1">Sign in to sync your study session</p>
         </div>
 

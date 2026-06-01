@@ -4,7 +4,7 @@ import { Users, Clock, Zap, Heart } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "The Cyber Library — a 24/7 body doubling study hub built for UPSC, JEE, NEET and anyone who wants to do real deep work.",
+  description: "Let's Study — a 24/7 body doubling study hub built for UPSC, JEE, NEET and anyone who wants to do real deep work.",
 };
 
 const PILLARS = [
@@ -43,7 +43,7 @@ export default function AboutPage() {
         <div className="relative mx-auto max-w-3xl text-center">
           <p className="section-eyebrow">Our Mission</p>
           <h1 className="text-4xl font-black text-[var(--foreground)] md:text-5xl leading-tight mb-6">
-            What is The Cyber Library?
+            What is Let's Study?
           </h1>
           <p className="text-lg text-[var(--body-text)] leading-relaxed max-w-2xl mx-auto">
             A 24/7 online study hub built around{" "}
@@ -87,7 +87,7 @@ export default function AboutPage() {
                 changed everything. That quiet accountability became the missing piece.
               </p>
               <p>
-                We built The Cyber Library so anyone with an internet connection could get the same:
+                We built Let's Study so anyone with an internet connection could get the same:
                 a calm, rule-based space where you show up, declare your task, and work alongside others
                 who are doing the same.
               </p>

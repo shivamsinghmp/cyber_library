@@ -3,7 +3,9 @@ import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { generateStudentId } from "@/lib/studentId";
+import { generateStudentReferralCode } from "@/lib/referral";
 import { rateLimit } from "@/lib/rate-limit";
+import { auditLog } from "@/lib/auditLog";
 
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
@@ -12,6 +14,7 @@ const signupSchema = z.object({
   goal: z.string().min(1, "Study goal is required").max(100),
   whatsappNumber: z.string().min(10, "Valid WhatsApp number is required").max(20),
   otp: z.string().length(6, "OTP must be 6 digits"),
+  whatsappMarketing: z.boolean().optional().default(true),
 });
 
 export async function POST(request: Request) {
@@ -30,7 +33,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { name, email, password, goal, whatsappNumber, otp } = parsed.data;
+    const { name, email, password, goal, whatsappNumber, otp, whatsappMarketing } = parsed.data;
     const rawRef = typeof body.ref === "string" ? body.ref.trim() : "";
     const refCode = rawRef.length > 0 && rawRef.length <= 20 && /^[a-zA-Z0-9_-]+$/.test(rawRef)
       ? rawRef
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
 
     const referredById = refUser?.id ?? null;
 
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         name,
         email,
@@ -91,10 +94,24 @@ export async function POST(request: Request) {
             studyGoal: goal,
             whatsappNumber,
             phone: whatsappNumber,
+            whatsappMarketing,
           },
         },
       },
+      select: { id: true },
     });
+
+    // Auto-generate referral code at registration (non-blocking — never fails signup)
+    generateStudentReferralCode(newUser.id).catch(() => {});
+
+    // Security audit log (fire-and-forget)
+    auditLog("signup", request, { userId: newUser.id, goal });
+
+    // Send WhatsApp welcome message (fire-and-forget — never blocks signup response)
+    if (whatsappNumber) {
+      const { sendWelcomeMessage } = await import("@/lib/whatsapp");
+      sendWelcomeMessage({ phone: whatsappNumber, name, studentId }).catch(() => {});
+    }
 
     // Cleanup used OTP
     await prisma.whatsAppOTP.deleteMany({ where: { phoneNumber: whatsappNumber } });

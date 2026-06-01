@@ -56,9 +56,16 @@ export async function POST(request: Request) {
     // 1. Calculate base amount from strictly trusted database tables
     if (type === "COIN_PACK") {
       const packId = ids[0];
-      const pack = COIN_PACKS[packId];
-      if (!pack) return NextResponse.json({ error: "Invalid coin pack" }, { status: 400 });
-      computedAmountRupees = pack.priceRupees;
+      if (packId.startsWith("COINS_CUSTOM_")) {
+        const rupees = parseInt(packId.replace("COINS_CUSTOM_", ""), 10);
+        if (!Number.isFinite(rupees) || rupees < 10 || rupees > 10000)
+          return NextResponse.json({ error: "Custom amount ₹10 se ₹10,000 ke beech hona chahiye." }, { status: 400 });
+        computedAmountRupees = rupees;
+      } else {
+        const pack = COIN_PACKS[packId];
+        if (!pack) return NextResponse.json({ error: "Invalid coin pack" }, { status: 400 });
+        computedAmountRupees = pack.priceRupees;
+      }
     } else if (type === "CART") {
       // Filter out already-enrolled slots to prevent double booking
       const existingSubs = await prisma.roomSubscription.findMany({

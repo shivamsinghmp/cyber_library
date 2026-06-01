@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { createStudyRoomEvent } from "@/lib/google-calendar";
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       const eDate = new Date(parsed.data.endTime);
       
       try {
-        const generated = await createStudyRoomEvent(`The Cyber Library: ${parsed.data.name}`, sDate, eDate);
+        const generated = await createStudyRoomEvent(`Let's Study: ${parsed.data.name}`, sDate, eDate);
         finalMeetLink = generated.meetLink;
         finalCalendarEventId = generated.calendarEventId;
       } catch (meetErr: unknown) {

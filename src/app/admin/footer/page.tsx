@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -61,7 +61,7 @@ const DEFAULT_FOOTER: FooterConfig = {
     { platform: "github", url: "https://github.com" },
     { platform: "youtube", url: "https://youtube.com" },
   ],
-  copyright: `© ${new Date().getFullYear()} The Cyber Library. All rights reserved.`,
+  copyright: `© ${new Date().getFullYear()} Let's Study. All rights reserved.`,
 };
 
 export default function FooterSettingsPage() {

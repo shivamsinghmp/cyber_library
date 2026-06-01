@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { Shield, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Rules & Guidelines | The Cyber Library",
-  description: "Cyber Library ke rules padho — mic muted, camera on, zero distraction. Ye rules isiliye hain taaki sabka experience best rahe.",
+  title: "Rules & Guidelines | Let's Study",
+  description: "Let's Study ke rules padho — mic muted, camera on, zero distraction. Ye rules isiliye hain taaki sabka experience best rahe.",
 };
 
 const RULES = [

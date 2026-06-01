@@ -7,7 +7,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How The Cyber Library collects, uses, and protects your personal information.",
+  description: "How Let's Study collects, uses, and protects your personal information.",
 };
 
 const SECTIONS = [
@@ -18,7 +18,7 @@ const SECTIONS = [
     color: "text-[var(--accent)] bg-[var(--accent-pale)]",
     content: (
       <p>
-        The Cyber Library (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) is committed to protecting your
+        Let's Study (&ldquo;we&rdquo;, &ldquo;our&rdquo;, or &ldquo;us&rdquo;) is committed to protecting your
         privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your
         information when you use our website and services, including focus sessions, slot bookings,
         and payments.

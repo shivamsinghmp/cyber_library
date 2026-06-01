@@ -24,6 +24,7 @@ model User {
   referredById     String? // user who referred this account (typically an INFLUENCER)
   referralRewarded Boolean   @default(false) // has first-purchase referral reward been granted
   isSuperAdmin     Boolean   @default(false) // DB-controlled superadmin — replaces hardcoded email check
+  trialUsed        Boolean   @default(false) // 7-day free trial already claimed
   deletedAt        DateTime? // soft delete: moved to bin; auto-deleted after 30 days
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -56,9 +57,13 @@ model User {
 
   referredBy         User?               @relation("UserReferrals", fields: [referredById], references: [id])
   referrals          User[]              @relation("UserReferrals")
+  adminCoinLogs      StudyCoinLog[]      @relation("AdminCoinLogs")
+  aiUsageLogs        AIUsageLog[]        @relation("AIUsageLogs")
+  trialLogs          TrialLog[]
   employeePermission EmployeePermission?
   blogComments       BlogComment[]
   adminAuditLogs     AdminAuditLog[]
+  studentEvents      StudentEvent[]
   userSubscriptions  UserSubscription[]
 }
 
@@ -112,6 +117,7 @@ model Profile {
   longestStreak       Int       @default(0)
   totalPoints         Int       @default(0)
   coinBalance         Int       @default(0) // materialized coin balance — updated atomically on earn/spend
+  whatsappMarketing   Boolean   @default(true) // user opted in to WhatsApp marketing messages at signup
   dailyMantra         String?   @db.Text
   customFields        Json? // admin-defined custom fields (key -> value)
   createdAt           DateTime  @default(now())
@@ -120,6 +126,10 @@ model Profile {
   updatedAt           DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([whatsappNumber]) // signup duplicate check: OR [{ whatsappNumber }, { phone }]
+  @@index([phone])          // signup duplicate check
+  @@index([coinBalance])    // leaderboard queries ordering by coinBalance
 }
 
 // Admin-defined profile fields per role (Student, Staff, Author)
@@ -193,6 +203,9 @@ model StudySlot {
   subscriptions RoomSubscription[]
   checkIns      RoomCheckIn[]
   studySessions StudySession[]
+
+  @@index([isActive, slotType]) // public slots query: WHERE isActive=true AND slotType=?
+  @@index([isActive])           // slots list: WHERE isActive=true ORDER BY createdAt
 }
 
 // Student's purchased room subscriptions (after checkout)
@@ -540,19 +553,40 @@ model PomodoroTimerSession {
 
 // Meet add-on: coin ledger for gamification
 model StudyCoinLog {
-  id        String   @id @default(cuid())
-  roomId    String?
-  userId    String
-  coins     Int
-  reason    String
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  txnId         String?  @unique          // TXN + timestamp + random (e.g. TXN17170284938821)
+  roomId        String?
+  userId        String
+  coins         Int
+  reason        String
+  balanceBefore Int?                      // coinBalance snapshot before this entry
+  balanceAfter  Int?                      // coinBalance snapshot after this entry
+  adminId       String?                   // admin who triggered this (manual grant/deduct)
 
-  room MeetRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // ── Rich audit metadata ──────────────────────────────────────────────────
+  sourceCategory String?  @db.VarChar(50)  // 'coin_pack'|'checkin_bonus'|'study_session'|'admin_grant'|'admin_deduct'|'product_purchase'|'ai_usage'|'daily_streak'|'achievement'|'referral_bonus'|'welcome_bonus'|'refund'|'cashback'|'subscription'|'course_unlock'|'quiz_attempt'
+  sourceLabel    String?  @db.VarChar(200) // "Starter Pack (100 coins)", "Daily check-in"
+  referenceType  String?  @db.VarChar(50)  // 'payment'|'product'|'course'|'quiz'|'referral'|'admin'|'system'
+  referenceId    String?  @db.VarChar(100) // Razorpay PAY123 / product CUID / etc.
+  referenceName  String?  @db.VarChar(200) // Human-readable: "Study Pack", "Maths Ch.5"
+  deviceType     String?  @default("web_browser") @db.VarChar(50) // 'mobile_app'|'web_browser'|'admin_panel'|'system'
+  ipAddress      String?  @db.Inet         // Native PostgreSQL INET type
+  adminName      String?  @db.VarChar(100) // Denormalised for fast access without join
+  adminReason    String?  @db.Text         // Admin-provided justification
+
+  createdAt     DateTime @default(now())
+
+  room  MeetRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin User?     @relation("AdminCoinLogs", fields: [adminId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([roomId])
-  @@index([userId, reason])   // AI message count queries: WHERE reason LIKE 'AI_MSG%'
+  @@index([userId, reason])          // AI message count queries: WHERE reason LIKE 'AI_MSG%'
+  @@index([adminId])
+  @@index([createdAt])               // full-log queries: ORDER BY createdAt DESC without userId filter
+  @@index([userId, sourceCategory])  // per-student category filter
+  @@index([sourceCategory, createdAt]) // platform-wide category analytics
 }
 
 // Meet add-on: persistent streak counter
@@ -823,6 +857,45 @@ model StudentModuleAccess {
   @@index([userId])
 }
 
+// Security audit trail — login, logout, password change, failed attempts, suspicious activity
+model SecurityAuditLog {
+  id        String   @id @default(cuid())
+  eventType String   @db.VarChar(50)
+  // 'login' | 'logout' | 'password_change' | 'failed_login' | 'signup'
+  // | 'coin_transaction' | 'admin_access' | 'suspicious_activity' | 'session_revoked'
+  userId    String?
+  ipAddress String?  @db.Inet
+  userAgent String?  @db.Text
+  details   Json?    // event-specific metadata (never include passwords or secrets)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([ipAddress])
+  @@index([createdAt])
+}
+
+// Admin "View as Student" access audit trail
+model AdminStudentAccessLog {
+  id              String    @id @default(cuid())
+  adminId         String
+  adminName       String    @db.VarChar(100)
+  adminIp         String?   @db.Inet
+  studentId       String
+  studentUniqueId String?   @db.VarChar(20)
+  studentName     String?   @db.VarChar(100)
+  pageAccessed    String    @db.VarChar(200) // e.g. '/dashboard/wallet'
+  action          String    @default("view") @db.VarChar(50) // 'search'|'view'|'impersonate'|'exit'
+  sessionToken    String?   @db.VarChar(200) // impersonation token (first 16 chars stored)
+  accessedAt      DateTime  @default(now())
+  endedAt         DateTime?
+
+  @@index([adminId])
+  @@index([studentId])
+  @@index([accessedAt])
+  @@index([adminId, accessedAt])
+}
+
 // System Audit Logging to track backend actions
 model AdminAuditLog {
   id        String   @id @default(cuid())
@@ -838,4 +911,91 @@ model AdminAuditLog {
   @@index([userId])
   @@index([createdAt])
   @@index([module, createdAt]) // admin panel filters by module + date
+}
+
+// Student activity tracking — every page view, feature use, error, and action
+model StudentEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  event     String   // PAGE_VIEW | BUTTON_CLICK | FEATURE_USED | FORM_SUBMIT | ERROR | PAYMENT_INITIATED | PAYMENT_SUCCESS | PAYMENT_FAILED | CUSTOM
+  page      String?  // pathname at time of event
+  meta      Json?    // extra data: { label, value, error, featureName, ... }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([event, createdAt])
+  @@index([userId, event])
+}
+
+// Per-event trial audit log — enrolled, expired, converted, retrial_blocked, dashboard_locked, admin_reset
+model TrialLog {
+  id         String   @id @default(cuid())
+  userId     String
+  event      String   // enrolled | expired | converted | retrial_blocked | dashboard_locked | admin_reset
+  detail     String?  @db.Text
+  ipAddress  String?
+  userAgent  String?  @db.Text
+  planBought String?  // plan name for "converted" event
+  daysUsed   Int?     // days elapsed for "expired"/"converted" events
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([event, createdAt])
+  @@index([createdAt])
+}
+
+// WhatsApp template library — synced from Meta + trigger config set by admin
+model WhatsAppTemplate {
+  id             String    @id @default(cuid())
+  metaId         String?   @unique          // Meta template ID
+  name           String    @unique
+  status         String    @default("PENDING") // APPROVED | PENDING | REJECTED | PAUSED
+  category       String?
+  language       String    @default("en")
+  bodyText       String    @db.Text
+  headerText     String?   @db.Text
+  footerText     String?
+  variableCount  Int       @default(0)
+  variableLabels Json?     // ["Student Name", "Student ID", "Login URL"]
+  buttons        Json?
+  triggerEvent   String?   // "signup" | "daily_8pm" | "3days_before" | "1day_before" | "manual"
+  isActive       Boolean   @default(false)
+  syncedAt       DateTime? // last synced from Meta
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([triggerEvent])
+  @@index([status])
+}
+
+// Per-call AI API usage log — powers the admin AI Usage dashboard
+model AIUsageLog {
+  id           String   @id @default(cuid())
+  logId        String   @unique          // e.g. AILOG17170001234567
+  userId       String?                   // null = system call (routing, profiling)
+  feature      String                    // "studymate" | "studymate_meet" | "profile_extract" | "router"
+  provider     String                    // "google" | "anthropic" | "openai"
+  model        String                    // "gemini-2.5-flash" | "claude-sonnet" | "gpt-4o" etc.
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  totalTokens  Int      @default(0)      // = inputTokens + outputTokens
+  costUsd      Float    @default(0)      // approximate actual API cost in USD
+  costInr      Float    @default(0)      // costUsd × exchange rate
+  coinsCharged Int      @default(0)      // coins deducted from student wallet
+  latencyMs    Int      @default(0)      // end-to-end API response time ms
+  status       String   @default("success") // "success" | "error" | "timeout"
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  user User? @relation("AIUsageLogs", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([provider, createdAt])
+  @@index([feature, createdAt])
+  @@index([createdAt])
+  @@index([status])
 }

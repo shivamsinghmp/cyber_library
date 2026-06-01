@@ -4,7 +4,10 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Lock, Sparkles, ArrowRight, Calendar } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { Lock, Sparkles, ArrowRight, Calendar, Gift } from "lucide-react";
+import toast from "react-hot-toast";
 
 const FREE_PATHS = [
   "/dashboard/profile",
@@ -81,9 +84,12 @@ function PlanCard({
 }
 
 export function SubscriptionGate({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const { active, loading, planType, endDate } = useSubscription();
-  const [pricing, setPricing] = useState<PricingData | null>(null);
+  const pathname  = usePathname();
+  const router    = useRouter();
+  const { data: session } = useSession();
+  const { active, loading, planType, endDate, trialUsed } = useSubscription();
+  const [pricing, setPricing]         = useState<PricingData | null>(null);
+  const [trialLoading, setTrialLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -91,6 +97,22 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
       .then((d) => { if (d) setPricing(d); })
       .catch(() => {});
   }, []);
+
+  async function handleStartTrial() {
+    if (!session?.user) { router.push("/login?callbackUrl=" + encodeURIComponent(pathname)); return; }
+    setTrialLoading(true);
+    try {
+      const res  = await fetch("/api/trial/activate", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success("7-day free trial start ho gaya! 🎉");
+        router.refresh();
+      } else {
+        toast.error(json.error ?? "Trial activate nahi hua.");
+      }
+    } catch { toast.error("Kuch galat hua. Dobara try karo."); }
+    finally { setTrialLoading(false); }
+  }
 
   if (FREE_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return <>{children}</>;
@@ -109,7 +131,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const monthly: PriceTier = pricing?.monthly ?? { originalPrice: 999, offerPrice: 499 };
   const yearly: PriceTier  = pricing?.yearly  ?? { originalPrice: 4999, offerPrice: 1999 };
 
-  if (!active) {
+  if (!active && !loading) {
     return (
       <div className="relative min-h-[60vh]">
         {/* Blurred content behind */}
@@ -147,6 +169,18 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
                 <PlanCard label="Monthly" period="mo" tier={monthly} currency={currency} />
                 <PlanCard label="Yearly"  period="yr" tier={yearly}  currency={currency} highlight />
               </div>
+
+              {/* Trial CTA — show only if not yet used */}
+              {!trialUsed && (
+                <button
+                  onClick={handleStartTrial}
+                  disabled={trialLoading}
+                  className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-amber-400 bg-amber-50 py-3.5 text-sm font-bold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
+                >
+                  <Gift className="h-4 w-4" />
+                  {trialLoading ? "Starting…" : "Start 7-Day Free Trial — No Card Needed"}
+                </button>
+              )}
 
               <Link
                 href="/pricing"

@@ -114,7 +114,7 @@ function buildSystemPrompt(
 ): string {
   // ── Onboarding mode: profile incomplete, collect details first ──
   if (onboarding) {
-    return `You are StudyMate AI — Cyber Library ka personal AI study buddy.
+    return `You are StudyMate AI — Let's Study ka personal AI study buddy.
 
 PRIORITY TASK: Yeh student abhi naya hai — unki study profile collect karni hai. Ek friendly, excited message mein yeh 4 cheezein puchho:
 
@@ -141,7 +141,7 @@ RULES:
     profile.currentStreak && `Current streak: ${profile.currentStreak} days 🔥`,
   ].filter(Boolean).join("\n");
 
-  return `You are StudyMate AI — Cyber Library ka personal AI study buddy. Tum ek caring elder sibling ho jo genuinely student ki success chahta hai.
+  return `You are StudyMate AI — Let's Study ka personal AI study buddy. Tum ek caring elder sibling ho jo genuinely student ki success chahta hai.
 
 STUDENT INFO (personalize every response using this):
 ${ctx}
@@ -324,7 +324,7 @@ type Msg = { role: "user" | "assistant"; content: string };
 async function callGoogle(
   apiKey: string, model: ModelId, messages: Msg[], system: string,
   imageBase64?: string, mediaType?: string,
-): Promise<{ reply: string; totalTokens: number }> {
+): Promise<AICallResult> {
   const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
 
   const contents = messages.map((m, i) => {
@@ -366,12 +366,15 @@ async function callGoogle(
   const data = await res.json();
   const reply = data.candidates?.[0]?.content?.parts?.filter((p: {text?:string}) => p.text)
     ?.map((p: {text:string}) => p.text)?.join("") ?? "Kuch error aa gaya, dobara try karo.";
-  return { reply, totalTokens: data.usageMetadata?.totalTokenCount ?? 500 };
+  const inputTokens  = data.usageMetadata?.promptTokenCount    ?? 0;
+  const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
+  const totalTokens  = data.usageMetadata?.totalTokenCount ?? (inputTokens + outputTokens || 500);
+  return { reply, totalTokens, inputTokens, outputTokens };
 }
 
 async function callAnthropic(
   apiKey: string, model: ModelId, messages: Msg[], system: string,
-): Promise<{ reply: string; totalTokens: number }> {;
+): Promise<AICallResult> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30_000);
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -389,14 +392,16 @@ async function callAnthropic(
     throw new Error("AI service unavailable. Thodi der baad try karo.");
   }
   const data = await res.json();
-  const reply = data.content?.[0]?.text ?? "Kuch error aa gaya, dobara try karo.";
-  const totalTokens = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
-  return { reply, totalTokens };
+  const reply        = data.content?.[0]?.text ?? "Kuch error aa gaya, dobara try karo.";
+  const inputTokens  = data.usage?.input_tokens  ?? 0;
+  const outputTokens = data.usage?.output_tokens ?? 0;
+  const totalTokens  = inputTokens + outputTokens;
+  return { reply, totalTokens, inputTokens, outputTokens };
 }
 
 async function callOpenAI(
   apiKey: string, model: ModelId, messages: Msg[], system: string,
-): Promise<{ reply: string; totalTokens: number }> {;
+): Promise<AICallResult> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 30_000);
 
@@ -422,9 +427,11 @@ async function callOpenAI(
     throw new Error("AI service unavailable. Thodi der baad try karo.");
   }
   const data = await res.json();
-  const reply = data.choices?.[0]?.message?.content ?? "Kuch error aa gaya, dobara try karo.";
-  const totalTokens = data.usage?.total_tokens ?? 500;
-  return { reply, totalTokens };
+  const reply        = data.choices?.[0]?.message?.content ?? "Kuch error aa gaya, dobara try karo.";
+  const inputTokens  = data.usage?.prompt_tokens     ?? 0;
+  const outputTokens = data.usage?.completion_tokens ?? 0;
+  const totalTokens  = data.usage?.total_tokens ?? (inputTokens + outputTokens || 500);
+  return { reply, totalTokens, inputTokens, outputTokens };
 }
 
 // Dispatch to correct provider
@@ -432,12 +439,14 @@ async function callModel(
   keys: { google: string | null; anthropic: string | null; openai: string | null },
   model: ModelId, messages: Msg[], system: string,
   imageBase64?: string, mediaType?: string,
-): Promise<{ reply: string; totalTokens: number }> {
+): Promise<AICallResult> {
   const provider = MODEL_PROVIDER[model];
   if (provider === "google")    return callGoogle(keys.google!, model, messages, system, imageBase64, mediaType);
   if (provider === "anthropic") return callAnthropic(keys.anthropic!, model, messages, system);
   return callOpenAI(keys.openai!, model, messages, system);
 }
+
+type AICallResult = { reply: string; totalTokens: number; inputTokens: number; outputTokens: number };
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const bodySchema = z.object({
@@ -450,6 +459,7 @@ const bodySchema = z.object({
 
 // ─── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
+  const aiStartTime = Date.now();
   try {
     let userId: string;
 
@@ -528,10 +538,12 @@ export async function POST(request: Request) {
     // Call model with fallback to cheapest available
     let reply: string;
     let totalTokens: number;
+    let inputTokens  = 0;
+    let outputTokens = 0;
     let usedModel = modelId;
 
     try {
-      ({ reply, totalTokens } = await callModel(keys, modelId, messages, system, imageBase64, mediaType));
+      ({ reply, totalTokens, inputTokens, outputTokens } = await callModel(keys, modelId, messages, system, imageBase64, mediaType));
     } catch (err) {
       const errMsg = (err as Error).message ?? "";
       const isQuota = errMsg.includes("quota");
@@ -547,7 +559,7 @@ export async function POST(request: Request) {
 
       if (fallback !== modelId) {
         try {
-          ({ reply, totalTokens } = await callModel(keys, fallback, messages, system, imageBase64, mediaType));
+          ({ reply, totalTokens, inputTokens, outputTokens } = await callModel(keys, fallback, messages, system, imageBase64, mediaType));
           usedModel = fallback;
         } catch { throw err; }
       } else { throw err; }
@@ -557,8 +569,23 @@ export async function POST(request: Request) {
     // estimateCoins uses worst-case 1024 output buffer, so actual should always be <= estimate.
     // But if somehow actual > user balance (edge case: image tokens not estimated), cap to balance.
     const coinsToCharge = Math.min(calcCoins(totalTokens, usedModel), coins);
+    const latencyMs     = Date.now() - aiStartTime;
 
     await logUsage(userId, coinsToCharge, usedModel);
+
+    // Fire-and-forget analytics log — never blocks the response
+    const { logAIUsage } = await import("@/lib/ai-logger");
+    logAIUsage({
+      userId,
+      feature:      "studymate",
+      provider:     MODEL_PROVIDER[usedModel],
+      model:        usedModel,
+      inputTokens,
+      outputTokens,
+      coinsCharged: coinsToCharge,
+      latencyMs,
+      status:       "success",
+    });
 
     // If profile was incomplete and student has replied to onboarding, extract and save silently
     if (onboarding && messages.length >= 3 && keys.google) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Search, Eye, Download, LayoutGrid, ToggleLeft, ToggleRight, Loader2, UserCog } from "lucide-react";
+import { Users, Search, Eye, Download, LayoutGrid, ToggleLeft, ToggleRight, Loader2, UserCog, Gift, Activity } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import toast from "react-hot-toast";
 import { useFetch } from "@/hooks/useFetch";
@@ -26,7 +26,7 @@ type Student = {
   email: string;
   goal: string | null;
   createdAt: string;
-  profile?: { phone: string | null; whatsappNumber: string | null; studyGoal: string | null; targetExam: string | null; totalStudyHours: number | null } | null;
+  profile?: { phone: string | null; whatsappNumber: string | null; whatsappMarketing: boolean | null; studyGoal: string | null; targetExam: string | null; totalStudyHours: number | null; coinBalance: number | null } | null;
 };
 
 type StudentDetails = Student & {
@@ -34,7 +34,7 @@ type StudentDetails = Student & {
   profile?: {
     fullName: string | null; phone: string | null; studyGoal: string | null; targetExam: string | null;
     targetYear: number | null; institution: string | null; currentStreak: number; longestStreak: number;
-    totalPoints: number; totalStudyHours: number;
+    totalPoints: number; totalStudyHours: number; coinBalance: number;
   } | null;
 };
 
@@ -69,6 +69,11 @@ export default function AdminStudentsPage() {
   const [editStudent, setEditStudent] = useState<Student | null>(null);
   const [deleteStudent, setDeleteStudent] = useState<Student | null>(null);
   const [modulesStudent, setModulesStudent] = useState<Student | null>(null);
+  const [trialStudent, setTrialStudent] = useState<Student | null>(null);
+  const [trialSaving, setTrialSaving] = useState(false);
+  const [activityStudent, setActivityStudent] = useState<Student | null>(null);
+  const [activityEvents, setActivityEvents] = useState<{ id: string; event: string; page: string | null; meta: Record<string, unknown> | null; createdAt: string }[]>([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   const [createForm, setCreateForm] = useState(defaultCreate);
   const [createSaving, setCreateSaving] = useState(false);
@@ -118,8 +123,8 @@ export default function AdminStudentsPage() {
 
   function downloadCSV() {
     if (!students.length) { toast.error("No students to export"); return; }
-    const headers = ["Unique ID", "Name", "Email", "WhatsApp Number", "Joined Date"];
-    const rows = students.map((s) => [s.studentId || "N/A", s.name || "N/A", s.email, s.profile?.whatsappNumber || s.profile?.phone || "N/A", new Date(s.createdAt).toLocaleDateString()]);
+    const headers = ["Unique ID", "Name", "Email", "WhatsApp Number", "WA Marketing Consent", "Joined Date"];
+    const rows = students.map((s) => [s.studentId || "N/A", s.name || "N/A", s.email, s.profile?.whatsappNumber || s.profile?.phone || "N/A", s.profile?.whatsappMarketing ? "Yes" : "No", new Date(s.createdAt).toLocaleDateString()]);
     const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
@@ -195,6 +200,33 @@ export default function AdminStudentsPage() {
     finally { setDeleteSaving(false); }
   }
 
+  async function openActivity(s: Student) {
+    setActivityStudent(s);
+    setActivityEvents([]);
+    setActivityLoading(true);
+    try {
+      const res = await fetch(`/api/admin/students/${s.id}/events`);
+      if (res.ok) setActivityEvents(await res.json());
+    } catch {}
+    finally { setActivityLoading(false); }
+  }
+
+  async function handleGrantTrial() {
+    if (!trialStudent) return;
+    setTrialSaving(true);
+    try {
+      const res = await fetch(`/api/admin/grant-trial/${trialStudent.id}`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(`7-day trial granted to ${trialStudent.name || trialStudent.email}!`);
+        setTrialStudent(null);
+      } else {
+        toast.error(data?.error ?? "Trial grant nahi hua.");
+      }
+    } catch { toast.error("Trial grant nahi hua."); }
+    finally { setTrialSaving(false); }
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <AdminPageHeader
@@ -223,7 +255,7 @@ export default function AdminStudentsPage() {
         <AdminTable loading={loading} empty={students.length === 0} emptyText={search ? "No students match your search." : "No students yet."} minWidth="500px">
           <thead>
             <tr className="border-b border-gray-200 text-left">
-              <AdminTh>Unique ID</AdminTh><AdminTh>Name</AdminTh><AdminTh>Email</AdminTh><AdminTh>Goal</AdminTh><AdminTh>Study hrs</AdminTh><AdminTh>Joined</AdminTh><AdminTh>Actions</AdminTh>
+              <AdminTh>Unique ID</AdminTh><AdminTh>Name</AdminTh><AdminTh>Email</AdminTh><AdminTh>Goal</AdminTh><AdminTh>WA Mktg</AdminTh><AdminTh>Study hrs</AdminTh><AdminTh>Coins 🪙</AdminTh><AdminTh>Joined</AdminTh><AdminTh>Actions</AdminTh>
             </tr>
           </thead>
           <tbody>
@@ -233,7 +265,14 @@ export default function AdminStudentsPage() {
                 <AdminTd className="font-medium text-gray-900">{s.name || "—"}</AdminTd>
                 <AdminTd className="text-gray-900">{s.email}</AdminTd>
                 <AdminTd>{s.goal || "—"}</AdminTd>
+                <AdminTd>
+                  {s.profile?.whatsappMarketing
+                    ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 border border-green-200">📲 Yes</span>
+                    : <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[11px] font-bold text-gray-400 border border-gray-200">No</span>
+                  }
+                </AdminTd>
                 <AdminTd className="font-medium text-[var(--accent)]">{(s.profile?.totalStudyHours ?? 0)}h</AdminTd>
+                <AdminTd className="font-medium text-amber-600">{s.profile?.coinBalance ?? 0}</AdminTd>
                 <AdminTd>{new Date(s.createdAt).toLocaleDateString()}</AdminTd>
                 <AdminTd>
                   <RowActions
@@ -246,6 +285,12 @@ export default function AdminStudentsPage() {
                         </button>
                         <button type="button" onClick={() => setModulesStudent(s)} className="rounded-lg p-1.5 text-[var(--cream-muted)] transition hover:bg-indigo-50 hover:text-indigo-600" title="Manage modules">
                           <LayoutGrid className="h-4 w-4" />
+                        </button>
+                        <button type="button" onClick={() => setTrialStudent(s)} className="rounded-lg p-1.5 text-[var(--cream-muted)] transition hover:bg-amber-50 hover:text-amber-600" title="Grant 7-day free trial">
+                          <Gift className="h-4 w-4" />
+                        </button>
+                        <button type="button" onClick={() => openActivity(s)} className="rounded-lg p-1.5 text-[var(--cream-muted)] transition hover:bg-violet-50 hover:text-violet-600" title="View activity timeline">
+                          <Activity className="h-4 w-4" />
                         </button>
                       </>
                     }
@@ -301,6 +346,10 @@ export default function AdminStudentsPage() {
                   <p>Institution: {detailsStudent.profile.institution || "—"}</p>
                   <p>Streak: {detailsStudent.profile.currentStreak} · Best: {detailsStudent.profile.longestStreak} · Points: {detailsStudent.profile.totalPoints}</p>
                   <p>Study hours: {detailsStudent.profile.totalStudyHours ?? 0}h · Attendance: {detailsStudent.attendanceDays ?? 0} days</p>
+                  <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                    <span className="text-base">🪙</span>
+                    <span className="text-sm font-semibold text-amber-800">Coin Wallet: {detailsStudent.profile.coinBalance ?? 0} coins</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -397,9 +446,75 @@ export default function AdminStudentsPage() {
         )}
       </Modal>
 
+      {/* Grant Trial modal */}
+      <Modal isOpen={!!trialStudent} title="Grant 7-Day Free Trial" onClose={() => !trialSaving && setTrialStudent(null)}>
+        {trialStudent && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3">
+              <Gift className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <p className="text-sm text-amber-800">
+                This will give <strong>{trialStudent.name || trialStudent.email}</strong> a fresh 7-day free trial — any existing trial will be cancelled.
+              </p>
+            </div>
+            <p className="text-sm text-[var(--cream-muted)]">Student: <span className="font-medium text-gray-900">{trialStudent.email}</span></p>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setTrialStudent(null)} disabled={trialSaving} className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+              <button type="button" onClick={handleGrantTrial} disabled={trialSaving} className="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-60">
+                {trialSaving ? "Granting…" : "Grant Trial"}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Per-student modules modal */}
       <Modal isOpen={!!modulesStudent} title={`Modules — ${modulesStudent?.name || modulesStudent?.email || ""}`} onClose={() => setModulesStudent(null)}>
         {modulesStudent && <StudentModulesPanel userId={modulesStudent.id} />}
+      </Modal>
+
+      {/* Activity Timeline modal */}
+      <Modal isOpen={!!activityStudent} title={`Activity — ${activityStudent?.name || activityStudent?.email || ""}`} onClose={() => setActivityStudent(null)}>
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          {activityLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-violet-500" /></div>
+          ) : activityEvents.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[var(--cream-muted)]">Abhi koi activity nahi hai.</p>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-[7px] top-0 bottom-0 w-px bg-gray-100" />
+              {activityEvents.map((ev) => (
+                <div key={ev.id} className="relative flex gap-3 pb-4 pl-5">
+                  <div className={`absolute left-0 mt-1 h-3.5 w-3.5 rounded-full border-2 border-white shadow-sm ${
+                    ev.event === "PAGE_VIEW" ? "bg-blue-400" :
+                    ev.event === "PAYMENT_SUCCESS" ? "bg-emerald-500" :
+                    ev.event === "PAYMENT_FAILED" || ev.event === "ERROR" ? "bg-red-500" :
+                    ev.event === "FEATURE_USED" ? "bg-violet-500" :
+                    ev.event === "BUTTON_CLICK" ? "bg-amber-400" :
+                    "bg-gray-400"
+                  }`} />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-xs font-bold ${
+                        ev.event === "PAGE_VIEW" ? "text-blue-600" :
+                        ev.event === "PAYMENT_SUCCESS" ? "text-emerald-600" :
+                        ev.event === "PAYMENT_FAILED" || ev.event === "ERROR" ? "text-red-600" :
+                        ev.event === "FEATURE_USED" ? "text-violet-600" :
+                        "text-gray-600"
+                      }`}>{ev.event.replace(/_/g, " ")}</span>
+                      <span className="text-[10px] text-[var(--cream-muted)] whitespace-nowrap">
+                        {new Date(ev.createdAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    {ev.page && <p className="text-xs text-[var(--cream-muted)] truncate">{ev.page}</p>}
+                    {ev.meta && Object.keys(ev.meta).length > 0 && (
+                      <p className="mt-0.5 text-[10px] text-gray-400 font-mono truncate">{JSON.stringify(ev.meta)}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );

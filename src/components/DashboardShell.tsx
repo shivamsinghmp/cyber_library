@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { RoleBasedSidebar } from "./RoleBasedSidebar";
 import { StudentSidebar } from "./StudentSidebar";
 import { RecordLoginOnLoad } from "./RecordLoginOnLoad";
+import { ActivityTracker } from "./ActivityTracker";
 import { SubscriptionGate } from "./SubscriptionGate";
 import { EmailVerifyBanner } from "./EmailVerifyBanner";
 import { getDisabledModules, getStudentDisabledModules } from "@/lib/student-modules";
@@ -57,6 +58,7 @@ export async function DashboardShell({
       {emailUnverified && <EmailVerifyBanner email={userEmail} />}
       <div className="flex flex-1 overflow-hidden">
         <RecordLoginOnLoad />
+        {isStudent && <ActivityTracker />}
         {isStudent ? <StudentSidebar disabledModules={disabledModules} /> : <RoleBasedSidebar allowedModules={allowedModules} />}
         <main className="flex-1 overflow-auto px-4 py-6 pt-16 md:pt-6 md:px-6 lg:px-8">
           {isStudent ? <SubscriptionGate>{children}</SubscriptionGate> : children}

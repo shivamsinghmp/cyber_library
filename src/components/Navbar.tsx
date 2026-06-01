@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -8,6 +8,7 @@ import { useSession, signOut } from "next-auth/react";
 import { LogOut, User, ShoppingCart, X, Menu, ChevronRight, Store, Brain, FileText, Home, Info, Sparkles, Tag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { motion, AnimatePresence } from "framer-motion";
+import Logo from "@/components/Logo";
 
 const navLinks = [
   { href: "/",          label: "Home",       icon: Home },
@@ -19,7 +20,7 @@ const navLinks = [
   { href: "/about",     label: "About",      icon: Info },
 ];
 
-const DEFAULT_TITLE   = "The Cyber Library";
+const DEFAULT_TITLE   = "Let's Study";
 const DEFAULT_TAGLINE = "The Focus Hub";
 
 type NavbarProps = {
@@ -101,25 +102,29 @@ export function Navbar({ initialLogoUrl, initialTitle, initialTagline }: NavbarP
         <nav className="flex items-center justify-between px-4 py-3 sm:px-6">
 
           {/* ── BRAND ── */}
-          <Link href="/" className="group flex items-center gap-3 shrink-0">
-            <div className="relative h-10 w-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
-              style={{ filter: "drop-shadow(0 4px 10px rgba(99,102,241,0.35))" }}>
-              {isExtLogo ? (
-                <img src={logoSrc} alt={siteTitle} className="h-10 w-10 object-contain" />
-              ) : (
-                <Image src={logoSrc} alt={siteTitle} width={40} height={40} className="object-contain" priority />
-              )}
-            </div>
-            <div className="hidden sm:flex flex-col leading-tight">
-              <span className="text-sm font-extrabold tracking-tight transition-colors group-hover:text-[var(--accent)]"
-                style={{ color: "var(--foreground)" }}>
-                {siteTitle}
-              </span>
-              <span className="text-[9px] font-extrabold uppercase tracking-[0.22em]"
-                style={{ color: "var(--accent)" }}>
-                {tagline}
-              </span>
-            </div>
+          <Link href="/" className="group shrink-0 transition-transform duration-300 hover:scale-105">
+            {logoUrl ? (
+              <div className="flex items-center gap-3"
+                style={{ filter: "drop-shadow(0 4px 10px rgba(99,102,241,0.35))" }}>
+                {isExtLogo ? (
+                  <img src={logoSrc} alt={siteTitle} className="h-10 w-10 object-contain" />
+                ) : (
+                  <Image src={logoSrc} alt={siteTitle} width={40} height={40} className="object-contain" priority />
+                )}
+                <div className="hidden sm:flex flex-col leading-tight">
+                  <span className="text-sm font-extrabold tracking-tight transition-colors group-hover:text-[var(--accent)]"
+                    style={{ color: "var(--foreground)" }}>
+                    {siteTitle}
+                  </span>
+                  <span className="text-[9px] font-extrabold uppercase tracking-[0.22em]"
+                    style={{ color: "var(--accent)" }}>
+                    {tagline}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <Logo />
+            )}
           </Link>
 
           {/* ── DESKTOP NAV LINKS ── */}

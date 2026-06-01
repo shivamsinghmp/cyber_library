@@ -113,10 +113,10 @@ function JoinPageContent() {
               Digital Study Library · India
             </p>
             <h1 className="mt-3 text-balance text-2xl font-semibold tracking-tight text-[var(--cream)] sm:text-3xl md:text-4xl">
-              Join The Cyber Library&apos;s Virtual Study Room
+              Join Let's Study&apos;s Virtual Study Room
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-[var(--cream-muted)] sm:text-base">
-              The Cyber Library is a focused online study space for serious learners preparing for exams
+              Let's Study is a focused online study space for serious learners preparing for exams
               like UPSC, JEE, NEET or college entrances. No noise, no random chatting — just structured
               body doubling, Pomodoro blocks and a quiet camera-on environment where everyone is here
               to study.
@@ -200,7 +200,7 @@ function JoinPageContent() {
           </h2>
           <p className="mb-4 text-xs text-[var(--cream-muted)]">
             Fill these details and we&apos;ll save your information as a lead and then send you to the
-            official The Cyber Library WhatsApp group.
+            official Let's Study WhatsApp group.
           </p>
           {loading ? (
             <p className="text-sm text-[var(--cream-muted)]">Loading form…</p>
@@ -269,7 +269,7 @@ function JoinPageContent() {
                 {submitting ? "Submitting…" : "Join now & open WhatsApp"}
               </button>
               <p className="mt-2 text-[10px] text-[var(--cream-muted)]">
-                By joining, you agree to follow the The Cyber Library rules and code of conduct.
+                By joining, you agree to follow the Let's Study rules and code of conduct.
               </p>
             </form>
           )}

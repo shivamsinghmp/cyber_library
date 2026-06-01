@@ -31,7 +31,19 @@ export async function POST(request: Request) {
     if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
     if (!product.coinPrice) return NextResponse.json({ error: "This product is not available for coins" }, { status: 400 });
 
-    const success = await deductCoins(userId, product.coinPrice, `PURCHASE_PRODUCT_${productId}`);
+    const ip = (request.headers.get("x-forwarded-for")?.split(",")[0].trim()
+      ?? request.headers.get("x-real-ip")
+      ?? undefined);
+
+    const success = await deductCoins(userId, product.coinPrice, `PURCHASE_PRODUCT_${productId}`, undefined, {
+      sourceCategory: "product_purchase",
+      sourceLabel:    `Bought: ${product.name}`,
+      referenceType:  "product",
+      referenceId:    product.id,
+      referenceName:  product.name,
+      deviceType:     "web_browser",
+      ipAddress:      ip,
+    });
     if (!success) return NextResponse.json({ error: "Insufficient coins" }, { status: 402 });
 
     try {

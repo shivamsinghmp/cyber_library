@@ -3,8 +3,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "WhatsApp Data Deletion Request — The Cyber Library",
-  description: "Request deletion of your WhatsApp data from The Cyber Library. We comply with Meta's data deletion policies.",
+  title: "WhatsApp Data Deletion Request — Let's Study",
+  description: "Request deletion of your WhatsApp data from Let's Study. We comply with Meta's data deletion policies.",
 };
 
 export default function WhatsAppDataDeletionPage() {
@@ -130,7 +130,7 @@ export default function WhatsAppDataDeletionPage() {
         <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm space-y-2">
           <p className="font-semibold text-gray-900">Important Note</p>
           <p className="text-gray-600">
-            This page covers data held by <strong className="text-gray-900">The Cyber Library</strong>. For data held directly by Meta (WhatsApp Inc.), please visit{" "}
+            This page covers data held by <strong className="text-gray-900">Let's Study</strong>. For data held directly by Meta (WhatsApp Inc.), please visit{" "}
             <a href="https://www.whatsapp.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">
               WhatsApp&apos;s Privacy Policy
             </a>{" "}
@@ -145,7 +145,7 @@ export default function WhatsAppDataDeletionPage() {
         {/* Back link */}
         <div className="text-center pt-4">
           <Link href="/" className="text-sm text-gray-500 hover:text-indigo-600 transition-colors">
-            ← Back to The Cyber Library
+            ← Back to Let's Study
           </Link>
         </div>
 

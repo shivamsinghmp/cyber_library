@@ -7,7 +7,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Refund Policy",
-  description: "Understand when and how The Cyber Library processes refunds for plan purchases.",
+  description: "Understand when and how Let's Study processes refunds for plan purchases.",
 };
 
 const REFUND_TABLE = [
@@ -88,7 +88,7 @@ export default function RefundPage() {
         <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] p-7">
           <h2 className="text-xl font-bold text-[var(--foreground)] mb-3">Overview</h2>
           <p className="text-[var(--body-text)] text-sm leading-relaxed">
-            The Cyber Library offers digital access to focus sessions and study slots. Because our
+            Let's Study offers digital access to focus sessions and study slots. Because our
             service is delivered digitally and in real time, refunds are assessed on a case-by-case
             basis within the eligibility windows below. Duplicate or erroneous charges are always
             refunded in full upon verification.

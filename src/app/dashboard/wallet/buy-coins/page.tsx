@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Coins, ArrowLeft, Zap, Star, Crown, Rocket, CheckCircle2 } from "lucide-react";
+import { Coins, ArrowLeft, Zap, Star, Crown, Rocket, CheckCircle2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -96,10 +96,13 @@ function loadRazorpayScript(): Promise<void> {
   });
 }
 
+const COINS_PER_RUPEE = 10; // 1 coin = ₹0.10
+
 export default function BuyCoinsPage() {
   const router = useRouter();
   const [buying, setBuying] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ coins: number; label: string } | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
 
   async function handleBuy(pack: Pack) {
     setBuying(pack.id);
@@ -130,7 +133,7 @@ export default function BuyCoinsPage() {
         key: keyId,
         amount,
         order_id: orderId,
-        name: "The Cyber Library",
+        name: "Let's Study",
         description: `${pack.label} — ${pack.coins} coins`,
         handler: async (response) => {
           try {
@@ -167,6 +170,49 @@ export default function BuyCoinsPage() {
       toast.error("Something went wrong");
       setBuying(null);
     }
+  }
+
+  const customRupees = parseInt(customAmount, 10);
+  const customCoins = Number.isFinite(customRupees) && customRupees >= 10 ? customRupees * COINS_PER_RUPEE : 0;
+  const customValid = customRupees >= 10 && customRupees <= 10000;
+
+  async function handleBuyCustom() {
+    if (!customValid) return;
+    const packId = `COINS_CUSTOM_${customRupees}`;
+    setBuying(packId);
+    try {
+      const orderRes = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ type: "COIN_PACK", ids: [packId] }),
+      });
+      const orderData = await orderRes.json().catch(() => ({}));
+      if (!orderRes.ok) { toast.error(orderData.error ?? "Failed to create order"); setBuying(null); return; }
+
+      const { orderId, keyId, amount } = orderData as { orderId: string; keyId: string; amount: number };
+      await loadRazorpayScript();
+      if (!window.Razorpay) { toast.error("Payment gateway load nahi hua."); setBuying(null); return; }
+
+      const rzp = new window.Razorpay({
+        key: keyId, amount, order_id: orderId,
+        name: "Let's Study",
+        description: `Custom Pack — ${customCoins} coins`,
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch("/api/razorpay/verify", {
+              method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+              body: JSON.stringify({ ...response, type: "COIN_PACK", ids: [packId] }),
+            });
+            if (verifyRes.ok) setSuccess({ coins: customCoins, label: "Custom Pack" });
+            else { const d = await verifyRes.json().catch(() => ({})); toast.error(d.error ?? "Payment verify nahi hua."); }
+          } catch { toast.error("Verification error."); }
+          finally { setBuying(null); }
+        },
+        modal: { ondismiss: () => setBuying(null) },
+      });
+      rzp.open();
+    } catch { toast.error("Something went wrong"); setBuying(null); }
   }
 
   if (success) {
@@ -289,6 +335,67 @@ export default function BuyCoinsPage() {
           );
         })}
       </div>
+
+      {/* Custom Amount Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mt-5 rounded-2xl border-2 border-dashed border-gray-200 bg-white p-5 hover:border-amber-300 transition-colors"
+      >
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 border border-gray-200">
+            <Pencil className="h-4 w-4 text-gray-500" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-text)]">Custom Amount</p>
+            <p className="text-[10px] text-[var(--muted-text)]">Apni marzi ka amount daalo (min ₹10, max ₹10,000)</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-500">₹</span>
+            <input
+              type="number"
+              min={10}
+              max={10000}
+              step={1}
+              value={customAmount}
+              onChange={(e) => setCustomAmount(e.target.value)}
+              placeholder="e.g. 45"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-7 pr-3 text-sm font-semibold text-[var(--foreground)] focus:border-amber-400 focus:bg-white focus:outline-none"
+            />
+          </div>
+
+          {/* Coin preview */}
+          <div className="flex min-w-[90px] flex-col items-center rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center">
+            <span className="text-lg font-black text-amber-700 tabular-nums leading-none">
+              {customCoins > 0 ? customCoins.toLocaleString("en-IN") : "—"}
+            </span>
+            <span className="text-[10px] font-medium text-amber-600">coins</span>
+          </div>
+
+          <button
+            onClick={handleBuyCustom}
+            disabled={!customValid || !!buying}
+            className="flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {buying?.startsWith("COINS_CUSTOM") ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-900 border-t-transparent" />
+            ) : (
+              <Coins className="h-4 w-4" />
+            )}
+            Buy
+          </button>
+        </div>
+
+        {customAmount && !customValid && (
+          <p className="mt-2 text-xs text-red-500">
+            {customRupees < 10 ? "Minimum ₹10 daalo." : "Maximum ₹10,000 tak allowed hai."}
+          </p>
+        )}
+      </motion.div>
 
       {/* Footer note */}
       <p className="mt-6 text-center text-[10px] text-[var(--muted-text)]">

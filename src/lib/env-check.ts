@@ -13,9 +13,23 @@ const REQUIRED_VARS = [
 ] as const;
 
 const OPTIONAL_VARS = [
-  { key: "ANTHROPIC_API_KEY",           desc: "AI StudyMate chat" },
-  { key: "UPSTASH_REDIS_REST_URL",      desc: "Redis cache + rate limiting" },
+  // AI
+  { key: "ANTHROPIC_API_KEY",           desc: "AI StudyMate chat (can also be set via Admin → AI Keys)" },
+  // Cache & rate limiting
+  { key: "UPSTASH_REDIS_REST_URL",      desc: "Redis cache + rate limiting (login/signup brute-force protection disabled without this)" },
   { key: "UPSTASH_REDIS_REST_TOKEN",    desc: "Redis auth token" },
+  // Payments
+  { key: "RAZORPAY_KEY_ID",             desc: "Razorpay payments (checkout and coin purchases will fail)" },
+  { key: "RAZORPAY_KEY_SECRET",         desc: "Razorpay webhook verification" },
+  // Email
+  { key: "RESEND_API_KEY",              desc: "Transactional email via Resend (OTP, welcome, payment emails)" },
+  // WhatsApp
+  { key: "WHATSAPP_ACCESS_TOKEN",       desc: "WhatsApp Business API (OTP and broadcast messages)" },
+  { key: "WHATSAPP_APP_SECRET",         desc: "Meta app secret for webhook signature verification" },
+  // Cron
+  { key: "CRON_SECRET",                 desc: "Bearer token for /api/cron/* routes (expiry reminders will not run)" },
+  // Site
+  { key: "NEXT_PUBLIC_SITE_URL",        desc: "Canonical site URL for OG tags and sitemap" },
 ] as const;
 
 let validated = false;

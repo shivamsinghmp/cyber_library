@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getMeetAddonCorsHeaders } from "../cors";
+import { checkMeetAddonAccess } from "@/lib/checkMeetAddonAccess";
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: { "Access-Control-Max-Age": "86400" } });
@@ -15,17 +16,20 @@ export async function GET(request: NextRequest) {
     const payload = verifyMeetAddonToken(token);
     if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
 
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { name: true, email: true, profile: { select: { fullName: true } } },
-    });
+    const [user, planAccess] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { name: true, email: true, profile: { select: { fullName: true } } },
+      }),
+      checkMeetAddonAccess(payload.userId),
+    ]);
 
     const name = user?.profile?.fullName?.trim()
       || user?.name?.trim()
       || user?.email?.split("@")[0]
       || "Student";
 
-    return NextResponse.json({ name, email: user?.email ?? "" }, { headers: cors });
+    return NextResponse.json({ name, email: user?.email ?? "", planAccess }, { headers: cors });
   } catch (e) {
     console.error("[meet-addon/me]:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500, headers: cors });

@@ -1,6 +1,6 @@
 // Background service worker
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("Cyber Library PiP Extension installed!");
+  console.log("Let's Study PiP Extension installed!");
 });
 
 // Keyboard shortcut support (Alt+P = PiP current tab)

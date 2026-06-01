@@ -1,22 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
-import {
-  Check,
-  Zap,
-  Star,
-  ArrowRight,
-  Sparkles,
-  Shield,
-  Clock,
-} from "lucide-react";
-import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, X, Star, Zap, Gift, Shield, Users, Clock } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useSubscription } from "@/hooks/useSubscription";
 import toast from "react-hot-toast";
-
 
 type PriceTier = { originalPrice: number; offerPrice: number };
 
@@ -31,38 +21,37 @@ type PricingData = {
   features: string[];
 };
 
-function calcDiscount(original: number, offer: number): number {
-  if (!original || original <= 0 || offer >= original) return 0;
-  return Math.round(((original - offer) / original) * 100);
+function calcYearlySaving(monthly: number, yearly: number): number {
+  if (!monthly || monthly <= 0) return 0;
+  return Math.round(((monthly * 12 - yearly) / (monthly * 12)) * 100);
 }
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-};
-
-const stagger: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.07 } },
-};
 
 export default function PricingPage() {
   const [data, setData] = useState<PricingData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [billing, setBilling] = useState<"monthly" | "yearly">("yearly");
+  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const [trialLoading, setTrialLoading] = useState(false);
   const clickedRef = useRef(false);
 
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { active: hasActiveSub, planType: activePlanType, loading: subLoading } = useSubscription();
+  const {
+    active: hasActiveSub,
+    planType: activePlanType,
+    isTrial,
+    trialUsed,
+    loading: subLoading,
+  } = useSubscription();
 
   useEffect(() => {
     if (subLoading) return;
-    if (hasActiveSub) {
-      toast.success(`Aapka ${activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai!`);
+    if (hasActiveSub && !isTrial) {
+      toast.success(
+        `Aapka ${activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai!`
+      );
       router.replace("/dashboard");
     }
-  }, [hasActiveSub, subLoading, activePlanType, router]);
+  }, [hasActiveSub, isTrial, subLoading, activePlanType, router]);
 
   useEffect(() => {
     fetch("/api/pricing")
@@ -74,332 +63,373 @@ export default function PricingPage() {
 
   const handleSubscribe = useCallback(() => {
     if (status === "loading") return;
-
     if (!session?.user) {
       router.push(`/login?callbackUrl=${encodeURIComponent("/pricing")}`);
       return;
     }
-
-    if (!data) return;
-    if (clickedRef.current) return;
+    if (!data || clickedRef.current) return;
     clickedRef.current = true;
     setTimeout(() => { clickedRef.current = false; }, 3000);
 
     const tier = billing === "monthly" ? data.monthly : data.yearly;
     const planType = billing === "monthly" ? "MONTHLY" : "YEARLY";
-    const planLabel = `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`;
-
     const params = new URLSearchParams({
       type: "subscription",
       plan: planType,
-      name: planLabel,
+      name: `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`,
       amount: String(tier.offerPrice),
       originalAmount: String(tier.originalPrice),
     });
     router.push(`/checkout?${params.toString()}`);
   }, [session, status, data, billing, router]);
 
-  const tier = data ? data[billing] : null;
-  const discount = tier ? calcDiscount(tier.originalPrice, tier.offerPrice) : 0;
-  const savings = tier ? tier.originalPrice - tier.offerPrice : 0;
+  const handleStartTrial = useCallback(async () => {
+    if (status === "loading") return;
+    if (!session?.user) {
+      router.push(`/login?callbackUrl=${encodeURIComponent("/pricing")}`);
+      return;
+    }
+    setTrialLoading(true);
+    try {
+      const res = await fetch("/api/trial/activate", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "Trial activate nahi hua.");
+        return;
+      }
+      toast.success("7-day free trial start ho gaya! Enjoy karo.");
+      router.push("/dashboard");
+    } catch {
+      toast.error("Kuch galat hua. Dobara try karo.");
+    } finally {
+      setTrialLoading(false);
+    }
+  }, [session, status, router]);
 
   if (loading || subLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--accent)] border-t-transparent" />
-          <p className="text-sm text-[var(--muted-text)]">Loading pricing…</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--background)]">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
       </div>
     );
   }
 
-  if (!data || !tier) {
+  if (!data) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-[var(--cream-muted)]">Pricing unavailable. Please try again later.</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--background)]">
+        <p className="text-[var(--muted-text)]">Pricing unavailable. Please try again later.</p>
       </div>
     );
   }
 
-  // Yearly saving vs monthly * 12
-  const yearlyVsMonthly =
-    billing === "yearly" && data.monthly.offerPrice > 0
-      ? Math.round(((data.monthly.offerPrice * 12 - data.yearly.offerPrice) / (data.monthly.offerPrice * 12)) * 100)
-      : 0;
+  const tier = billing === "monthly" ? data.monthly : data.yearly;
+  const yearlySaving = calcYearlySaving(data.monthly.offerPrice, data.yearly.offerPrice);
+  const perMonth =
+    billing === "yearly"
+      ? Math.round(data.yearly.offerPrice / 12)
+      : data.monthly.offerPrice;
+
+  const isTrialEligible = session?.user && !trialUsed && !hasActiveSub;
+  const isTrialExpired = session?.user && trialUsed && !hasActiveSub;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--background)]">
-      {/* Ambient glow orbs */}
-      <div
-        className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[600px] rounded-full opacity-20"
-        style={{ background: "radial-gradient(circle, #6366f1 0%, transparent 70%)" }}
-      />
-      <div
-        className="pointer-events-none absolute bottom-0 right-0 h-[400px] w-[400px] rounded-full opacity-10"
-        style={{ background: "radial-gradient(circle, #8b5cf6 0%, transparent 70%)" }}
-      />
+    <div className="min-h-screen bg-[var(--background)]">
 
-      <div className="relative z-10 mx-auto max-w-2xl px-4 py-20">
-        {/* Header */}
-        <motion.div
-          className="mb-12 text-center"
-          initial="hidden"
-          animate="show"
-          variants={stagger}
-        >
-          {/* Animated badge */}
-          <motion.div variants={fadeUp} className="mb-5 flex justify-center">
-            <span
-              className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold text-white shadow-lg"
-              style={{
-                background: "linear-gradient(135deg,#f97316,#ef4444)",
-                boxShadow: "0 4px 18px rgba(239,68,68,0.4)",
-              }}
-            >
-              <Sparkles className="h-4 w-4" />
-              Limited Time Offer — Don&apos;t Miss Out!
+      {/* ── Hero Section ── */}
+      <div className="relative overflow-hidden bg-[var(--foreground)] px-4 pb-16 pt-14 text-center">
+        {/* subtle grid pattern */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "linear-gradient(var(--background) 1px, transparent 1px), linear-gradient(90deg, var(--background) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+
+        {/* Trial eligible badge */}
+        {isTrialEligible && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5"
+          >
+            <Gift className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-xs font-semibold text-amber-300">
+              7-day free trial available — no card needed
             </span>
           </motion.div>
+        )}
 
-          {/* Gradient headline */}
-          <motion.h1
-            variants={fadeUp}
-            className="text-5xl font-extrabold tracking-tight sm:text-6xl"
-            style={{
-              background: "linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#06b6d4 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
+        {/* Trial expired badge */}
+        {isTrialExpired && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-400/10 px-4 py-1.5"
           >
-            {data.planName}
-          </motion.h1>
+            <Clock className="h-3.5 w-3.5 text-red-400" />
+            <span className="text-xs font-semibold text-red-300">
+              Aapka free trial khatam ho gaya — subscribe karo
+            </span>
+          </motion.div>
+        )}
 
-          {data.subtitle && (
-            <motion.p
-              variants={fadeUp}
-              className="mt-4 text-lg font-medium text-[var(--cream-muted)]"
-            >
-              {data.subtitle}
-            </motion.p>
-          )}
-        </motion.div>
-
-        {/* ── Billing Toggle ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.25 }}
-          className="mb-10 flex flex-col items-center gap-3"
-        >
-          <div
-            className="relative flex items-center gap-1 rounded-2xl p-1.5 shadow-md"
-            style={{
-              background: "white",
-              border: "1.5px solid rgba(99,102,241,0.2)",
-              boxShadow: "0 4px 20px rgba(99,102,241,0.12)",
-            }}
+        {/* Current plan badge */}
+        {isTrial && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5"
           >
-            {/* sliding pill */}
-            <motion.div
-              className="absolute top-1.5 h-[calc(100%-12px)] w-[calc(50%-6px)] rounded-xl"
-              style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
-              animate={{ left: billing === "monthly" ? 6 : "calc(50%)" }}
-              transition={{ type: "spring", bounce: 0.25, duration: 0.4 }}
-            />
+            <Star className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-xs font-semibold text-amber-300">
+              7-Day Free Trial active hai
+            </span>
+          </motion.div>
+        )}
 
+        <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          Simple, honest pricing
+        </h1>
+        <p className="mt-3 text-base text-white/60">
+          {data.subtitle || "Everything you need to ace your exams"}
+        </p>
+
+        {/* Billing Toggle */}
+        <div className="mt-8 flex justify-center">
+          <div className="flex rounded-xl border border-white/10 bg-white/5 p-1">
             <button
               onClick={() => setBilling("monthly")}
-              className={`relative z-10 rounded-xl px-8 py-2.5 text-sm font-bold transition-colors ${
-                billing === "monthly" ? "text-white" : "text-[var(--cream-muted)] hover:text-[var(--foreground)]"
+              className={`rounded-lg px-6 py-2 text-sm font-semibold transition-all duration-200 ${
+                billing === "monthly"
+                  ? "bg-white text-[var(--foreground)] shadow"
+                  : "text-white/60 hover:text-white"
               }`}
             >
               Monthly
             </button>
-
             <button
               onClick={() => setBilling("yearly")}
-              className={`relative z-10 flex items-center gap-2 rounded-xl px-8 py-2.5 text-sm font-bold transition-colors ${
-                billing === "yearly" ? "text-white" : "text-[var(--cream-muted)] hover:text-[var(--foreground)]"
+              className={`flex items-center gap-2 rounded-lg px-6 py-2 text-sm font-semibold transition-all duration-200 ${
+                billing === "yearly"
+                  ? "bg-white text-[var(--foreground)] shadow"
+                  : "text-white/60 hover:text-white"
               }`}
             >
               Yearly
-              {yearlyVsMonthly > 0 && (
+              {yearlySaving > 0 && (
                 <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                     billing === "yearly"
-                      ? "bg-white/25 text-white"
-                      : "text-white"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-emerald-500/20 text-emerald-400"
                   }`}
-                  style={billing !== "yearly" ? { background: "linear-gradient(135deg,#10b981,#059669)" } : {}}
                 >
-                  Save {yearlyVsMonthly}%
+                  save {yearlySaving}%
                 </span>
               )}
             </button>
           </div>
+        </div>
+      </div>
 
-          {/* Helper text under toggle */}
-          {billing === "monthly" && yearlyVsMonthly > 0 && (
-            <motion.p
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-xs font-medium text-emerald-600"
-            >
-              Switch to Yearly and save {yearlyVsMonthly}% more 🎉
-            </motion.p>
-          )}
-        </motion.div>
+      {/* ── Plan Cards ── */}
+      <div className="mx-auto -mt-6 max-w-4xl px-4 pb-16">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
-        {/* Pricing Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 32, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.55, delay: 0.1 }}
-          className="relative overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-[var(--shadow-lg)]"
-        >
-          {/* Top gradient strip */}
-          <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500" />
-
-          <div className="px-8 py-10 sm:px-12">
-            {/* Discount badge */}
-            {discount > 0 && (
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-1.5 text-sm font-semibold text-emerald-600 ring-1 ring-emerald-500/20">
-                <Zap className="h-3.5 w-3.5" />
-                Save {discount}% · You save {data.currency}{savings.toLocaleString("en-IN")}
+          {/* Free Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="rounded-2xl border border-[var(--border)] bg-white p-7 shadow-sm"
+          >
+            <div className="mb-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted-text)]">
+                Free
+              </p>
+              <div className="mt-2 flex items-baseline gap-1">
+                <span className="text-5xl font-black text-[var(--foreground)]">
+                  {data.currency}0
+                </span>
+                <span className="text-sm text-[var(--muted-text)]">/mo</span>
               </div>
+              <p className="mt-1 text-xs text-[var(--muted-text)]">Forever free</p>
+            </div>
+
+            {isTrialEligible ? (
+              <button
+                onClick={handleStartTrial}
+                disabled={trialLoading}
+                className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-amber-400 bg-amber-50 py-3 text-sm font-bold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
+              >
+                <Gift className="h-4 w-4" />
+                {trialLoading ? "Starting…" : "Start 7-Day Free Trial"}
+              </button>
+            ) : isTrial ? (
+              <button
+                disabled
+                className="mb-6 w-full rounded-xl border-2 border-amber-200 bg-amber-50 py-3 text-sm font-bold text-amber-600"
+              >
+                Trial Active
+              </button>
+            ) : (
+              <button
+                disabled
+                className="mb-6 w-full rounded-xl border-2 border-[var(--border)] py-3 text-sm font-semibold text-[var(--muted-text)]"
+              >
+                ✓ Current plan
+              </button>
             )}
 
-            {/* Price block — animates on billing change */}
-            <div className="mb-8 flex flex-wrap items-end gap-4">
-              <div className="flex flex-col">
-                {/* Original price — red strikethrough + separate discount badge */}
-                {tier.originalPrice > tier.offerPrice && (
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={`orig-${billing}`}
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 6 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex items-center gap-2"
-                    >
-                      <span className="text-lg font-medium text-[var(--cream-muted)] line-through decoration-[var(--cream-muted)]">
-                        {data.currency}{tier.originalPrice.toLocaleString("en-IN")}
+            <ul className="space-y-3.5">
+              {[
+                "Browse course catalog",
+                "Read free blog articles",
+                "Access community forum",
+                { text: "Study Room Access", crossed: true },
+                { text: "AI Study Assistant", crossed: true },
+                { text: "Video Sessions", crossed: true },
+                { text: "Slots Booking", crossed: true },
+              ].map((item, i) => {
+                const crossed = typeof item === "object" && item.crossed;
+                const text = typeof item === "object" ? item.text : item;
+                return (
+                  <li key={i} className="flex items-center gap-3">
+                    {crossed ? (
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
+                        <X className="h-3 w-3 text-gray-400" />
                       </span>
-                      {discount > 0 && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-extrabold text-white"
-                          style={{ background: "linear-gradient(135deg,#ef4444,#f97316)" }}>
-                          -{discount}% OFF
-                        </span>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
-                )}
+                    ) : (
+                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
+                        <Check className="h-3 w-3 text-gray-500" />
+                      </span>
+                    )}
+                    <span
+                      className={`text-sm ${
+                        crossed ? "text-gray-300 line-through" : "text-[var(--foreground)]"
+                      }`}
+                    >
+                      {text}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </motion.div>
 
-                {/* Offer price */}
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={`offer-${billing}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.25 }}
-                    className="flex items-baseline gap-1"
-                  >
-                    <span className="text-2xl font-semibold text-[var(--foreground)]">
+          {/* Pro Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="relative rounded-2xl bg-[var(--foreground)] p-7 shadow-2xl"
+          >
+            {/* Popular badge */}
+            <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-lg">
+              Most Popular
+            </span>
+
+            <div className="mb-5">
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/50">
+                {data.planName}
+              </p>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={billing}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-2 flex items-baseline gap-2"
+                >
+                  {tier.originalPrice > tier.offerPrice && (
+                    <span className="text-sm text-white/40 line-through">
                       {data.currency}
+                      {billing === "yearly"
+                        ? Math.round(data.yearly.originalPrice / 12).toLocaleString("en-IN")
+                        : data.monthly.originalPrice.toLocaleString("en-IN")}
                     </span>
-                    <span className="text-6xl font-extrabold tracking-tight text-[var(--foreground)]">
-                      {tier.offerPrice.toLocaleString("en-IN")}
-                    </span>
-                    <span className="mb-1 text-base text-[var(--cream-muted)]">
-                      /{billing === "monthly" ? "mo" : "yr"}
-                    </span>
-                  </motion.div>
-                </AnimatePresence>
+                  )}
+                  <span className="text-5xl font-black text-white">
+                    {data.currency}
+                    {perMonth.toLocaleString("en-IN")}
+                  </span>
+                  <span className="text-sm text-white/50">/mo</span>
+                </motion.div>
+              </AnimatePresence>
 
-                {/* Per-month breakdown for yearly */}
-                {billing === "yearly" && data.monthly.offerPrice > 0 && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="mt-1 text-xs text-[var(--cream-muted)]"
-                  >
-                    ≈ {data.currency}{Math.round(tier.offerPrice / 12).toLocaleString("en-IN")}/mo · billed annually
-                  </motion.p>
-                )}
-              </div>
-
-              {/* Best value badge — only on yearly */}
               {billing === "yearly" && (
-                <div className="mb-1 flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
-                  <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-                  Best Value
-                </div>
+                <p className="mt-1 text-xs text-emerald-400">
+                  <Zap className="mr-0.5 inline h-3 w-3" />
+                  Billed {data.currency}{data.yearly.offerPrice.toLocaleString("en-IN")}/yr · save {yearlySaving}%
+                </p>
+              )}
+              {billing === "monthly" && tier.originalPrice > tier.offerPrice && (
+                <p className="mt-1 text-xs text-emerald-400">First month offer price</p>
               )}
             </div>
 
-            {/* CTA button */}
             <button
               onClick={handleSubscribe}
-              className="mb-10 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 py-4 text-base font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-500/40 active:scale-[0.98]"
+              className="mb-2 w-full rounded-xl bg-white py-3 text-sm font-bold text-[var(--foreground)] shadow transition hover:bg-white/90 active:scale-[0.98]"
             >
-              {session?.user ? (data.ctaText || "Get Started Now") : "Login to Subscribe"}
-              <ArrowRight className="h-5 w-5" />
+              {session?.user ? (data.ctaText || "Upgrade Now") : "Login to Upgrade"}
             </button>
 
-            {/* Trust badges */}
-            <div className="mb-8 flex flex-wrap justify-center gap-4 text-xs text-[var(--cream-muted)]">
-              <span className="flex items-center gap-1">
-                <Shield className="h-3.5 w-3.5 text-emerald-500" />
-                Secure Payment
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5 text-indigo-500" />
-                Instant Access
-              </span>
-              <span className="flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 text-amber-500" />
-                24/7 Support
-              </span>
-            </div>
+            {isTrialEligible && (
+              <p className="mb-6 text-center text-xs text-white/50">
+                or{" "}
+                <button
+                  onClick={handleStartTrial}
+                  className="font-semibold text-amber-400 underline underline-offset-2 hover:text-amber-300"
+                >
+                  try free for 7 days
+                </button>
+              </p>
+            )}
+            {!isTrialEligible && <div className="mb-6" />}
 
-            {/* Divider */}
-            <div className="mb-6 border-t border-[var(--border)]" />
-
-            {/* Features list */}
-            <p className="mb-5 text-sm font-semibold uppercase tracking-widest text-[var(--cream-muted)]">
-              What&apos;s included
-            </p>
-            <motion.ul
-              initial="hidden"
-              animate="show"
-              variants={stagger}
-              className="space-y-3"
-            >
+            <ul className="space-y-3.5">
               {(data.features ?? []).map((feature, i) => (
-                <motion.li key={i} variants={fadeUp} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600/10">
-                    <Check className="h-3 w-3 text-indigo-600" />
+                <li key={i} className="flex items-center gap-3">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white/10">
+                    <Check className="h-3 w-3 text-white" />
                   </span>
-                  <span className="text-sm leading-snug text-[var(--foreground)]">{feature}</span>
-                </motion.li>
+                  <span className="text-sm text-white/80">{feature}</span>
+                </li>
               ))}
-            </motion.ul>
-          </div>
-        </motion.div>
+              <li className="flex items-center gap-3 pt-1">
+                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-400/20">
+                  <Star className="h-3 w-3 text-amber-400" />
+                </span>
+                <span className="text-sm font-semibold text-white">Everything in Free</span>
+              </li>
+            </ul>
+          </motion.div>
+        </div>
 
-        {/* Footer note */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-8 text-center text-xs text-[var(--cream-muted)]"
-        >
-          Prices are inclusive of all taxes. Cancel anytime.
-        </motion.p>
+        {/* ── Trust Bar ── */}
+        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-10">
+          <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
+            <Shield className="h-4 w-4 text-emerald-500" />
+            <span>Secure payments via Razorpay</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
+            <Users className="h-4 w-4 text-blue-500" />
+            <span>500+ active students</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
+            <Zap className="h-4 w-4 text-amber-500" />
+            <span>Cancel anytime, no questions</span>
+          </div>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-[var(--muted-text)]">
+          Prices are inclusive of all taxes.
+        </p>
       </div>
     </div>
   );

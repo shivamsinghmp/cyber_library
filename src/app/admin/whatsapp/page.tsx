@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Megaphone, PenSquare, MessageSquare, Sparkles } from "lucide-react";
+import { Megaphone, PenSquare, MessageSquare, Sparkles, LayoutTemplate } from "lucide-react";
 import toast from "react-hot-toast";
 import { BroadcastModal }   from "./_components/BroadcastModal";
 import { ContactList }      from "./_components/ContactList";
 import { ChatWindow }       from "./_components/ChatWindow";
 import { DailyReportTab }   from "./_components/DailyReportTab";
+import { TemplatesTab }     from "./_components/TemplatesTab";
 
 type ContactInfo = {
   phoneNumber: string;
@@ -44,7 +45,7 @@ export default function AdminWhatsAppPage() {
   const [broadcastRecipientCount, setBroadcastRecipientCount] = useState<number | null>(null);
   const [slots, setSlots] = useState<SlotOption[]>([]);
 
-  const [mainTab, setMainTab] = useState<"chat" | "report">("chat");
+  const [mainTab, setMainTab] = useState<"chat" | "report" | "templates">("chat");
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -231,8 +232,9 @@ export default function AdminWhatsAppPage() {
       {/* Main tabs */}
       <div className="mb-4 flex gap-1 rounded-xl border border-gray-200 bg-white p-1 self-start">
         {([
-          { id: "chat",   label: "Chat",          icon: <MessageSquare className="h-3.5 w-3.5" /> },
-          { id: "report", label: "Daily Report",  icon: <Sparkles      className="h-3.5 w-3.5" /> },
+          { id: "chat",      label: "Chat",            icon: <MessageSquare   className="h-3.5 w-3.5" /> },
+          { id: "report",    label: "Daily Report",    icon: <Sparkles        className="h-3.5 w-3.5" /> },
+          { id: "templates", label: "Templates",       icon: <LayoutTemplate  className="h-3.5 w-3.5" /> },
         ] as const).map((tab) => (
           <button
             key={tab.id}
@@ -283,9 +285,13 @@ export default function AdminWhatsAppPage() {
             onSend={handleSendMessage}
           />
         </div>
-      ) : (
+      ) : mainTab === "report" ? (
         <div className="flex-1 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-6">
           <DailyReportTab />
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-6">
+          <TemplatesTab />
         </div>
       )}
     </div>

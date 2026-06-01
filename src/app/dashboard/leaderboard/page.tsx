@@ -60,11 +60,11 @@ export default function LeaderboardPage() {
 
   function handleShare() {
     const text = myRank != null
-      ? `I'm #${myRank} on The Cyber Library leaderboard with ${myHours}h studied! 🏆`
-      : "Check out The Cyber Library study leaderboard!";
+      ? `I'm #${myRank} on Let's Study leaderboard with ${myHours}h studied! 🏆`
+      : "Check out Let's Study study leaderboard!";
     const url = window.location.href;
     if (navigator.share) {
-      navigator.share({ title: "Cyber Library Leaderboard", text, url }).catch(e => { if (e.name !== "AbortError") toast.error("Share failed"); });
+      navigator.share({ title: "Let's Study Leaderboard", text, url }).catch(e => { if (e.name !== "AbortError") toast.error("Share failed"); });
     } else {
       navigator.clipboard?.writeText(`${text} ${url}`)
         .then(() => toast.success("Copied to clipboard!"))

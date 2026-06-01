@@ -57,8 +57,16 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   const pendingRetryMsgs   = useRef<Message[] | null>(null);
   const pendingQualityMsgs = useRef<Message[] | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
+  const scrollRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
   const sendRef    = useRef(send);
+  const isAtBottom = useRef(true);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
 
   useEffect(() => { sendRef.current = send; });
 
@@ -73,7 +81,9 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isAtBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, loading, coinsError, qualityWarning]);
 
   useEffect(() => {
@@ -299,7 +309,12 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0"
+            style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(99,102,241,0.3) transparent", overscrollBehavior: "contain" }}
+          >
             {messages.length === 0 && !coinsError && !qualityWarning ? (
               <div className="flex flex-col items-center justify-center h-full gap-4 pb-4">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center"

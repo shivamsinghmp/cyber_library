@@ -111,7 +111,7 @@ export async function addStudentToCalendarEvent(eventId: string, studentEmail: s
 
     // Check if exactly this email is already invited
     if (attendees.some(a => a.email?.toLowerCase() === studentEmail.toLowerCase())) {
-      console.log(`Student ${studentEmail} is already invited to event ${eventId}.`);
+      console.info(`[Calendar] ${studentEmail} already invited to event ${eventId}.`);
       return true; // Fast exit
     }
 
@@ -130,7 +130,7 @@ export async function addStudentToCalendarEvent(eventId: string, studentEmail: s
       },
     });
 
-    console.log(`Successfully added ${studentEmail} to Google Calendar event ${eventId}.`);
+    console.info(`[Calendar] Added ${studentEmail} to event ${eventId}.`);
     return true;
   } catch (error: unknown) {
     console.error(`Failed to add ${studentEmail} to Calendar Event ${eventId}:`, error);
@@ -172,7 +172,7 @@ export async function createStudyRoomEvent(
     conferenceDataVersion: 1,
     requestBody: {
       summary: eventName,
-      description: "Auto-generated Study Room for The Cyber Library",
+      description: "Auto-generated Study Room for Let's Study",
       start: { dateTime: startTime.toISOString() },
       end: { dateTime: endTime.toISOString() },
       conferenceData: {
@@ -191,6 +191,6 @@ export async function createStudyRoomEvent(
     throw new Error("Google Calendar API responded successfully but did not return a Meet link. Ensure Google Meet is enabled for the impersonated account and the service account has domain-wide delegation.");
   }
 
-  console.log(`Successfully created Calendar Event ${eventId} with Meet Link ${hangoutLink}`);
+  console.info(`[Calendar] Created event ${eventId} — Meet: ${hangoutLink}`);
   return { calendarEventId: eventId, meetLink: hangoutLink };
 }

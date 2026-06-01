@@ -1,73 +1,115 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, Link2, Copy, Gift, Users, CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
+import {
+  UserPlus, Link2, Copy, Gift, Users, CheckCircle2,
+  XCircle, Loader2, Share2, ChevronLeft, ChevronRight,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 type ReferredUser = {
-  id: string; name: string; email: string; joinedAt: string; rewarded: boolean;
+  id: string; name: string; email: string; joinedAt: string;
+  rewarded: boolean; active: boolean;
 };
 
+type ReferralData = {
+  referralCode:  string | null;
+  referralLink:  string | null;
+  referredCount: number;
+  activeCount:   number;
+  inactiveCount: number;
+  referredUsers: ReferredUser[];
+};
+
+const PAGE_SIZE = 10;
+
 const HOW_STEPS = [
-  { icon: Link2,        label: "Get your link",    desc: "Generate your unique referral link below" },
-  { icon: Users,        label: "Invite friends",   desc: "Share with friends who want to study seriously" },
-  { icon: Gift,         label: "Earn rewards",     desc: "Get rewarded when they join & purchase a plan" },
+  { icon: Link2,    label: "Apna Code Lo",    desc: "Unique referral code aur link generate karo" },
+  { icon: Share2,   label: "Dosto Ko Share Karo", desc: "Link unhe bhejo jo seriously padhna chahte hain" },
+  { icon: Gift,     label: "Rewards Kamao",   desc: "Jab wo join karein toh reward milega" },
 ];
 
+function StatusBadge({ active }: { active: boolean }) {
+  return active
+    ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700"><CheckCircle2 className="h-3 w-3" />Active</span>
+    : <span className="inline-flex items-center gap-1 rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-[10px] font-bold text-red-500"><XCircle className="h-3 w-3" />Inactive</span>;
+}
+
 export default function ReferPage() {
-  const [referralCode, setReferralCode]     = useState<string | null>(null);
-  const [referralLink, setReferralLink]     = useState<string | null>(null);
-  const [referredUsers, setReferredUsers]   = useState<ReferredUser[]>([]);
-  const [referralLoading, setReferralLoading]     = useState(true);
-  const [referralGenerating, setReferralGenerating] = useState(false);
+  const [data, setData]             = useState<ReferralData | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [page, setPage]             = useState(1);
 
   useEffect(() => {
-    setReferralLoading(true);
     fetch("/api/user/referral", { credentials: "include" })
-      .then(res => res.ok ? res.json() : {})
-      .then((data: { referralCode?: string; referralLink?: string; referredUsers?: ReferredUser[] }) => {
-        setReferralCode(data.referralCode ?? null);
-        setReferralLink(data.referralLink ?? null);
-        setReferredUsers(Array.isArray(data.referredUsers) ? data.referredUsers : []);
-      })
+      .then(r => r.ok ? r.json() : {})
+      .then((d: Partial<ReferralData>) => setData({
+        referralCode:  d.referralCode  ?? null,
+        referralLink:  d.referralLink  ?? null,
+        referredCount: d.referredCount ?? 0,
+        activeCount:   d.activeCount   ?? 0,
+        inactiveCount: d.inactiveCount ?? 0,
+        referredUsers: Array.isArray(d.referredUsers) ? d.referredUsers : [],
+      }))
       .catch(() => {})
-      .finally(() => setReferralLoading(false));
+      .finally(() => setLoading(false));
   }, []);
 
-  async function handleGenerateReferral() {
-    setReferralGenerating(true);
+  async function handleGenerate() {
+    setGenerating(true);
     try {
-      const res = await fetch("/api/user/referral", { method: "POST", credentials: "include" });
-      const data = await res.json();
+      const res  = await fetch("/api/user/referral", { method: "POST", credentials: "include" });
+      const json = await res.json();
       if (res.ok) {
-        setReferralCode(data.referralCode ?? null);
-        setReferralLink(data.referralLink ?? null);
-        toast.success("Referral link ready! Share it with friends.");
-      } else toast.error(data.error || "Could not generate link");
-    } catch { toast.error("Could not generate link"); }
-    finally { setReferralGenerating(false); }
+        setData(prev => prev ? {
+          ...prev,
+          referralCode: json.referralCode ?? prev.referralCode,
+          referralLink: json.referralLink ?? prev.referralLink,
+        } : null);
+        toast.success("Referral link ready! Share karo dosto ke saath.");
+      } else {
+        toast.error(json.error || "Link generate nahi ho saka");
+      }
+    } catch { toast.error("Kuch gadbad ho gayi. Try karo."); }
+    finally { setGenerating(false); }
   }
 
   function copyLink() {
-    if (!referralLink) return;
-    navigator.clipboard.writeText(referralLink)
-      .then(() => toast.success("Link copied!"))
-      .catch(() => toast.error("Copy failed"));
+    if (!data?.referralLink) return;
+    navigator.clipboard.writeText(data.referralLink)
+      .then(() => toast.success("Link copy ho gaya!"))
+      .catch(() => toast.error("Copy fail ho gaya"));
   }
 
-  const rewarded = referredUsers.filter(u => u.rewarded).length;
+  function copyCode() {
+    if (!data?.referralCode) return;
+    navigator.clipboard.writeText(data.referralCode)
+      .then(() => toast.success("Code copy ho gaya!"))
+      .catch(() => toast.error("Copy fail ho gaya"));
+  }
+
+  function shareOnWhatsApp() {
+    if (!data?.referralLink) return;
+    const text = `Hey! Yeh amazing online study library join karo — I use it for my exam prep. Use my referral link: ${data.referralLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  }
+
+  const users      = data?.referredUsers ?? [];
+  const totalPages = Math.ceil(users.length / PAGE_SIZE);
+  const paginated  = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
 
       {/* Header */}
       <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-6 py-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
           <Gift className="w-5 h-5 text-emerald-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-[var(--foreground)]">Refer & Earn</h1>
-          <p className="text-xs text-[var(--muted-text)]">Invite friends and earn rewards when they join</p>
+          <h1 className="text-lg font-bold text-[var(--foreground)]">Mera Referral</h1>
+          <p className="text-xs text-[var(--muted-text)]">Dosto ko invite karo aur rewards kamao</p>
         </div>
       </div>
 
@@ -79,7 +121,7 @@ export default function ReferPage() {
               <Icon className="w-4 h-4 text-[var(--accent)]" />
             </div>
             <div>
-              <p className="text-xs font-bold text-[var(--muted-text)] uppercase tracking-widest mb-0.5">Step {i + 1}</p>
+              <p className="text-[10px] font-bold text-[var(--muted-text)] uppercase tracking-widest mb-0.5">Step {i + 1}</p>
               <p className="text-sm font-bold text-[var(--foreground)]">{label}</p>
               <p className="text-xs text-[var(--muted-text)] mt-0.5 leading-relaxed">{desc}</p>
             </div>
@@ -87,13 +129,13 @@ export default function ReferPage() {
         ))}
       </div>
 
-      {/* Stats strip */}
-      {referralCode && (
+      {/* Stats */}
+      {data?.referralCode && (
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Total Referred", value: referredUsers.length, color: "text-[var(--accent)]" },
-            { label: "Rewarded", value: rewarded, color: "text-emerald-600" },
-            { label: "Pending", value: referredUsers.length - rewarded, color: "text-amber-600" },
+            { label: "Total Referrals", value: data.referredCount,  color: "text-[var(--accent)]" },
+            { label: "Active Students", value: data.activeCount,    color: "text-emerald-600" },
+            { label: "Inactive",        value: data.inactiveCount,  color: "text-red-500" },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-5 py-4 text-center">
               <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
@@ -103,92 +145,180 @@ export default function ReferPage() {
         </div>
       )}
 
-      {/* Referral link / generate */}
+      {/* Referral Code Card */}
       <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] overflow-hidden">
         <div className="px-6 py-4 border-b border-[var(--border)] flex items-center gap-2">
           <UserPlus className="w-4 h-4 text-[var(--accent)]" />
-          <h2 className="text-sm font-bold text-[var(--foreground)]">Your Referral Link</h2>
+          <h2 className="text-sm font-bold text-[var(--foreground)]">Mera Referral Code</h2>
         </div>
 
         <div className="px-6 py-6">
-          {referralLoading ? (
+          {loading ? (
             <div className="flex items-center gap-3 py-4 justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-[var(--accent)]" />
-              <span className="text-sm text-[var(--muted-text)]">Loading referral info…</span>
+              <span className="text-sm text-[var(--muted-text)]">Loading…</span>
             </div>
-          ) : !referralCode ? (
+          ) : !data?.referralCode ? (
             <div className="text-center py-6 space-y-4">
               <div className="w-16 h-16 rounded-full bg-[var(--accent-pale)] border border-[var(--accent-border)] flex items-center justify-center mx-auto">
                 <Link2 className="w-7 h-7 text-[var(--accent)]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[var(--foreground)] mb-1">Generate your referral link</p>
+                <p className="text-sm font-semibold text-[var(--foreground)] mb-1">Apna referral link generate karo</p>
                 <p className="text-xs text-[var(--muted-text)] max-w-sm mx-auto leading-relaxed">
-                  Apna referral link banao — jitne friends is link se sign up karenge, unka data yahan dikhega.
+                  Ek baar generate karo — phir har dost ko share karo aur unka data yahan track hoga.
                 </p>
               </div>
-              <button type="button" onClick={handleGenerateReferral} disabled={referralGenerating}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-bold transition-all shadow-[var(--shadow-brand)] disabled:opacity-60">
-                {referralGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                {referralGenerating ? "Generating…" : "Generate Referral Link"}
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-bold transition-all shadow-[var(--shadow-brand)] disabled:opacity-60"
+              >
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                {generating ? "Generate ho raha hai…" : "Generate Referral Link"}
               </button>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 rounded-xl border border-[var(--accent-border)] bg-[var(--accent-pale)] px-4 py-3">
-                <p className="flex-1 font-mono text-sm text-[var(--foreground)] truncate select-all">{referralLink}</p>
-                <button type="button" onClick={copyLink}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--accent)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all">
-                  <Copy className="w-3.5 h-3.5" /> Copy
+            <div className="space-y-4">
+              {/* Code display */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex-1 flex items-center justify-between gap-3 rounded-xl border-2 border-[var(--accent-border)] bg-[var(--accent-pale)] px-5 py-3.5">
+                  <span className="font-mono text-xl font-black text-[var(--accent)] tracking-widest select-all">{data.referralCode}</span>
+                  <button
+                    type="button"
+                    onClick={copyCode}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all"
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Copy Code
+                  </button>
+                </div>
+              </div>
+
+              {/* Share link */}
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-gray-50 px-4 py-3">
+                <p className="flex-1 font-mono text-xs text-gray-600 truncate select-all">{data.referralLink}</p>
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-700 hover:bg-gray-100 transition-all"
+                >
+                  <Copy className="w-3 h-3" /> Copy Link
                 </button>
               </div>
-              <p className="text-xs text-[var(--muted-text)] text-center">Share this link with friends. They get a welcome bonus, you earn rewards!</p>
+
+              {/* WhatsApp share */}
+              <button
+                type="button"
+                onClick={shareOnWhatsApp}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#1ebe5b] text-white text-sm font-bold py-3 transition-all"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                WhatsApp pe Share Karo
+              </button>
+
+              <p className="text-xs text-[var(--muted-text)] text-center">
+                Jitne log is link se register karenge, unka data neeche table mein dikh jayega.
+              </p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Referred users */}
-      {referralCode && (
+      {/* Referrals Table */}
+      {data?.referralCode && (
         <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] overflow-hidden">
           <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-[var(--accent)]" />
-              <h2 className="text-sm font-bold text-[var(--foreground)]">Referred Friends</h2>
+              <h2 className="text-sm font-bold text-[var(--foreground)]">Mere Referrals</h2>
             </div>
-            <span className="text-xs font-semibold text-[var(--muted-text)] bg-[var(--page-bg)] border border-[var(--border)] px-2 py-0.5 rounded-full">{referredUsers.length}</span>
+            <span className="text-xs font-semibold text-[var(--muted-text)] bg-[var(--page-bg)] border border-[var(--border)] px-2 py-0.5 rounded-full">{users.length}</span>
           </div>
 
-          {referredUsers.length === 0 ? (
-            <div className="px-6 py-10 text-center">
-              <Users className="w-8 h-8 text-[var(--muted-text)] mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-semibold text-[var(--foreground)]">No referrals yet</p>
-              <p className="text-xs text-[var(--muted-text)] mt-1">Abhi koi aapke link se sign up nahi kiya. Link share karo!</p>
+          {users.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-[var(--foreground)]">Abhi koi referral nahi</p>
+              <p className="text-xs text-[var(--muted-text)] mt-1">Upar wala link share karo — jab koi sign up kare, yahan dikhega.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-[var(--border)]">
-              {referredUsers.map(u => (
-                <li key={u.id} className="flex items-center gap-4 px-6 py-4 hover:bg-[var(--page-bg)] transition-colors">
-                  <div className="w-9 h-9 rounded-full bg-[var(--accent-pale)] border border-[var(--accent-border)] flex items-center justify-center text-sm font-bold text-[var(--accent)] shrink-0">
-                    {u.name?.charAt(0)?.toUpperCase() || "?"}
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50 text-left">
+                      {["#", "Student Name", "Email", "Join Date", "Status"].map(h => (
+                        <th key={h} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {paginated.map((u, i) => (
+                      <tr key={u.id} className="hover:bg-gray-50/60 transition-colors">
+                        <td className="px-4 py-3 text-xs text-gray-400 font-mono">{(page - 1) * PAGE_SIZE + i + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-[var(--accent-pale)] border border-[var(--accent-border)] flex items-center justify-center text-xs font-bold text-[var(--accent)] shrink-0">
+                              {u.name?.charAt(0)?.toUpperCase() || "?"}
+                            </div>
+                            <span className="font-medium text-gray-900 truncate max-w-[140px]">{u.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{u.email}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                          {new Date(u.joinedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                        </td>
+                        <td className="px-4 py-3"><StatusBadge active={u.active} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, users.length)} of {users.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPage(p)}
+                        className={`w-7 h-7 rounded-lg text-xs font-semibold transition ${
+                          p === page
+                            ? "bg-[var(--accent)] text-white"
+                            : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-40 transition"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[var(--foreground)] truncate">{u.name}</p>
-                    <p className="text-xs text-[var(--muted-text)]">{u.email}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-[var(--muted-text)]">{new Date(u.joinedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</p>
-                    {u.rewarded ? (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 mt-0.5 justify-end">
-                        <CheckCircle2 className="w-3 h-3" /> Rewarded
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full mt-0.5 block">Pending</span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

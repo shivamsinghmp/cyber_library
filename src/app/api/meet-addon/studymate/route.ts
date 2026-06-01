@@ -25,7 +25,7 @@ function buildSystemPrompt(profile: {
     profile.currentStreak && `Current streak: ${profile.currentStreak} days 🔥`,
   ].filter(Boolean).join("\n");
 
-  return `You are StudyMate AI — Cyber Library ka personal AI study buddy. Tum ek caring elder sibling ho jo genuinely student ki success chahta hai.
+  return `You are StudyMate AI — Let's Study ka personal AI study buddy. Tum ek caring elder sibling ho jo genuinely student ki success chahta hai.
 
 STUDENT INFO:
 ${ctx || "Profile incomplete hai"}

@@ -78,9 +78,17 @@ export default function StudyMateChat() {
     currentCoins: number;
   } | null>(null);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const bottomRef   = useRef<HTMLDivElement>(null);
+  const scrollRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef     = useRef<HTMLInputElement>(null);
+  const isAtBottom  = useRef(true);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
 
   // ── Fetch initial stats ──────────────────────────────────────────────────
   useEffect(() => {
@@ -92,7 +100,7 @@ export default function StudyMateChat() {
           let greeting: string;
           if (!d.profileComplete) {
             // Onboarding: AI will ask for details — just show a warm welcome
-            greeting = "Namaste! 👋 Main hoon StudyMate AI — Cyber Library ka tumhara personal study buddy!\n\nPehle tumse thoda jaanna chahta hoon taaki main tumhari padhai mein sahi help kar sakoon. Batao...";
+            greeting = "Namaste! 👋 Main hoon StudyMate AI — Let's Study ka tumhara personal study buddy!\n\nPehle tumse thoda jaanna chahta hoon taaki main tumhari padhai mein sahi help kar sakoon. Batao...";
           } else {
             const name = d.studentName ? ` ${d.studentName.split(" ")[0]}` : "";
             const examStr = d.targetExam ? ` ${d.targetExam}` : "";
@@ -117,7 +125,9 @@ export default function StudyMateChat() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isAtBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isLoading]);
 
   // ── Image handling ───────────────────────────────────────────────────────
@@ -341,7 +351,12 @@ export default function StudyMateChat() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0 scroll-smooth"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "#C9BEFF transparent", overscrollBehavior: "contain" }}
+      >
         {loadingStats && (
           <div className="flex justify-center pt-8">
             <RefreshCw className="w-5 h-5 text-[#6367FF] animate-spin" />

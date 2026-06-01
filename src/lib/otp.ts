@@ -52,8 +52,9 @@ export async function verifyOtp(
     return false;
   }
   const ok = await bcrypt.compare(code, record.token);
-  if (!ok) return false;
+  // Always delete on first attempt (success OR failure) — enforces single-use
+  // semantics and prevents brute-force across rate-limit windows.
   await prisma.verificationToken.deleteMany({ where: { identifier } });
-  return true;
+  return ok;
 }
 

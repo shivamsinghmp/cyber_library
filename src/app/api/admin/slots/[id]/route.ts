@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { createStudyRoomEvent, addStudentToCalendarEvent } from "@/lib/google-calendar";
@@ -55,7 +55,7 @@ export async function PUT(
       const sDate = new Date(parsed.data.startTime);
       const eDate = new Date(parsed.data.endTime);
       
-      const generated = await createStudyRoomEvent(`The Cyber Library: ${parsed.data.name || "Updated Slot"}`, sDate, eDate);
+      const generated = await createStudyRoomEvent(`Let's Study: ${parsed.data.name || "Updated Slot"}`, sDate, eDate);
       if (generated) {
         finalMeetLink = generated.meetLink;
         finalCalendarEventId = generated.calendarEventId;

@@ -27,16 +27,24 @@ export async function GET() {
       select: { id: true, planType: true, startDate: true, endDate: true, status: true, amountPaid: true },
     });
 
-    if (!sub) return NextResponse.json({ active: false });
+    const userMeta = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { trialUsed: true },
+    });
+
+    if (!sub) return NextResponse.json({ active: false, trialUsed: userMeta?.trialUsed ?? false });
 
     return NextResponse.json({
       active: true,
       planType: sub.planType,
+      isTrial: sub.planType === "TRIAL",
       startDate: sub.startDate,
       endDate: sub.endDate,
       amountPaid: sub.amountPaid,
+      trialUsed: userMeta?.trialUsed ?? false,
     });
-  } catch {
-    return NextResponse.json({ active: false });
+  } catch (e) {
+    console.error("GET /api/subscription/status:", e);
+    return NextResponse.json({ active: false }, { status: 500 });
   }
 }

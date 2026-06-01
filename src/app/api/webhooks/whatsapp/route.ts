@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   }
 
   if (mode === "subscribe" && token === verifyToken) {
-    console.log("WhatsApp webhook verified ✓");
+    console.info("[Webhook/WhatsApp] verified ✓");
     return new Response(challenge ?? "", { status: 200 });
   }
 
@@ -142,6 +142,17 @@ async function handleWebhookBody(body: { object: string; entry: WAEntry[] }) {
             select: { userId: true },
           });
 
+          // Opt-out: student texted STOP/BAND KRO/UNSUBSCRIBE → disable marketing messages
+          const upperContent = content.trim().toUpperCase();
+          const isOptOut = ["STOP", "BAND KRO", "UNSUBSCRIBE", "BAND KARO"].includes(upperContent);
+          if (isOptOut && profile?.userId) {
+            await prisma.profile.update({
+              where: { userId: profile.userId },
+              data:  { whatsappMarketing: false },
+            });
+            console.info(`[Webhook/WhatsApp] opt-out received from ${fromPhone}`);
+          }
+
           const enc = encryptContent(content);
           await prisma.whatsAppMessage.upsert({
             where:  { wamid: msg.id },
@@ -157,7 +168,7 @@ async function handleWebhookBody(body: { object: string; entry: WAEntry[] }) {
             update: {}, // already saved — no-op
           });
 
-          console.log(`WhatsApp inbound from ${fromPhone}: "${content.slice(0, 60)}"`);
+          console.info(`[Webhook/WhatsApp] inbound from ${fromPhone}: "${content.slice(0, 60)}"`);
         }
 
         // ── Status updates (delivery receipts) ────────────────────────────────
@@ -174,7 +185,7 @@ async function handleWebhookBody(body: { object: string; entry: WAEntry[] }) {
             data:  { status: mappedStatus },
           });
 
-          console.log(`WhatsApp status update wamid=${status.id} → ${mappedStatus}`);
+          console.info(`[Webhook/WhatsApp] status wamid=${status.id} → ${mappedStatus}`);
         }
       }
     }

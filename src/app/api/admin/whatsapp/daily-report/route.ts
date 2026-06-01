@@ -6,7 +6,7 @@ import { encrypt } from "@/lib/encrypt";
 
 const TEMPLATE_KEY = "WA_DAILY_REPORT_TEMPLATE";
 
-const DEFAULT_TEMPLATE = `🎓 *The Cyber Library — Daily Report*
+const DEFAULT_TEMPLATE = `🎓 *Let's Study — Daily Report*
 
 Namaste *{{name}}*! 👋
 
@@ -22,7 +22,7 @@ _{{quote}}_
 
 Consistency hi success ka raasta hai. Kal aur behtar karo! 🚀
 
-— The Cyber Library Team`;
+— Let's Study Team`;
 
 const QUOTES = [
   "सपने वो नहीं जो हम सोते वक्त देखते हैं, सपने वो हैं जो हमें सोने नहीं देते। — A.P.J. Abdul Kalam",

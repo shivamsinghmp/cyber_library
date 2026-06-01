@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
@@ -35,7 +35,7 @@ function LoginForm() {
   const [loginAs, setLoginAs]         = useState<string>("STUDENT");
   const [showPassword, setShowPassword] = useState(false);
   const [logoUrl, setLogoUrl]         = useState<string | null>(null);
-  const [siteTitle, setSiteTitle]     = useState("The Cyber Library");
+  const [siteTitle, setSiteTitle]     = useState("Let's Study");
   const redirecting = useRef(false);
 
   // If user is already logged in, redirect them to their dashboard
@@ -63,7 +63,7 @@ function LoginForm() {
       }).catch(() => {});
   }, []);
 
-  const logoSrc      = logoUrl?.trim() || "/logo.png";
+  const logoSrc      = logoUrl?.trim() || "/favicon.svg";
   const isExternalLogo = logoSrc.startsWith("http");
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -323,7 +323,7 @@ function LoginForm() {
                 <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
                 {isSubmitting
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Checking…</>
-                  : "Library Mein Jaao →"
+                  : "Let's Study Shuru Karo →"
                 }
               </button>
             </form>

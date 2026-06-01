@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { LayoutDashboard, LogOut, Menu, X, Coins } from "lucide-react";
+import Logo from "@/components/Logo";
 import { calculateCompletion, type ProfileForCompletion } from "@/lib/profileCompletion";
 import { STUDENT_MODULES, filterEnabledModules } from "@/lib/student-modules";
 
@@ -21,7 +22,7 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [totalCoins, setTotalCoins] = useState<number | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState("The Cyber Library");
+  const [siteTitle, setSiteTitle] = useState("Let's Study");
 
   useEffect(() => {
     fetch("/api/dashboard/meet-addon", { credentials: "include" })
@@ -246,14 +247,18 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
         {/* Header */}
         <div className="flex h-14 shrink-0 items-center justify-between px-4 border-b border-[var(--cream-muted)]">
           <div className="flex items-center gap-2.5">
-            <div className="relative h-10 w-10 shrink-0">
-              {(logoUrl?.trim() && logoUrl.startsWith("http")) ? (
-                <img src={logoUrl} alt={siteTitle} className="h-10 w-10 object-contain rounded-xl" />
-              ) : (
-                <Image src={logoUrl?.trim() || "/logo.png"} alt={siteTitle} width={40} height={40} className="object-contain" />
-              )}
-            </div>
-            <span className="text-sm font-bold text-[var(--foreground)] truncate">{siteTitle}</span>
+            {logoUrl?.trim() ? (
+              <>
+                {logoUrl.startsWith("http") ? (
+                  <img src={logoUrl} alt={siteTitle} className="h-10 w-10 object-contain rounded-xl" />
+                ) : (
+                  <Image src={logoUrl.trim()} alt={siteTitle} width={40} height={40} className="object-contain" />
+                )}
+                <span className="text-sm font-bold text-[var(--foreground)] truncate">{siteTitle}</span>
+              </>
+            ) : (
+              <Logo />
+            )}
           </div>
           <button
             type="button"

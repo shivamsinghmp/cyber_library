@@ -58,7 +58,7 @@ export async function sendSmsOtp(phoneNumber: string, otp: string): Promise<bool
       console.error("Fast2SMS error:", JSON.stringify(data));
       return false;
     }
-    console.log(`SMS OTP sent to ${number} via Fast2SMS`);
+    console.info(`[SMS] OTP sent to ${number} via Fast2SMS`);
     return true;
   } catch (err) {
     if ((err as Error).name === "AbortError") console.error("Fast2SMS timeout for", number);
