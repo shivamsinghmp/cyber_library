@@ -24,6 +24,7 @@ const outfit = Plus_Jakarta_Sans({
 });
 
 import { Suspense } from "react";
+import Script from "next/script";
 import { SessionProvider } from "@/components/SessionProvider";
 import { CartProvider } from "@/context/CartContext";
 import { NavbarWrapper } from "@/components/NavbarWrapper";
@@ -124,20 +125,7 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {adsenseId && (
-          <script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
-            crossOrigin="anonymous"
-          />
-        )}
-        {fbPixelId && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${fbPixelId}');fbq('track','PageView');`,
-            }}
-          />
-        )}
+        {/* AdSense and FB Pixel loaded after page is interactive — prevents render blocking */}
       </head>
       <body className={`${inter.variable} ${outfit.variable} font-sans antialiased min-h-screen flex flex-col`}>
         {fbPixelId && (
@@ -164,6 +152,20 @@ export default async function RootLayout({
         </SmoothScroll>
         {resolvedGaId && <GoogleAnalytics gaId={resolvedGaId} />}
         {resolvedGtmId && <GoogleTagManager gtmId={resolvedGtmId} />}
+        {/* AdSense: lazyOnload — loads after page is fully interactive, zero render-blocking */}
+        {adsenseId && (
+          <Script
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseId}`}
+            strategy="lazyOnload"
+            crossOrigin="anonymous"
+          />
+        )}
+        {/* FB Pixel: afterInteractive — loads after hydration, doesn't block FCP/LCP */}
+        {fbPixelId && (
+          <Script id="fb-pixel" strategy="afterInteractive">
+            {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${fbPixelId}');fbq('track','PageView');`}
+          </Script>
+        )}
         {customHeadHtml && (
           <div dangerouslySetInnerHTML={{ __html: customHeadHtml }} />
         )}

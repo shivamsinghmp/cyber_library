@@ -24,8 +24,9 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
         <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
 
           {/* Left */}
-          <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-8">
-            <motion.div variants={fadeIn}>
+          <div className="space-y-8">
+            {/* Badge — decorative, can animate */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
               <span className="inline-flex items-center gap-2.5 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.15em]" style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: "var(--accent)" }} />
@@ -35,19 +36,20 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
               </span>
             </motion.div>
 
-            <motion.h1 variants={fadeIn} className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.5rem]" style={{ color: "var(--foreground)" }}>
+            {/* H1 — LCP element: NO motion wrapper, visible immediately in SSR HTML */}
+            <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.5rem]" style={{ color: "var(--foreground)" }}>
               {headlineStart}{" "}
               <span className="animate-[gradient-shift_8s_ease_infinite] bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6, #06B6D4, #6366F1)", backgroundSize: "300% auto" }}>
                 {headlineMid}
               </span>{" "}
               {headlineEnd}
-            </motion.h1>
+            </h1>
 
-            <motion.p variants={fadeIn} className="max-w-lg text-lg leading-relaxed" style={{ color: "var(--body-text)" }}>
+            <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} className="max-w-lg text-lg leading-relaxed" style={{ color: "var(--body-text)" }}>
               Ghar pe focus nahi hota? Phone haath mein aa jaata hai? Let's Study mein aao — yahan students saath milke padhte hain, cameras on, mics off. Koi bakwaas nahi, sirf padhai.
             </motion.p>
 
-            <motion.div variants={fadeIn} className="flex flex-wrap gap-4">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.25, ease: [0.16, 1, 0.3, 1] }} className="flex flex-wrap gap-4">
               {isLoading ? (
                 <div className="h-14 w-44 animate-pulse rounded-full" style={{ background: "var(--accent-pale)" }} />
               ) : !isLoggedIn ? (
@@ -70,7 +72,7 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
               )}
             </motion.div>
 
-            <motion.div variants={fadeIn} className="flex flex-wrap gap-5">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.35, ease: [0.16, 1, 0.3, 1] }} className="flex flex-wrap gap-5">
               {[
                 { emoji: "👥", label: "Saath padhte hain, focus rehta hai" },
                 { emoji: "⏱️", label: "Pomodoro timer + lo-fi music" },
@@ -82,7 +84,7 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
                 </div>
               ))}
             </motion.div>
-          </motion.div>
+          </div>
 
           {/* Right: floating card */}
           <motion.div initial={{ opacity: 0, x: 60 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3, duration: 1, ease: [0.16, 1, 0.3, 1] }} className="relative lg:flex lg:justify-end">

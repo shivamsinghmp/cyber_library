@@ -56,7 +56,7 @@ export function BlogSection({ blogs }: { blogs: Blog[] }) {
                       {blog.publishedAt ? new Date(blog.publishedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "Recent"}
                     </span>
                   </div>
-                  <h4 className="mb-3 line-clamp-2 text-xl font-bold transition-colors group-hover:text-[var(--accent)]" style={{ color: "var(--foreground)" }}>{blog.title}</h4>
+                  <h3 className="mb-3 line-clamp-2 text-xl font-bold transition-colors group-hover:text-[var(--accent)]" style={{ color: "var(--foreground)" }}>{blog.title}</h3>
                   <p className="line-clamp-3 text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>{blog.excerpt || "Read more about this topic..."}</p>
                 </div>
                 <div className="border-t p-5" style={{ borderColor: "var(--border)" }}>
