@@ -32,7 +32,7 @@
   /* ── Text Colors ────────────────────────────── */
   --foreground:    #0F172A;
   --body-text:     #334155;
-  --muted-text:    #64748B;
+  --muted-text:    #475569; /* slate-600 — passes WCAG AA on all bg incl. accent-pale */
   --placeholder:   #94A3B8;
 
   /* ── Legacy aliases (keep components working) ── */
