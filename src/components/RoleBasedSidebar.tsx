@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
+import Logo from "@/components/Logo";
 import {
   LayoutDashboard,
   Home,
@@ -55,8 +56,8 @@ const roleNav: Record<string, NavNode[]> = {
         { href: "/admin", label: "Admin Dashboard" },
         { href: "/admin/traffic", label: "Traffic" },
         { href: "/admin/audit-logs", label: "Audit Logs" },
-        { href: "/admin/settings", label: "Settings" },
         { href: "/admin/ai-settings", label: "AI API Keys" },
+        { href: "/admin/ai-usage", label: "AI Usage" },
       ],
     },
     {
@@ -64,7 +65,7 @@ const roleNav: Record<string, NavNode[]> = {
       label: "Virtual Library & Meet",
       icon: MonitorPlay,
       subItems: [
-        { href: "/admin/virtual-library", label: "The Cyber Library" },
+        { href: "/admin/virtual-library", label: "Let's Study" },
         { href: "/admin/slots", label: "Study Room Management" },
         { href: "/admin/meet-polls", label: "Meet Polls" },
       ],
@@ -75,6 +76,7 @@ const roleNav: Record<string, NavNode[]> = {
       icon: Users,
       subItems: [
         { href: "/admin/students", label: "Student Management" },
+        { href: "/admin/student-view", label: "Student View" },
         { href: "/admin/student-modules", label: "Student Modules" },
         { href: "/admin/staff", label: "Staff Management" },
         { href: "/admin/profile-fields", label: "Profile Fields" },
@@ -89,11 +91,11 @@ const roleNav: Record<string, NavNode[]> = {
       subItems: [
         { href: "/admin/transactions", label: "Transactions" },
         { href: "/admin/subscriptions", label: "Subscriptions" },
+        { href: "/admin/trial", label: "Trial Management" },
         { href: "/admin/products", label: "Digital Store" },
         { href: "/admin/pricing", label: "Pricing Page" },
         { href: "/admin/coupons", label: "Coupons" },
         { href: "/admin/rewards", label: "Reward Program" },
-        { href: "/admin/razorpay", label: "Razorpay API" },
         { href: "/admin/coin-engine", label: "Coin Engine" },
       ],
     },
@@ -168,7 +170,7 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
   }
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [siteTitle, setSiteTitle] = useState("The Cyber Library");
+  const [siteTitle, setSiteTitle] = useState("Let's Study");
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -220,15 +222,19 @@ export function RoleBasedSidebar({ allowedModules = [] }: { allowedModules?: str
   return (
     <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-gray-200 bg-white shadow-sm md:w-64">
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-gray-100 px-4">
-        <div className="relative h-10 w-10 shrink-0">
-          {isExternalLogo ? (
-            <img src={logoSrc} alt={siteTitle} className="h-10 w-10 object-contain" />
-          ) : (
-            <Image src={logoSrc} alt={siteTitle} width={40} height={40} className="object-contain" />
-          )}
-        </div>
-        <span className="truncate text-sm font-bold text-gray-900">{siteTitle}</span>
+      <div className="flex h-14 items-center border-b border-gray-100 px-4">
+        {logoUrl?.trim() ? (
+          <div className="flex items-center gap-2.5">
+            {isExternalLogo ? (
+              <img src={logoSrc} alt={siteTitle} className="h-10 w-10 object-contain" />
+            ) : (
+              <Image src={logoSrc} alt={siteTitle} width={40} height={40} className="object-contain" />
+            )}
+            <span className="truncate text-sm font-bold text-gray-900">{siteTitle}</span>
+          </div>
+        ) : (
+          <Logo />
+        )}
       </div>
 
       {/* Nav */}
