@@ -96,9 +96,14 @@ export async function GET(request: Request) {
     const utmCampaign = searchParams.get("utm_campaign")?.slice(0, 100) ?? null;
 
     // Geo lookup on raw IP (needs full IP for accuracy), then discard raw IP
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const geoip = require("geoip-lite") as typeof import("geoip-lite");
-    const geo = rawIp !== "unknown" ? geoip.lookup(rawIp) : null;
+    let geo: { country?: string; city?: string } | null = null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const geoip = require("geoip-lite") as typeof import("geoip-lite");
+      geo = rawIp !== "unknown" ? geoip.lookup(rawIp) : null;
+    } catch {
+      // geo unavailable — visit still recorded without location
+    }
 
     visitQueue.push({
       ip,                         // anonymized — stored in DB
