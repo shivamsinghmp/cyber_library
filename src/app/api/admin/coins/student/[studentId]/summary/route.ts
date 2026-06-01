@@ -16,13 +16,14 @@ function toIST(date: Date): string {
  */
 export async function GET(
   _request: Request,
-  { params }: { params: { studentId: string } },
+  { params }: { params: Promise<{ studentId: string }> },
 ) {
   try {
     const auth = await requireAdmin();
     if (auth.error) return auth.error;
 
-    const userId = params.studentId;
+    const { studentId } = await params;
+    const userId = studentId;
     if (!userId) return NextResponse.json({ error: "Missing studentId" }, { status: 400 });
 
     const sixMonthsAgo = new Date();
