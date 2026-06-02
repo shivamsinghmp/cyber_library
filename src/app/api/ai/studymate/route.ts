@@ -382,13 +382,14 @@ Reply (stem OR budget OR smart OR premium):` }] }],
 // ─── Provider Callers ─────────────────────────────────────────────────────────
 type Msg = { role: "user" | "assistant"; content: string };
 
-async function callGoogle(
-  apiKey: string, model: ModelId, messages: Msg[], system: string,
-  imageBase64?: string, mediaType?: string,
-): Promise<AICallResult> {
-  const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
+// ─── Streaming Types & Helpers ────────────────────────────────────────────────
+// ← ADDED: streaming support
+type StreamChunk =
+  | { type: "delta"; text: string }
+  | { type: "done";  inputTokens: number; outputTokens: number };
 
-  const contents = messages.map((m, i) => {
+function buildGeminiContents(messages: Msg[], imageBase64?: string, mediaType?: string) {
+  return messages.map((m, i) => {
     const role = m.role === "assistant" ? "model" : "user";
     if (imageBase64 && i === messages.length - 1 && m.role === "user") {
       return { role, parts: [
@@ -398,75 +399,127 @@ async function callGoogle(
     }
     return { role, parts: [{ text: m.content }] };
   });
+}
+
+// ← ADDED: Gemini SSE streaming via streamGenerateContent
+async function* streamGoogle(
+  apiKey: string, model: ModelId, messages: Msg[], system: string,
+  imageBase64?: string, mediaType?: string,
+): AsyncGenerator<StreamChunk> {
+  const { vertexAuthHeaders } = await import("@/lib/vertex-auth");
+  const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL[model]}:streamGenerateContent?alt=sse`;
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 55_000);
-  const res = await fetch(
-    geminiUrl(API_MODEL[model]),
-    {
-      method: "POST", signal: ctrl.signal,
-      headers: vertexAuthHeaders(apiKey),
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents,
-        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
-      }),
-    }
-  ).finally(() => clearTimeout(timer));
+  const res = await fetch(streamUrl, {
+    method: "POST", signal: ctrl.signal,
+    headers: vertexAuthHeaders(apiKey),
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: buildGeminiContents(messages, imageBase64, mediaType),
+      generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
+    }),
+  }).finally(() => clearTimeout(timer));
 
   if (!res.ok) {
     const body = await res.text();
-    console.error(`Google ${model} error:`, res.status, body);
     let apiMsg = body.slice(0, 300);
     try { apiMsg = (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
     if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
-    if (res.status === 401 || res.status === 403) throw new Error(`Gemini API auth failed. API key check karo.`);
+    if (res.status === 401 || res.status === 403) throw new Error("Gemini API auth failed. API key check karo.");
     if (res.status === 404) throw new Error(`Gemini model '${API_MODEL[model]}' not found. Admin se contact karo.`);
     throw new Error(`Gemini API error (${res.status}): ${apiMsg}`);
   }
-  const data = await res.json();
-  const reply = data.candidates?.[0]?.content?.parts?.filter((p: {text?:string}) => p.text)
-    ?.map((p: {text:string}) => p.text)?.join("") ?? "Kuch error aa gaya, dobara try karo.";
-  const inputTokens  = data.usageMetadata?.promptTokenCount    ?? 0;
-  const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
-  const totalTokens  = data.usageMetadata?.totalTokenCount ?? (inputTokens + outputTokens || 500);
-  return { reply, totalTokens, inputTokens, outputTokens };
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "", inputTokens = 0, outputTokens = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          const chunk = JSON.parse(jsonStr);
+          const text = chunk.candidates?.[0]?.content?.parts
+            ?.filter((p: { text?: string }) => p.text)
+            ?.map((p: { text: string }) => p.text)?.join("") ?? "";
+          if (text) yield { type: "delta", text };
+          if (chunk.usageMetadata) {
+            inputTokens  = chunk.usageMetadata.promptTokenCount    ?? inputTokens;
+            outputTokens = chunk.usageMetadata.candidatesTokenCount ?? outputTokens;
+          }
+        } catch { /* skip malformed chunk */ }
+      }
+    }
+  } finally { reader.releaseLock(); }
+  yield { type: "done", inputTokens, outputTokens };
 }
 
-async function callAnthropic(
+// ← ADDED: Anthropic SSE streaming
+async function* streamAnthropic(
   apiKey: string, model: ModelId, messages: Msg[], system: string,
-): Promise<AICallResult> {
+): AsyncGenerator<StreamChunk> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 55_000);
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal: ctrl.signal,
     headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify({
-      model: API_MODEL[model], max_tokens: 1024, system,
+      model: API_MODEL[model], max_tokens: 8192, system, stream: true,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
     }),
   }).finally(() => clearTimeout(timer));
 
   if (!res.ok) {
-    const body = await res.text(); console.error(`Anthropic ${model} error:`, res.status, body);
+    const body = await res.text();
+    console.error(`Anthropic ${model} error:`, res.status, body);
     if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
     throw new Error("AI service unavailable. Thodi der baad try karo.");
   }
-  const data = await res.json();
-  const reply        = data.content?.[0]?.text ?? "Kuch error aa gaya, dobara try karo.";
-  const inputTokens  = data.usage?.input_tokens  ?? 0;
-  const outputTokens = data.usage?.output_tokens ?? 0;
-  const totalTokens  = inputTokens + outputTokens;
-  return { reply, totalTokens, inputTokens, outputTokens };
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "", eventType = "", inputTokens = 0, outputTokens = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) { eventType = line.slice(7).trim(); continue; }
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          const chunk = JSON.parse(jsonStr);
+          if (eventType === "content_block_delta" && chunk.delta?.type === "text_delta")
+            yield { type: "delta", text: chunk.delta.text };
+          if (eventType === "message_start" && chunk.message?.usage)
+            inputTokens = chunk.message.usage.input_tokens ?? inputTokens;
+          if (eventType === "message_delta" && chunk.usage)
+            outputTokens = chunk.usage.output_tokens ?? outputTokens;
+        } catch { /* skip */ }
+      }
+    }
+  } finally { reader.releaseLock(); }
+  yield { type: "done", inputTokens, outputTokens };
 }
 
-async function callOpenAI(
+// ← ADDED: OpenAI SSE streaming
+async function* streamOpenAI(
   apiKey: string, model: ModelId, messages: Msg[], system: string,
-): Promise<AICallResult> {
+): AsyncGenerator<StreamChunk> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 55_000);
-
-  // o1/o1-mini use developer role; others use system role
   const isO1 = model === "gpt-o1" || model === "gpt-o1-mini";
   const systemMsg = isO1
     ? { role: "developer", content: system }
@@ -476,38 +529,59 @@ async function callOpenAI(
     method: "POST", signal: ctrl.signal,
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: API_MODEL[model],
-      max_completion_tokens: 1024,
+      model: API_MODEL[model], max_completion_tokens: 8192,
+      stream: true, stream_options: { include_usage: true },
       messages: [systemMsg, ...messages.map(m => ({ role: m.role, content: m.content }))],
     }),
   }).finally(() => clearTimeout(timer));
 
   if (!res.ok) {
-    const body = await res.text(); console.error(`OpenAI ${model} error:`, res.status, body);
+    const body = await res.text();
+    console.error(`OpenAI ${model} error:`, res.status, body);
     if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
     throw new Error("AI service unavailable. Thodi der baad try karo.");
   }
-  const data = await res.json();
-  const reply        = data.choices?.[0]?.message?.content ?? "Kuch error aa gaya, dobara try karo.";
-  const inputTokens  = data.usage?.prompt_tokens     ?? 0;
-  const outputTokens = data.usage?.completion_tokens ?? 0;
-  const totalTokens  = data.usage?.total_tokens ?? (inputTokens + outputTokens || 500);
-  return { reply, totalTokens, inputTokens, outputTokens };
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "", inputTokens = 0, outputTokens = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === "[DONE]" || !jsonStr) continue;
+        try {
+          const chunk = JSON.parse(jsonStr);
+          const text = chunk.choices?.[0]?.delta?.content;
+          if (text) yield { type: "delta", text };
+          if (chunk.usage) {
+            inputTokens  = chunk.usage.prompt_tokens     ?? inputTokens;
+            outputTokens = chunk.usage.completion_tokens ?? outputTokens;
+          }
+        } catch { /* skip */ }
+      }
+    }
+  } finally { reader.releaseLock(); }
+  yield { type: "done", inputTokens, outputTokens };
 }
 
-// Dispatch to correct provider
-async function callModel(
+// ← ADDED: Dispatch to correct provider's streaming generator
+async function* streamModel(
   keys: { google: string | null; anthropic: string | null; openai: string | null },
   model: ModelId, messages: Msg[], system: string,
   imageBase64?: string, mediaType?: string,
-): Promise<AICallResult> {
+): AsyncGenerator<StreamChunk> {
   const provider = MODEL_PROVIDER[model];
-  if (provider === "google")    return callGoogle(keys.google!, model, messages, system, imageBase64, mediaType);
-  if (provider === "anthropic") return callAnthropic(keys.anthropic!, model, messages, system);
-  return callOpenAI(keys.openai!, model, messages, system);
+  if (provider === "google")    yield* streamGoogle(keys.google!, model, messages, system, imageBase64, mediaType);
+  else if (provider === "anthropic") yield* streamAnthropic(keys.anthropic!, model, messages, system);
+  else yield* streamOpenAI(keys.openai!, model, messages, system);
 }
-
-type AICallResult = { reply: string; totalTokens: number; inputTokens: number; outputTokens: number };
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const bodySchema = z.object({
@@ -604,71 +678,97 @@ export async function POST(request: Request) {
 
     const profile = await getProfile(userId);
     const system = buildSystemPrompt(profile);
-
-    // Call model with fallback to cheapest available
-    let reply: string;
-    let totalTokens: number;
-    let inputTokens  = 0;
-    let outputTokens = 0;
     let usedModel = modelId;
 
-    try {
-      ({ reply, totalTokens, inputTokens, outputTokens } = await callModel(keys, modelId, messages, system, imageBase64, mediaType));
-    } catch (err) {
-      const errMsg = (err as Error).message ?? "";
-      const isQuota = errMsg.includes("quota");
-      const failedProvider = MODEL_PROVIDER[modelId];
+    // ← MODIFIED: return SSE stream instead of JSON
+    const encoder = new TextEncoder();
+    const send = (ctrl: ReadableStreamDefaultController<Uint8Array>, data: object) =>
+      ctrl.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
-      // On quota error prefer a different provider so the user never sees "busy"
-      let fallback: ModelId | undefined;
-      if (isQuota) {
-        fallback = available.find(m => MODEL_PROVIDER[m] !== failedProvider && COINS_PER_1000T[m] <= 2)
-          ?? available.find(m => MODEL_PROVIDER[m] !== failedProvider);
-      }
-      fallback = fallback ?? available.find(m => COINS_PER_1000T[m] === 1) ?? available[0];
+    const responseStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let inputTokens = 0, outputTokens = 0, accText = "";
 
-      if (fallback !== modelId) {
+        const runGen = async (gen: AsyncGenerator<StreamChunk>) => {
+          for await (const ev of gen) {
+            if (ev.type === "delta") {
+              accText += ev.text;
+              send(controller, { t: "c", d: ev.text });   // raw chunk — frontend accumulates
+            } else if (ev.type === "done") {
+              inputTokens  = ev.inputTokens;
+              outputTokens = ev.outputTokens;
+            }
+          }
+        };
+
         try {
-          ({ reply, totalTokens, inputTokens, outputTokens } = await callModel(keys, fallback, messages, system, imageBase64, mediaType));
-          usedModel = fallback;
-        } catch { throw err; }
-      } else { throw err; }
-    }
+          // Primary model attempt
+          try {
+            await runGen(streamModel(keys, modelId, messages, system, imageBase64, mediaType));
+          } catch (primaryErr) {
+            const eMsg = (primaryErr as Error).message ?? "";
+            const isQuota = eMsg.includes("quota");
+            const failedProvider = MODEL_PROVIDER[modelId];
+            let fallback: ModelId | undefined;
+            if (isQuota) {
+              fallback = available.find(m => MODEL_PROVIDER[m] !== failedProvider && COINS_PER_1000T[m] <= 2)
+                ?? available.find(m => MODEL_PROVIDER[m] !== failedProvider);
+            }
+            fallback = fallback ?? available.find(m => COINS_PER_1000T[m] === 1) ?? available[0];
+            if (fallback && fallback !== modelId) {
+              usedModel = fallback;
+              await runGen(streamModel(keys, fallback, messages, system, imageBase64, mediaType));
+            } else { throw primaryErr; }
+          }
 
-    // Exact coin charge: calcCoins uses real (inputTokens + outputTokens) from the API.
-    // Cap at current balance so the user never goes negative.
-    const coinsToCharge = Math.min(calcCoins(totalTokens, usedModel), coins);
-    const latencyMs     = Date.now() - aiStartTime;
+          // Coin deduction on actual input+output tokens
+          const totalTokens   = (inputTokens + outputTokens) || 500;
+          const coinsToCharge = Math.min(calcCoins(totalTokens, usedModel), coins);
+          const latencyMs     = Date.now() - aiStartTime;
+          await logUsage(userId, coinsToCharge, usedModel);
 
-    await logUsage(userId, coinsToCharge, usedModel);
+          // ← ADDED: done event — send stripped full text + metadata
+          send(controller, {
+            t:    "done",
+            i:    inputTokens,
+            o:    outputTokens,
+            coins: coinsToCharge,
+            model: usedModel,
+            full:  stripMarkdown(accText),     // final clean text replaces accumulated raw
+            profileComplete: !isProfileIncomplete(profile),
+          });
 
-    // Fire-and-forget analytics log — never blocks the response
-    const { logAIUsage } = await import("@/lib/ai-logger");
-    logAIUsage({
-      userId,
-      feature:      "studymate",
-      provider:     MODEL_PROVIDER[usedModel],
-      model:        usedModel,
-      inputTokens,
-      outputTokens,
-      coinsCharged: coinsToCharge,
-      latencyMs,
-      status:       "success",
+          // Fire-and-forget
+          const { logAIUsage } = await import("@/lib/ai-logger");
+          void logAIUsage({ userId, feature: "studymate", provider: MODEL_PROVIDER[usedModel],
+            model: usedModel, inputTokens, outputTokens, coinsCharged: coinsToCharge,
+            latencyMs, status: "success" });
+          if (keys.google && messages.length >= 2)
+            extractAndSaveProfile(userId, messages, keys.google).catch(() => {});
+
+        } catch (err) {
+          const eMsg = (err as Error).message ?? "";
+          const userMsg = eMsg.includes("quota") || eMsg.includes("limit")
+            ? "AI service temporarily busy. Thodi der baad try karo."
+            : eMsg.includes("auth") || eMsg.includes("key")
+              ? "AI service configuration error. Contact support."
+              : (err as Error).name === "AbortError"
+                ? "AI response timed out. Dobara try karo."
+                : "AI service error. Dobara try karo.";
+          send(controller, { t: "err", msg: userMsg });
+        } finally {
+          controller.close();
+        }
+      },
     });
 
-    // Always try to extract profile details silently from conversation — never ask the student
-    if (keys.google && messages.length >= 2) {
-      extractAndSaveProfile(userId, messages, keys.google).catch(() => {});
-    }
-
-    return NextResponse.json({
-      reply: stripMarkdown(reply),
-      modelUsed: usedModel,
-      coinsUsed: coinsToCharge,
-      tokensUsed: totalTokens,
-      inputTokens,
-      outputTokens,
-      profileComplete: !isProfileIncomplete(profile),
+    return new Response(responseStream, {
+      headers: {
+        "Content-Type":    "text/event-stream",
+        "Cache-Control":   "no-cache",
+        "Connection":      "keep-alive",
+        "X-Accel-Buffering": "no",   // disable nginx buffering for true streaming
+      },
     });
   } catch (e) {
     if ((e as Error).name === "AbortError") {

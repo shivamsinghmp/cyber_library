@@ -22,6 +22,7 @@ interface Message {
   tokensUsed?: number;
   inputTokens?: number;
   outputTokens?: number;
+  isStreaming?: boolean;   // ← ADDED: shows blinking cursor while streaming
 }
 
 interface Stats {
@@ -62,6 +63,9 @@ const QUICK_PROMPTS = [
 function genId() { return Math.random().toString(36).slice(2, 9); }
 function fmtTime(d: Date) { return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }); }
 
+// ← ADDED: session token limit (reset with "New Chat")
+const SESSION_TOKEN_LIMIT = 10_000;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function StudyMateChat() {
   const [stats, setStats] = useState<Stats>({ totalCoins: 0, studentName: null, targetExam: null, currentStreak: 0, profileComplete: true });
@@ -79,6 +83,10 @@ export default function StudyMateChat() {
     fallbackModel: ModelId; fallbackModelCoins: number;
     currentCoins: number;
   } | null>(null);
+  // ← ADDED: session-level token counter + limit
+  const [sessionTokens, setSessionTokens] = useState(0);
+  const [tokenLimitReached, setTokenLimitReached] = useState(false);
+  const liveTokensRef = useRef(0);   // tracks tokens during active stream (avoids stale state)
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const scrollRef   = useRef<HTMLDivElement>(null);
@@ -182,10 +190,101 @@ export default function StudyMateChat() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  // ← ADDED: core SSE stream consumer — used by sendMessage + handleAcceptLowerQuality
+  const consumeStream = useCallback(async (
+    res: Response,
+    streamMsgId: string,
+  ) => {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    liveTokensRef.current = 0;   // reset per-message live counter
+
+    try {
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+          try {
+            const ev = JSON.parse(jsonStr) as Record<string, unknown>;
+
+            // ── content chunk ─────────────────────────────────────────────
+            if (ev.t === "c") {
+              const chunk = (ev.d as string) ?? "";
+              // Live token estimation: 1 token ≈ 4 chars
+              const chunkTokens = Math.ceil(chunk.length / 4);
+              liveTokensRef.current += chunkTokens;
+              setSessionTokens(prev => Math.min(prev + chunkTokens, SESSION_TOKEN_LIMIT));
+
+              // Auto-stop when session limit hit
+              if (liveTokensRef.current + (sessionTokens) >= SESSION_TOKEN_LIMIT) {
+                reader.cancel();
+                setMessages(prev => prev.map(m => m.id === streamMsgId
+                  ? { ...m, content: m.content + chunk + "\n\n[Session token limit reached. New chat shuru karo.]", isStreaming: false }
+                  : m));
+                setTokenLimitReached(true);
+                break outer;
+              }
+
+              setMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
+              ));
+
+            // ── stream complete ───────────────────────────────────────────
+            } else if (ev.t === "done") {
+              const actualTokens = ((ev.i as number) ?? 0) + ((ev.o as number) ?? 0);
+              // Replace live estimate with actual token count
+              setSessionTokens(prev => Math.min(
+                prev - liveTokensRef.current + actualTokens,
+                SESSION_TOKEN_LIMIT,
+              ));
+              setMessages(prev => prev.map(m => m.id === streamMsgId ? {
+                ...m,
+                content:      (ev.full as string) ?? m.content,   // server-stripped clean text
+                isStreaming:  false,
+                modelUsed:    (ev.model as ModelId) ?? undefined,
+                coinsUsed:    (ev.coins as number)  ?? undefined,
+                inputTokens:  (ev.i as number)      ?? undefined,
+                outputTokens: (ev.o as number)      ?? undefined,
+                tokensUsed:   actualTokens || undefined,
+              } : m));
+              setCoinsError(null);
+              setStats(prev => ({
+                ...prev,
+                totalCoins:      prev.totalCoins - ((ev.coins as number) ?? 0),
+                profileComplete: (ev.profileComplete as boolean) ?? prev.profileComplete,
+              }));
+              break outer;
+
+            // ── server-side error ─────────────────────────────────────────
+            } else if (ev.t === "err") {
+              setMessages(prev => prev.map(m => m.id === streamMsgId
+                ? { ...m, content: (ev.msg as string) ?? "AI service error. Dobara try karo.", isStreaming: false }
+                : m));
+              break outer;
+            }
+          } catch { /* skip malformed event */ }
+        }
+      }
+    } catch { /* reader cancelled (token limit) or network error */ }
+    finally {
+      setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, isStreaming: false } : m));
+      setIsLoading(false);
+    }
+  }, [sessionTokens]);
+
   // ── Send message ─────────────────────────────────────────────────────────
+  // ← MODIFIED: uses SSE streaming
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
-    if ((!trimmed && !imageFile) || isLoading) return;
+    if ((!trimmed && !imageFile) || isLoading || tokenLimitReached) return;
 
     setError(null);
     setCoinsError(null);
@@ -203,22 +302,14 @@ export default function StudyMateChat() {
     }
 
     const userMsg: Message = {
-      id: genId(),
-      role: "user",
+      id: genId(), role: "user",
       content: trimmed || "Yeh question dekho:",
-      timestamp: new Date(),
-      hasImage: !!imageFile,
+      timestamp: new Date(), hasImage: !!imageFile,
     };
-
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
-    // Don't remove image here — keep it sticky so follow-up messages
-    // ("karo", "aage", "answer do pura") also include the image.
-    // User can clear it manually with the X button.
 
-    // Send last 20 messages only — older context costs coins without adding much value
-    const allMsgs = [...messages, userMsg];
-    const history = allMsgs.slice(-20).map((m) => ({ role: m.role, content: m.content }));
+    const history = [...messages, userMsg].slice(-20).map(m => ({ role: m.role, content: m.content }));
 
     try {
       const res = await fetch("/api/ai/studymate", {
@@ -227,112 +318,85 @@ export default function StudyMateChat() {
         body: JSON.stringify({ messages: history, imageBase64, mediaType }),
       });
 
-      const data = await res.json().catch(() => ({ error: "Response parse error" }));
-
+      // Pre-stream errors return JSON (401/402/503)
       if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Response parse error" }));
         if (data.error === "coins_required") {
-          setCoinsError({
-            message: data.message ?? "Coins khatam ho gaye!",
-            coinsNeeded: data.coinsNeeded ?? 1,
-            currentCoins: data.currentCoins ?? 0,
-          });
-          return;
+          setCoinsError({ message: data.message ?? "Coins khatam!", coinsNeeded: data.coinsNeeded ?? 1, currentCoins: data.currentCoins ?? 0 });
+          setIsLoading(false); return;
         }
-
         if (data.error === "quality_warning") {
-          setQualityWarning({
-            preferredModel: data.preferredModel,
-            preferredModelCoins: data.preferredModelCoins,
-            fallbackModel: data.fallbackModel,
-            fallbackModelCoins: data.fallbackModelCoins,
-            currentCoins: data.currentCoins,
-          });
-          return;
+          setQualityWarning({ preferredModel: data.preferredModel, preferredModelCoins: data.preferredModelCoins, fallbackModel: data.fallbackModel, fallbackModelCoins: data.fallbackModelCoins, currentCoins: data.currentCoins });
+          setIsLoading(false); return;
         }
-
-        // Show actual API error as assistant message — never a generic "Oops!"
-        const errMsg = (() => {
-          if (res.status === 401 || res.status === 403)
-            return "Session expire ho gayi. Page refresh karo aur dobara login karo.";
-          if (res.status === 503 || data.error === "AI not configured")
-            return "StudyMate AI abhi setup nahi hai. Admin se Vertex AI configure karwao.";
-          if (res.status === 504 || data.error?.includes("timed out"))
-            return "AI response timeout ho gayi. Network check karo ya thodi der baad try karo.";
-          // For 502 and other errors, show the actual error from the API
-          return data.error || `Server error (${res.status}). Dobara try karo.`;
-        })();
-
-        setMessages((prev) => [...prev, {
-          id: genId(), role: "assistant",
-          content: errMsg,
-          timestamp: new Date(),
-        }]);
-        return;
+        const errMsg = res.status === 401 || res.status === 403 ? "Session expire ho gayi. Page refresh karo."
+          : res.status === 503 ? "StudyMate AI setup nahi hai. Admin se configure karwao."
+          : data.error || `Server error (${res.status}). Dobara try karo.`;
+        setMessages(prev => [...prev, { id: genId(), role: "assistant", content: errMsg, timestamp: new Date() }]);
+        setIsLoading(false); return;
       }
 
-      setMessages((prev) => [...prev, {
-        id: genId(),
-        role: "assistant",
-        content: data.reply,
-        timestamp: new Date(),
-        modelUsed: data.modelUsed as ModelId | undefined,
-        coinsUsed: data.coinsUsed,
-        tokensUsed: data.tokensUsed,
-        inputTokens: data.inputTokens,
-        outputTokens: data.outputTokens,
-      }]);
-      setCoinsError(null);
-      setStats((prev) => ({
-        ...prev,
-        totalCoins: prev.totalCoins - (data.coinsUsed ?? 0),
-        profileComplete: data.profileComplete ?? prev.profileComplete,
-      }));
+      // Add streaming placeholder message with blinking cursor
+      const streamMsgId = genId();
+      setMessages(prev => [...prev, { id: streamMsgId, role: "assistant", content: "", timestamp: new Date(), isStreaming: true }]);
+
+      await consumeStream(res, streamMsgId);
+
     } catch {
-      // Only real network errors reach here (fetch itself failed)
-      setMessages((prev) => [...prev, {
-        id: genId(),
-        role: "assistant",
-        content: "Network error. Internet connection check karo aur dobara try karo.",
-        timestamp: new Date(),
-      }]);
-    } finally {
+      setMessages(prev => [...prev, { id: genId(), role: "assistant", content: "Network error. Internet connection check karo.", timestamp: new Date() }]);
       setIsLoading(false);
     }
-  }, [isLoading, messages, imageFile, imagePreview]);
+  }, [isLoading, tokenLimitReached, messages, imageFile, imagePreview, consumeStream]);
 
+  // ← MODIFIED: also uses streaming + passes image
   const handleAcceptLowerQuality = async () => {
     if (!qualityWarning) return;
     setQualityWarning(null);
     setIsLoading(true);
+
+    let imageBase64: string | undefined;
+    let mediaType: string | undefined;
+    if (imageFile && imagePreview) {
+      const [header, data] = imagePreview.split(",");
+      imageBase64 = data;
+      mediaType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+    }
+
     const history = messages.slice(-20).map(m => ({ role: m.role, content: m.content }));
     try {
       const res = await fetch("/api/ai/studymate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, acceptLowerQuality: true }),
+        body: JSON.stringify({ messages: history, imageBase64, mediaType, acceptLowerQuality: true }),
       });
-      const data = await res.json().catch(() => ({ error: "Parse error" }));
-      if (res.ok) {
-        setMessages(prev => [...prev, {
-          id: genId(), role: "assistant", content: data.reply,
-          timestamp: new Date(), modelUsed: data.modelUsed as ModelId | undefined,
-          coinsUsed: data.coinsUsed, tokensUsed: data.tokensUsed,
-        }]);
-        setCoinsError(null);
-        setStats(prev => ({
-          ...prev,
-          totalCoins: prev.totalCoins - (data.coinsUsed ?? 0),
-          profileComplete: data.profileComplete ?? prev.profileComplete,
-        }));
-      } else if (data.error === "coins_required") {
-        setCoinsError({ message: data.message, coinsNeeded: data.coinsNeeded, currentCoins: data.currentCoins });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === "coins_required")
+          setCoinsError({ message: data.message, coinsNeeded: data.coinsNeeded, currentCoins: data.currentCoins });
+        else setError(data.error ?? "Network error. Dobara try karo.");
+        setIsLoading(false); return;
       }
+      const streamMsgId = genId();
+      setMessages(prev => [...prev, { id: streamMsgId, role: "assistant", content: "", timestamp: new Date(), isStreaming: true }]);
+      await consumeStream(res, streamMsgId);
     } catch {
       setError("Network error. Dobara try karo.");
-    } finally {
       setIsLoading(false);
     }
   };
+
+  // ← ADDED: reset session for a fresh chat
+  const handleNewChat = useCallback(() => {
+    setMessages([]);
+    setSessionTokens(0);
+    setTokenLimitReached(false);
+    liveTokensRef.current = 0;
+    setInput("");
+    setError(null);
+    setCoinsError(null);
+    setQualityWarning(null);
+    setShowQuick(true);
+  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
@@ -417,6 +481,10 @@ export default function StudyMateChat() {
                 {msg.content.split("\n").map((line, i, arr) => (
                   <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
                 ))}
+                {/* ← ADDED: blinking cursor while streaming */}
+                {msg.isStreaming && (
+                  <span className="inline-block w-0.5 h-4 bg-[#6367FF] animate-pulse ml-0.5 align-middle" />
+                )}
               </div>
               <div className="flex items-center gap-1.5 px-1 flex-wrap">
                 <time className="text-[10px] text-[#6367FF]/60">{fmtTime(msg.timestamp)}</time>
@@ -440,8 +508,8 @@ export default function StudyMateChat() {
           </div>
         ))}
 
-        {/* Typing dots */}
-        {isLoading && (
+        {/* Typing dots — only before first streaming chunk arrives */}
+        {isLoading && !messages.some(m => m.isStreaming) && (
           <div className="flex gap-2.5 items-end">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#6367FF] to-[#8494FF] flex items-center justify-center text-sm flex-shrink-0">📚</div>
             <div className="bg-[#F5F4FF] border border-[#C9BEFF] rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1 items-center">
@@ -577,12 +645,45 @@ export default function StudyMateChat() {
         </div>
       )}
 
+      {/* ← ADDED: Live token counter + progress bar */}
+      {sessionTokens > 0 && (() => {
+        const pct = Math.min(Math.round((sessionTokens / SESSION_TOKEN_LIMIT) * 100), 100);
+        const barColor = pct >= 80 ? "bg-red-500" : pct >= 60 ? "bg-amber-400" : "bg-emerald-500";
+        const textColor = pct >= 80 ? "text-red-600" : pct >= 60 ? "text-amber-600" : "text-emerald-600";
+        return (
+          <div className="px-4 pt-2 pb-1 border-t border-[#C9BEFF] bg-[#F5F4FF] flex-shrink-0">
+            <div className="flex items-center justify-between mb-1">
+              <span className={`text-[10px] font-bold ${textColor}`}>
+                {sessionTokens.toLocaleString("en-IN")} / {SESSION_TOKEN_LIMIT.toLocaleString("en-IN")} tokens
+              </span>
+              <span className="text-[10px] text-[#6367FF]/50">{pct}% used</span>
+            </div>
+            <div className="h-1 rounded-full bg-[#C9BEFF]/30 overflow-hidden">
+              <div className={`h-full rounded-full transition-all duration-300 ${barColor}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ← ADDED: Token limit banner + New Chat button */}
+      {tokenLimitReached && (
+        <div className="px-4 py-2 bg-red-50 border-t border-red-200 flex items-center justify-between flex-shrink-0">
+          <p className="text-xs text-red-600 font-semibold">Session limit reached. New chat shuru karo.</p>
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-1.5 text-xs font-bold bg-red-500 hover:bg-red-600 text-white rounded-lg px-3 py-1.5 transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" /> New Chat
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="px-3 py-3 bg-[#F5F4FF] border-t border-[#C9BEFF] flex items-end gap-2 flex-shrink-0">
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
         <button
           onClick={() => fileRef.current?.click()}
-          disabled={isLoading}
+          disabled={isLoading || tokenLimitReached}
           title="Question ki photo upload karo"
           className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-white border border-[#C9BEFF] hover:border-[#6367FF] text-[#6367FF] transition-all disabled:opacity-40"
         >
@@ -595,14 +696,25 @@ export default function StudyMateChat() {
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          disabled={isLoading}
-          placeholder="Sawaal puchho ya photo upload karo... (Enter to send)"
-          className="flex-1 bg-white border border-[#C9BEFF] focus:border-[#6367FF] focus:ring-2 focus:ring-[#6367FF]/20 rounded-xl px-3 py-2 text-sm text-[#1A1447] placeholder-[#6367FF]/40 resize-none outline-none transition-colors min-h-[36px] max-h-[120px]"
+          disabled={isLoading || tokenLimitReached}
+          placeholder={tokenLimitReached ? "Token limit reached — New Chat shuru karo" : "Sawaal puchho ya photo upload karo... (Enter to send)"}
+          className="flex-1 bg-white border border-[#C9BEFF] focus:border-[#6367FF] focus:ring-2 focus:ring-[#6367FF]/20 rounded-xl px-3 py-2 text-sm text-[#1A1447] placeholder-[#6367FF]/40 resize-none outline-none transition-colors min-h-[36px] max-h-[120px] disabled:bg-gray-50 disabled:text-gray-400"
         />
+
+        {/* ← ADDED: New Chat button in input row (visible when not at limit too, as shortcut) */}
+        {messages.length > 2 && !isLoading && (
+          <button
+            onClick={handleNewChat}
+            title="New Chat"
+            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-white border border-[#C9BEFF] hover:border-red-300 text-[#6367FF]/60 hover:text-red-500 transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        )}
 
         <button
           onClick={() => sendMessage(input)}
-          disabled={isLoading || (!input.trim() && !imageFile)}
+          disabled={isLoading || tokenLimitReached || (!input.trim() && !imageFile)}
           className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-br from-[#6367FF] to-[#8494FF] text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_2px_8px_rgba(99,103,255,0.3)]"
         >
           {isLoading ? <Sparkles className="w-4 h-4 animate-pulse" /> : <Send className="w-4 h-4" />}
