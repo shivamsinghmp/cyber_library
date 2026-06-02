@@ -100,6 +100,18 @@ export default function StudyMateChat() {
     isAtBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   }, []);
 
+  // ── Lock parent <main> scroll so chat stays self-contained ───────────────
+  // Without this, <main overflow-auto> grows with messages instead of the
+  // messages div scrolling internally (CSS h-full can't resolve when the
+  // parent has no explicit height, only flex-1).
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    const prev = main.style.overflow;
+    main.style.overflow = "hidden";
+    return () => { main.style.overflow = prev; };
+  }, []);
+
   // ── Fetch initial stats ──────────────────────────────────────────────────
   useEffect(() => {
     fetch("/api/ai/studymate")

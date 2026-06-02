@@ -3,7 +3,7 @@ import { Sparkles } from "lucide-react";
 
 export default function StudyMateAIPage() {
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4 h-full overflow-hidden">
 
       {/* ── Page Header ── */}
       <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -31,8 +31,8 @@ export default function StudyMateAIPage() {
         </div>
       </div>
 
-      {/* ── Full-width Chat ── */}
-      <div className="flex-1 min-h-0" style={{ height: "calc(100vh - 180px)" }}>
+      {/* ── Full-width Chat — flex-1 min-h-0 so it fills remaining height without overflow ── */}
+      <div className="flex-1 min-h-0 overflow-hidden">
         <StudyMateChat />
       </div>
 
