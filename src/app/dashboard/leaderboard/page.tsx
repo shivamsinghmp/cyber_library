@@ -14,6 +14,10 @@ type Entry = {
   streakDays?: number;
 };
 
+function fmtMin(minutes: number) {
+  return `${minutes} min`;
+}
+
 const PERIODS = [
   { value: "today", label: "Today" },
   { value: "weekly", label: "This Week" },
@@ -60,7 +64,7 @@ export default function LeaderboardPage() {
 
   function handleShare() {
     const text = myRank != null
-      ? `I'm #${myRank} on Let's Study leaderboard with ${myHours}h studied! 🏆`
+      ? `I'm #${myRank} on Let's Study leaderboard with ${myHours} min studied! 🏆`
       : "Check out Let's Study study leaderboard!";
     const url = window.location.href;
     if (navigator.share) {
@@ -74,7 +78,7 @@ export default function LeaderboardPage() {
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
-  const maxHours = Math.max(...leaderboard.map(e => e.totalHours), 1);
+  const maxMin = Math.max(...leaderboard.map(e => e.totalMinutes), 1);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -87,7 +91,7 @@ export default function LeaderboardPage() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-[var(--foreground)]">Study Leaderboard</h1>
-            <p className="text-xs text-[var(--muted-text)]">Top studiers ranked by hours</p>
+            <p className="text-xs text-[var(--muted-text)]">Top studiers ranked by minutes</p>
           </div>
         </div>
         {myRank != null && (
@@ -116,7 +120,7 @@ export default function LeaderboardPage() {
           </div>
           <div className="flex-1">
             <p className="text-xs text-[var(--muted-text)]">Your current position</p>
-            <p className="text-base font-black text-[var(--foreground)]">Rank #{myRank} · {myHours}h studied</p>
+            <p className="text-base font-black text-[var(--foreground)]">Rank #{myRank} · {myHours} min studied</p>
           </div>
           <span className="text-2xl">{myRank <= 3 ? ["🥇","🥈","🥉"][myRank-1] : "🎯"}</span>
         </div>
@@ -156,7 +160,7 @@ export default function LeaderboardPage() {
                       <p className="text-xs font-bold text-[var(--foreground)] text-center truncate w-full px-1">{entry.name}</p>
                       {entry.streakDays ? <p className="text-[10px] text-amber-500">🔥{entry.streakDays}d</p> : null}
                       <div className={`w-full ${height} rounded-t-xl border ${bg} flex items-start justify-center pt-2 ${glow ? "shadow-[0_-4px_16px_rgba(245,158,11,0.2)]" : ""}`}>
-                        <span className={`text-base font-black ${text}`}>{entry.totalHours}h</span>
+                        <span className={`text-base font-black ${text}`}>{fmtMin(entry.totalMinutes)}</span>
                       </div>
                     </div>
                   );
@@ -175,7 +179,7 @@ export default function LeaderboardPage() {
               <ul className="space-y-2">
                 {rest.map(entry => {
                   const isMe = entry.userId === currentUserId;
-                  const barPct = Math.round((entry.totalHours / maxHours) * 100);
+                  const barPct = Math.round((entry.totalMinutes / maxMin) * 100);
                   return (
                     <li key={entry.userId}
                       className={`relative flex items-center gap-3 rounded-xl border px-4 py-3 overflow-hidden transition-all ${isMe ? "border-[var(--accent-border)] bg-[var(--accent-pale)]" : "border-[var(--border)] bg-white hover:bg-[var(--page-bg)]"}`}>
@@ -199,7 +203,7 @@ export default function LeaderboardPage() {
                       </div>
                       <div className="relative z-10 flex items-center gap-1 shrink-0">
                         <Clock className="w-3.5 h-3.5 text-[var(--muted-text)]" />
-                        <span className={`text-base font-black ${isMe ? "text-[var(--accent)]" : "text-[var(--foreground)]"}`}>{entry.totalHours}h</span>
+                        <span className={`text-base font-black ${isMe ? "text-[var(--accent)]" : "text-[var(--foreground)]"}`}>{fmtMin(entry.totalMinutes)}</span>
                       </div>
                     </li>
                   );

@@ -148,10 +148,10 @@ export async function GET(request: Request) {
       const session = await auth();
       const currentUserId = (session?.user as { id?: string })?.id;
       if (currentUserId) {
-        const myEntry = (leaderboard as Array<{ userId: string; rank: number; totalHours: number }>)
+        const myEntry = (leaderboard as Array<{ userId: string; rank: number; totalMinutes: number; totalHours: number }>)
           .find((e) => e.userId === currentUserId);
-        myRank  = myEntry?.rank  ?? null;
-        myHours = myEntry?.totalHours ?? null;
+        myRank  = myEntry?.rank         ?? null;
+        myHours = myEntry?.totalMinutes ?? null;  // field name kept for API compat, value is now minutes
       }
     } catch { /* not logged in — skip silently */ }
 
