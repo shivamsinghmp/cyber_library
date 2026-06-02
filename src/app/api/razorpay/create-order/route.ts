@@ -193,6 +193,30 @@ export async function POST(request: Request) {
 
     // If order becomes completely free due to coupons, fulfill immediately on backend
     if (amountPaise < 1) {
+      // For free subscriptions, do a final idempotency check right before fulfillment.
+      // The earlier check (line ~110) and this check together close the window where
+      // two concurrent requests both pass the first check before either commits,
+      // creating duplicate ₹0 transactions.
+      if (type === "SUBSCRIPTION") {
+        const planId = ids[0] as "MONTHLY" | "YEARLY";
+        const alreadyActive = await prisma.userSubscription.findFirst({
+          where: { userId, status: "ACTIVE", endDate: { gt: new Date() } },
+          select: { planType: true, transactionId: true },
+          orderBy: { createdAt: "desc" },
+        });
+        if (alreadyActive) {
+          const isUpgrade = alreadyActive.planType === "MONTHLY" && planId === "YEARLY";
+          if (!isUpgrade) {
+            return NextResponse.json({
+              orderId: `free_${Date.now()}`,
+              amount: 0,
+              free: true,
+              transactionId: alreadyActive.transactionId ?? "",
+            });
+          }
+        }
+      }
+
       const txn = await fulfillOrder({
         userId,
         type,

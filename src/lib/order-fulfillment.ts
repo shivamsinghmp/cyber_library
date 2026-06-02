@@ -130,53 +130,60 @@ export async function fulfillOrder({
 
     orderDetails = [{ name: `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`, price: amountRupees }];
 
-    const existingActive = await prisma.userSubscription.findFirst({
-      where: { userId, status: "ACTIVE", endDate: { gt: now } },
-      select: { id: true, planType: true, endDate: true },
-    });
+    // Wrap the find + create/update in a serializable transaction to prevent
+    // concurrent free-order requests from both slipping through the existence
+    // check and creating duplicate subscriptions/transactions.
+    const subResult = await prisma.$transaction(async (tx) => {
+      const existingActive = await tx.userSubscription.findFirst({
+        where: { userId, status: "ACTIVE", endDate: { gt: now } },
+        select: { id: true, planType: true, endDate: true },
+      });
 
-    let membershipStart: Date;
-    let membershipEnd: Date;
+      let membershipStart: Date;
+      let membershipEnd: Date;
 
-    if (existingActive) {
-      const isUpgrade = existingActive.planType === "MONTHLY" && planType === "YEARLY";
-      if (isUpgrade) {
-        // Monthly → Yearly upgrade: cancel old sub, start fresh yearly from now
-        await prisma.userSubscription.update({
-          where: { id: existingActive.id },
-          data: { status: "CANCELLED" },
-        });
+      if (existingActive) {
+        const isUpgrade = existingActive.planType === "MONTHLY" && planType === "YEARLY";
+        if (isUpgrade) {
+          // Monthly → Yearly upgrade: cancel old sub, start fresh yearly from now
+          await tx.userSubscription.update({
+            where: { id: existingActive.id },
+            data: { status: "CANCELLED" },
+          });
+          membershipStart = now;
+          membershipEnd = new Date(now);
+          membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+          await tx.userSubscription.create({
+            data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
+          });
+        } else {
+          // Same plan re-purchase: extend from current endDate
+          membershipStart = existingActive.endDate;
+          membershipEnd = new Date(existingActive.endDate);
+          if (planType === "MONTHLY") membershipEnd.setMonth(membershipEnd.getMonth() + 1);
+          else membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+          await tx.userSubscription.update({
+            where: { id: existingActive.id },
+            data: { endDate: membershipEnd },
+          });
+        }
+      } else {
+        // No active subscription — fresh enrollment
         membershipStart = now;
         membershipEnd = new Date(now);
-        membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
-        await prisma.userSubscription.create({
-          data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
-        });
-      } else {
-        // Same plan or re-purchase: extend from current endDate
-        membershipStart = existingActive.endDate;
-        membershipEnd = new Date(existingActive.endDate);
         if (planType === "MONTHLY") membershipEnd.setMonth(membershipEnd.getMonth() + 1);
         else membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
-        await prisma.userSubscription.update({
-          where: { id: existingActive.id },
-          data: { endDate: membershipEnd },
+        await tx.userSubscription.create({
+          data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
         });
       }
-    } else {
-      // No active subscription — fresh enrollment
-      membershipStart = now;
-      membershipEnd = new Date(now);
-      if (planType === "MONTHLY") membershipEnd.setMonth(membershipEnd.getMonth() + 1);
-      else membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
-      await prisma.userSubscription.create({
-        data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
-      });
-    }
+
+      return { membershipStart, membershipEnd };
+    }, { isolationLevel: "Serializable" });
 
     fulfillMeta.planType        = planType;
-    fulfillMeta.membershipStart = membershipStart;
-    fulfillMeta.membershipEnd   = membershipEnd;
+    fulfillMeta.membershipStart = subResult.membershipStart;
+    fulfillMeta.membershipEnd   = subResult.membershipEnd;
 
     // Log trial→paid conversion (fire-and-forget)
     const { logTrialEvent } = await import("@/lib/trial-logger");

@@ -20,6 +20,8 @@ interface Message {
   modelUsed?: ModelId;
   coinsUsed?: number;
   tokensUsed?: number;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 interface Stats {
@@ -177,7 +179,9 @@ export default function StudyMateChat() {
 
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
-    removeImage();
+    // Don't remove image here — keep it sticky so follow-up messages
+    // ("karo", "aage", "answer do pura") also include the image.
+    // User can clear it manually with the X button.
 
     // Send last 20 messages only — older context costs coins without adding much value
     const allMsgs = [...messages, userMsg];
@@ -241,6 +245,8 @@ export default function StudyMateChat() {
         modelUsed: data.modelUsed as ModelId | undefined,
         coinsUsed: data.coinsUsed,
         tokensUsed: data.tokensUsed,
+        inputTokens: data.inputTokens,
+        outputTokens: data.outputTokens,
       }]);
       setCoinsError(null);
       setStats((prev) => ({
@@ -386,9 +392,13 @@ export default function StudyMateChat() {
                     {MODEL_META[msg.modelUsed].emoji} {MODEL_META[msg.modelUsed].label}
                   </span>
                 )}
-                {msg.role === "assistant" && msg.tokensUsed != null && (
+                {msg.role === "assistant" && msg.inputTokens != null && msg.outputTokens != null ? (
+                  <span className="text-[10px] text-[#6367FF]/50">
+                    {msg.inputTokens.toLocaleString("en-IN")}in+{msg.outputTokens.toLocaleString("en-IN")}out
+                  </span>
+                ) : msg.role === "assistant" && msg.tokensUsed != null ? (
                   <span className="text-[10px] text-[#6367FF]/50">{msg.tokensUsed.toLocaleString("en-IN")}t</span>
-                )}
+                ) : null}
                 {msg.role === "assistant" && msg.coinsUsed != null && msg.coinsUsed > 0 && (
                   <span className="text-[10px] font-bold text-amber-600">• {msg.coinsUsed} 🪙</span>
                 )}
@@ -530,7 +540,7 @@ export default function StudyMateChat() {
               <X className="w-3 h-3" />
             </button>
           </div>
-          <p className="text-[10px] text-[#6367FF]/60 mt-1">Image ready — message bhejo</p>
+          <p className="text-[10px] text-[#6367FF]/60 mt-1">Image active — follow-up messages mein bhi rahegi. Hatane ke liye X dabao.</p>
         </div>
       )}
 

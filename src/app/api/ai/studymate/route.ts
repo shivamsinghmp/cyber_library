@@ -94,12 +94,14 @@ function calcCoins(totalTokens: number, model: ModelId): number {
   return Math.ceil(totalTokens / 1000) * COINS_PER_1000T[model];
 }
 
-// Estimate before API call — always assumes WORST-CASE output (1024 tokens = our max_tokens cap)
-// This guarantees estimate >= actual cost, so we never call the API and then fail the post-check
+// Estimate before API call — input (from message chars) + 2048 expected output.
+// Used only for the pre-check "can the user afford this?".
+// Actual deduction uses the real API-reported (input + output) token count.
 function estimateCoins(messages: Array<{ content: string }>, model: ModelId): number {
   const chars = messages.reduce((s, m) => s + m.content.length, 0);
-  const estTokens = Math.ceil(chars / 4) + 1024; // 1024 = max_tokens cap
-  return Math.ceil(estTokens / 1000) * COINS_PER_1000T[model];
+  const estInputTokens  = Math.ceil(chars / 4) + 500; // +500 for system-prompt overhead
+  const estOutputTokens = 2048;                        // reasonable expected reply length
+  return Math.ceil((estInputTokens + estOutputTokens) / 1000) * COINS_PER_1000T[model];
 }
 
 // Fetch AI keys from DB only — env is intentionally ignored (DB is source of truth)
@@ -310,6 +312,13 @@ async function routeToModel(lastMessage: string, available: ModelId[], googleKey
     return available[0];
   }
 
+  // Best available Gemini model (pro > flash) — used for STEM/logical questions
+  const stemModel: ModelId =
+    available.includes("gemini-2.5-pro")   ? "gemini-2.5-pro"   :
+    available.includes("gemini-1.5-pro")   ? "gemini-1.5-pro"   :
+    available.includes("gemini-2.5-flash") ? "gemini-2.5-flash" :
+    available.find(m => MODEL_PROVIDER[m] === "google") ?? available[0];
+
   // Group available models by task suitability (cheapest-first within each tier)
   const budget  = available.filter(m => COINS_PER_1000T[m] <= 2)
     .sort((a, b) => COINS_PER_1000T[a] - COINS_PER_1000T[b]);
@@ -338,13 +347,14 @@ async function routeToModel(lastMessage: string, available: ModelId[], googleKey
             `Classify this student message into ONE tier. Reply with ONLY one word.
 
 TIERS:
-budget  → simple doubt, motivation, MCQ tips, study plan, general chat
-smart   → math derivation, physics/chemistry concepts, code, step-by-step proof
-premium → complex multi-step research, very long analysis, deep ML/advanced math
+stem    → ANY Physics, Mathematics, Chemistry, Biology, logical reasoning, numerical problem, equation, derivation, proof, diagram-based question
+budget  → motivation, study plan, MCQ tips, general chat, exam strategy
+smart   → coding, history/geography concepts, language/grammar, non-STEM subjects
+premium → complex multi-step cross-subject research, very long essay analysis
 
 Message: "${lastMessage.slice(0, 400)}"
 
-Reply (budget OR smart OR premium):` }] }],
+Reply (stem OR budget OR smart OR premium):` }] }],
           generationConfig: { maxOutputTokens: 8, temperature: 0 },
         }),
         signal: AbortSignal.timeout(3000),
@@ -359,12 +369,14 @@ Reply (budget OR smart OR premium):` }] }],
     const data = await res.json();
     const raw  = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim().toLowerCase();
 
-    // Robust parsing: use startsWith to handle "budget.", "smart\n", etc.
-    const tier = raw.startsWith("premium") ? "premium"
+    // Robust parsing: use startsWith to handle "stem.", "budget\n", etc.
+    const tier = raw.startsWith("stem")    ? "stem"
+               : raw.startsWith("premium") ? "premium"
                : raw.startsWith("smart")   ? "smart"
                : "budget";
 
-    const chosen = tier === "premium" ? premiumModel
+    const chosen = tier === "stem"    ? stemModel
+                 : tier === "premium" ? premiumModel
                  : tier === "smart"   ? smartModel
                  : budgetModel;
 
@@ -410,7 +422,7 @@ async function callGoogle(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents,
-        generationConfig: { maxOutputTokens: 1024, temperature: 0.7 },
+        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
       }),
     }
   ).finally(() => clearTimeout(timer));
@@ -556,11 +568,14 @@ export async function POST(request: Request) {
     const lastUserMsg = messages.findLast(m => m.role === "user")?.content ?? "";
     let modelId = await routeToModel(lastUserMsg, available, keys.google);
 
-    // Image input requires a Google/Gemini model (Gemini Vision support).
-    // If the router picked Claude/GPT, force the cheapest available Google model.
-    if (imageBase64 && MODEL_PROVIDER[modelId] !== "google") {
-      const googleModel = available.find(m => MODEL_PROVIDER[m] === "google");
-      if (googleModel) modelId = googleModel;
+    // Image input: always use the best available Gemini model (vision + STEM reasoning).
+    if (imageBase64) {
+      const bestGoogle: ModelId | undefined =
+        available.includes("gemini-2.5-pro")   ? "gemini-2.5-pro"   :
+        available.includes("gemini-1.5-pro")   ? "gemini-1.5-pro"   :
+        available.includes("gemini-2.5-flash") ? "gemini-2.5-flash" :
+        available.find(m => MODEL_PROVIDER[m] === "google");
+      if (bestGoogle) { modelId = bestGoogle; }
       else return NextResponse.json(
         { error: "Image upload ke liye Gemini API key configure karo." },
         { status: 503 }
@@ -634,9 +649,8 @@ export async function POST(request: Request) {
       } else { throw err; }
     }
 
-    // Exact coin charge after actual token usage
-    // estimateCoins uses worst-case 1024 output buffer, so actual should always be <= estimate.
-    // But if somehow actual > user balance (edge case: image tokens not estimated), cap to balance.
+    // Exact coin charge: calcCoins uses real (inputTokens + outputTokens) from the API.
+    // Cap at current balance so the user never goes negative.
     const coinsToCharge = Math.min(calcCoins(totalTokens, usedModel), coins);
     const latencyMs     = Date.now() - aiStartTime;
 
@@ -666,6 +680,8 @@ export async function POST(request: Request) {
       modelUsed: usedModel,
       coinsUsed: coinsToCharge,
       tokensUsed: totalTokens,
+      inputTokens,
+      outputTokens,
       profileComplete: !onboarding,
     });
   } catch (e) {
