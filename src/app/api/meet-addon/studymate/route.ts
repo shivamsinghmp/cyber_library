@@ -8,6 +8,22 @@ import { z } from "zod";
 const FREE_MESSAGES_PER_DAY = 5;
 const COINS_PER_10_MESSAGES = 5;
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/(?<!\w)\*([^*\n]+)\*(?!\w)/g, '$1')
+    .replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, '$1')
+    .replace(/^#{1,6}\s+(.+)$/gm, '$1')
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    .replace(/^>\s*/gm, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/```[^\n]*\n([\s\S]*?)```/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204 });
 }
@@ -194,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { reply, freeMessagesLeft: Math.max(0, FREE_MESSAGES_PER_DAY - todayCount - 1) },
+      { reply: stripMarkdown(reply), freeMessagesLeft: Math.max(0, FREE_MESSAGES_PER_DAY - todayCount - 1) },
       { headers: cors }
     );
   } catch (e) {

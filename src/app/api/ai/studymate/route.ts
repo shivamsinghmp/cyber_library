@@ -8,6 +8,33 @@ import { batchGetAppSettings } from "@/lib/app-settings";
 // ─── Config ───────────────────────────────────────────────────────────────────
 const CACHE_TTL_PROFILE = 300;
 
+// Strip markdown formatting from AI reply — Gemini ignores "no markdown" instructions
+// intermittently, so we enforce it server-side as a guarantee.
+function stripMarkdown(text: string): string {
+  return text
+    // Bold+italic: ***text***
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+    // Bold: **text** or __text__
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    // Italic: *text* or _text_ (not inside words)
+    .replace(/(?<!\w)\*([^*\n]+)\*(?!\w)/g, '$1')
+    .replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, '$1')
+    // ATX headers: ## Heading → Heading
+    .replace(/^#{1,6}\s+(.+)$/gm, '$1')
+    // Horizontal rules
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    // Blockquotes
+    .replace(/^>\s*/gm, '')
+    // Inline code: `code` → code
+    .replace(/`([^`]+)`/g, '$1')
+    // Fenced code blocks: keep content, remove fences
+    .replace(/```[^\n]*\n([\s\S]*?)```/g, '$1')
+    // Collapse 3+ blank lines to 2
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // ─── Model Registry ───────────────────────────────────────────────────────────
 type ModelId =
   | "gemini-2.5-flash" | "gemini-2.0-flash" | "gemini-1.5-pro" | "gemini-2.5-pro"
@@ -635,7 +662,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      reply,
+      reply: stripMarkdown(reply),
       modelUsed: usedModel,
       coinsUsed: coinsToCharge,
       tokensUsed: totalTokens,
