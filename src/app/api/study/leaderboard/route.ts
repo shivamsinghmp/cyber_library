@@ -37,13 +37,29 @@ export async function GET(request: Request) {
         let byUser: Map<string, number>;
 
         if (period === "alltime") {
-          const profiles = await prisma.profile.findMany({
-            where: { totalStudyHours: { gt: 0 } },
-            select: { userId: true, totalStudyHours: true },
-            orderBy: { totalStudyHours: "desc" },
-            take: 10,
-          });
-          byUser = new Map(profiles.map((p) => [p.userId, p.totalStudyHours * 60]));
+          // Combine StudySession minutes + MeetPresenceSession seconds (→ minutes)
+          // Note: profile.totalStudyHours is Int and loses precision for short sessions,
+          // so we aggregate directly from the source tables.
+          const [studyRows, meetRows] = await Promise.all([
+            prisma.studySession.groupBy({
+              by: ["userId"],
+              where: { durationMinutes: { not: null } },
+              _sum: { durationMinutes: true },
+            }),
+            prisma.meetPresenceSession.groupBy({
+              by: ["userId"],
+              where: { durationSeconds: { not: null } },
+              _sum: { durationSeconds: true },
+            }),
+          ]);
+          byUser = new Map<string, number>();
+          for (const s of studyRows) {
+            byUser.set(s.userId, (byUser.get(s.userId) ?? 0) + (s._sum.durationMinutes ?? 0));
+          }
+          for (const m of meetRows) {
+            const mins = Math.floor((m._sum.durationSeconds ?? 0) / 60);
+            byUser.set(m.userId, (byUser.get(m.userId) ?? 0) + mins);
+          }
         } else {
           let start: Date;
           if (period === "today") {
@@ -53,15 +69,27 @@ export async function GET(request: Request) {
             start.setDate(start.getDate() - 7);
             start.setHours(0, 0, 0, 0);
           }
-          // Use aggregate groupBy instead of findMany + JS reduce (much faster at scale)
-          const grouped = await prisma.studySession.groupBy({
-            by: ["userId"],
-            where: { startedAt: { gte: start }, durationMinutes: { not: null } },
-            _sum: { durationMinutes: true },
-            orderBy: { _sum: { durationMinutes: "desc" } },
-            take: 10,
-          });
-          byUser = new Map(grouped.map((g) => [g.userId, g._sum.durationMinutes ?? 0]));
+          // Combine StudySession + MeetPresenceSession for the period
+          const [studyRows, meetRows] = await Promise.all([
+            prisma.studySession.groupBy({
+              by: ["userId"],
+              where: { startedAt: { gte: start }, durationMinutes: { not: null } },
+              _sum: { durationMinutes: true },
+            }),
+            prisma.meetPresenceSession.groupBy({
+              by: ["userId"],
+              where: { startedAt: { gte: start }, durationSeconds: { not: null } },
+              _sum: { durationSeconds: true },
+            }),
+          ]);
+          byUser = new Map<string, number>();
+          for (const s of studyRows) {
+            byUser.set(s.userId, (byUser.get(s.userId) ?? 0) + (s._sum.durationMinutes ?? 0));
+          }
+          for (const m of meetRows) {
+            const mins = Math.floor((m._sum.durationSeconds ?? 0) / 60);
+            byUser.set(m.userId, (byUser.get(m.userId) ?? 0) + mins);
+          }
         }
 
         const sorted = Array.from(byUser.entries())
