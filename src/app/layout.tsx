@@ -4,6 +4,7 @@ import "./globals.css";
 import { validateEnv } from "@/lib/env-check";
 import { unstable_cache } from "next/cache";
 import { batchGetAppSettings } from "@/lib/app-settings";
+import { safeJsonLd } from "@/lib/sanitize-html";
 
 validateEnv();
 
@@ -123,7 +124,7 @@ export default async function RootLayout({
         {/* Favicon handled by generateMetadata() icons + manifest fields — no extra link tags needed */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
         />
         {/* AdSense and FB Pixel loaded after page is interactive — prevents render blocking */}
       </head>

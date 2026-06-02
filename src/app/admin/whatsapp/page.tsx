@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Megaphone, PenSquare, MessageSquare, Sparkles, LayoutTemplate } from "lucide-react";
 import toast from "react-hot-toast";
 import { BroadcastModal }   from "./_components/BroadcastModal";
@@ -12,6 +12,7 @@ import { TemplatesTab }     from "./_components/TemplatesTab";
 type ContactInfo = {
   phoneNumber: string;
   latestMessage: string;
+  latestDirection: "INBOUND" | "OUTBOUND";
   timestamp: string;
   user: { id: string; name: string | null; email: string; image: string | null } | null;
 };
@@ -46,8 +47,11 @@ export default function AdminWhatsAppPage() {
   const [slots, setSlots] = useState<SlotOption[]>([]);
 
   const [mainTab, setMainTab] = useState<"chat" | "report" | "templates">("chat");
+  const [lastSeenAt, setLastSeenAt] = useState<Record<string, string>>({});
   const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const prevMsgCountRef  = useRef(0);
 
+  // Initial contacts load
   useEffect(() => {
     fetch("/api/admin/whatsapp")
       .then((res) => res.json())
@@ -56,6 +60,18 @@ export default function AdminWhatsAppPage() {
       .finally(() => setLoadingContacts(false));
   }, []);
 
+  // Poll contacts every 8 s — silently updates sidebar with new conversations
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetch("/api/admin/whatsapp")
+        .then((r) => r.json())
+        .then((data) => { if (Array.isArray(data)) setContacts(data); })
+        .catch(() => {});
+    }, 8_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Initial chat load when contact selected
   useEffect(() => {
     if (!selectedPhone) return;
     setLoadingChat(true);
@@ -66,9 +82,51 @@ export default function AdminWhatsAppPage() {
       .finally(() => setLoadingChat(false));
   }, [selectedPhone]);
 
+  // Poll active chat every 5 s — new inbound messages appear automatically
   useEffect(() => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!selectedPhone) return;
+    const id = setInterval(() => {
+      fetch(`/api/admin/whatsapp?phoneNumber=${encodeURIComponent(selectedPhone)}`)
+        .then((r) => r.json())
+        .then((data: ChatMessage[]) => {
+          if (!Array.isArray(data)) return;
+          setMessages((prev) => {
+            // Keep unsent/pending temp messages, merge with server data
+            const pending = prev.filter((m) => m.id.startsWith("temp-"));
+            return [...data, ...pending];
+          });
+        })
+        .catch(() => {});
+    }, 5_000);
+    return () => clearInterval(id);
+  }, [selectedPhone]);
+
+  // Scroll to bottom only when message count grows
+  useEffect(() => {
+    if (messages.length > prevMsgCountRef.current) {
+      endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevMsgCountRef.current = messages.length;
   }, [messages]);
+
+  // Contacts with unread inbound messages (newer than last time admin opened that chat)
+  const unreadPhones = useMemo(() =>
+    new Set(
+      contacts
+        .filter((c) =>
+          c.latestDirection === "INBOUND" &&
+          c.phoneNumber !== selectedPhone &&
+          (!lastSeenAt[c.phoneNumber] || c.timestamp > lastSeenAt[c.phoneNumber])
+        )
+        .map((c) => c.phoneNumber)
+    ),
+    [contacts, lastSeenAt, selectedPhone]
+  );
+
+  function handleSelectPhone(phone: string) {
+    setSelectedPhone(phone);
+    setLastSeenAt((prev) => ({ ...prev, [phone]: new Date().toISOString() }));
+  }
 
   useEffect(() => {
     if (!broadcastOpen) return;
@@ -188,7 +246,7 @@ export default function AdminWhatsAppPage() {
                 const raw = newChatNumber.trim();
                 if (!raw || raw.length < 10) { toast.error("Valid number daalo (with country code, e.g. +919876543210)"); return; }
                 const formatted = raw.startsWith("+") ? raw : `+91${raw.replace(/^0+/, "")}`;
-                setSelectedPhone(formatted);
+                handleSelectPhone(formatted);
                 setMessages([]);
                 setNewChatOpen(false);
                 setNewChatNumber("");
@@ -271,7 +329,8 @@ export default function AdminWhatsAppPage() {
             contacts={contacts}
             selectedPhone={selectedPhone}
             loading={loadingContacts}
-            onSelect={setSelectedPhone}
+            unreadPhones={unreadPhones}
+            onSelect={handleSelectPhone}
           />
           <ChatWindow
             selectedPhone={selectedPhone}

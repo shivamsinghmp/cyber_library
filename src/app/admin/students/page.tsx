@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Search, Eye, Download, LayoutGrid, ToggleLeft, ToggleRight, Loader2, UserCog, Gift, Activity } from "lucide-react";
+import { Users, Search, Eye, Download, LayoutGrid, ToggleLeft, ToggleRight, Loader2, UserCog, Gift, Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import toast from "react-hot-toast";
 import { useFetch } from "@/hooks/useFetch";
@@ -26,7 +26,7 @@ type Student = {
   email: string;
   goal: string | null;
   createdAt: string;
-  profile?: { phone: string | null; whatsappNumber: string | null; whatsappMarketing: boolean | null; studyGoal: string | null; targetExam: string | null; totalStudyHours: number | null; coinBalance: number | null } | null;
+  profile?: { phone: string | null; whatsappNumber: string | null; whatsappMarketing: boolean | null; studyGoal: string | null; targetExam: string | null; totalStudyHours: number | null; coinBalance: number | null; position: string | null } | null;
 };
 
 type StudentDetails = Student & {
@@ -34,7 +34,7 @@ type StudentDetails = Student & {
   profile?: {
     fullName: string | null; phone: string | null; studyGoal: string | null; targetExam: string | null;
     targetYear: number | null; institution: string | null; currentStreak: number; longestStreak: number;
-    totalPoints: number; totalStudyHours: number; coinBalance: number;
+    totalPoints: number; totalStudyHours: number; coinBalance: number; position: string | null;
   } | null;
 };
 
@@ -45,7 +45,7 @@ const defaultEdit = {
   // Profile
   fullName: "", phone: "", whatsappNumber: "", studyGoal: "",
   targetExam: "", targetYear: "", institution: "", bio: "",
-  profilePicUrl: "", dailyMantra: "",
+  profilePicUrl: "", dailyMantra: "", position: "",
   // Stats (admin override)
   coinBalance: "", totalPoints: "", currentStreak: "", longestStreak: "",
 };
@@ -53,14 +53,20 @@ const defaultEdit = {
 export default function AdminStudentsPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data, loading, refetch } = useFetch<Student[]>(
-    search ? `/api/admin/students?search=${encodeURIComponent(search)}` : "/api/admin/students"
-  );
-  const students = data ?? [];
+  type StudentsResp = { data: Student[]; total: number; hasMore: boolean; page: number };
+  const fetchUrl = `/api/admin/students?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+  const { data: studentsResp, loading, refetch } = useFetch<StudentsResp>(fetchUrl);
+  const students    = studentsResp?.data    ?? [];
+  const totalCount  = studentsResp?.total   ?? 0;
+  const hasMore     = studentsResp?.hasMore ?? false;
 
   useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const t = setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput.trim());
+    }, 300);
     return () => clearTimeout(t);
   }, [searchInput]);
 
@@ -102,6 +108,7 @@ export default function AdminStudentsPage() {
           bio:            p?.bio            ?? "",
           profilePicUrl:  p?.profilePicUrl  ?? "",
           dailyMantra:    p?.dailyMantra    ?? "",
+          position:       p?.position       ?? "",
           coinBalance:    String(p?.coinBalance   ?? ""),
           totalPoints:    String(p?.totalPoints   ?? ""),
           currentStreak:  String(p?.currentStreak ?? ""),
@@ -170,6 +177,7 @@ export default function AdminStudentsPage() {
         bio:            f.bio.trim()             || null,
         profilePicUrl:  f.profilePicUrl.trim()   || null,
         dailyMantra:    f.dailyMantra.trim()     || null,
+        position:       f.position.trim()        || null,
       };
       if (f.newPassword.trim())  body.newPassword   = f.newPassword.trim();
       if (f.coinBalance.trim())  body.coinBalance   = parseInt(f.coinBalance);
@@ -244,7 +252,7 @@ export default function AdminStudentsPage() {
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-            <Users className="h-5 w-5 text-[var(--accent)]" /> Students ({students.length})
+            <Users className="h-5 w-5 text-[var(--accent)]" /> Students ({totalCount})
           </h2>
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cream-muted)]" />
@@ -252,10 +260,10 @@ export default function AdminStudentsPage() {
           </div>
         </div>
 
-        <AdminTable loading={loading} empty={students.length === 0} emptyText={search ? "No students match your search." : "No students yet."} minWidth="500px">
+        <AdminTable loading={loading} empty={students.length === 0} emptyText={search ? "No students match your search." : "No students yet."} minWidth="700px">
           <thead>
             <tr className="border-b border-gray-200 text-left">
-              <AdminTh>Unique ID</AdminTh><AdminTh>Name</AdminTh><AdminTh>Email</AdminTh><AdminTh>Goal</AdminTh><AdminTh>WA Mktg</AdminTh><AdminTh>Study hrs</AdminTh><AdminTh>Coins 🪙</AdminTh><AdminTh>Joined</AdminTh><AdminTh>Actions</AdminTh>
+              <AdminTh>Unique ID</AdminTh><AdminTh>Name</AdminTh><AdminTh>Email</AdminTh><AdminTh>Goal</AdminTh><AdminTh>Position</AdminTh><AdminTh>WA Mktg</AdminTh><AdminTh>Study hrs</AdminTh><AdminTh>Coins 🪙</AdminTh><AdminTh>Joined</AdminTh><AdminTh>Actions</AdminTh>
             </tr>
           </thead>
           <tbody>
@@ -265,6 +273,12 @@ export default function AdminStudentsPage() {
                 <AdminTd className="font-medium text-gray-900">{s.name || "—"}</AdminTd>
                 <AdminTd className="text-gray-900">{s.email}</AdminTd>
                 <AdminTd>{s.goal || "—"}</AdminTd>
+                <AdminTd>
+                  {s.profile?.position
+                    ? <span className="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[11px] font-medium text-indigo-700">{s.profile.position}</span>
+                    : <span className="text-[var(--cream-muted)]">—</span>
+                  }
+                </AdminTd>
                 <AdminTd>
                   {s.profile?.whatsappMarketing
                     ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700 border border-green-200">📲 Yes</span>
@@ -300,6 +314,30 @@ export default function AdminStudentsPage() {
             ))}
           </tbody>
         </AdminTable>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between border-t border-gray-100 px-2 pt-4 mt-2">
+          <button
+            onClick={() => setPage(p => p - 1)}
+            disabled={page === 1 || loading}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          >
+            <ChevronLeft className="h-3 w-3" /> Prev
+          </button>
+          <span className="text-xs text-[var(--cream-muted)]">
+            Page {page}
+            {totalCount > 0 && (
+              <> · {(page - 1) * 50 + 1}–{Math.min(page * 50, totalCount)} of {totalCount} students</>
+            )}
+          </span>
+          <button
+            onClick={() => setPage(p => p + 1)}
+            disabled={!hasMore || loading}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          >
+            Next <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
       </div>
 
       {/* Create modal */}
@@ -341,6 +379,7 @@ export default function AdminStudentsPage() {
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Profile</p>
                 <div className="space-y-1.5 text-[var(--cream-muted)]">
                   <p>Full name: {detailsStudent.profile.fullName || "—"}</p>
+                  <p>Position: {detailsStudent.profile.position || "—"}</p>
                   <p>Phone: {detailsStudent.profile.phone || "—"}</p>
                   <p>Target exam: {detailsStudent.profile.targetExam || "—"} · Year: {detailsStudent.profile.targetYear ?? "—"}</p>
                   <p>Institution: {detailsStudent.profile.institution || "—"}</p>
@@ -405,6 +444,7 @@ export default function AdminStudentsPage() {
                   <FormInput label="Target Year" value={editForm.targetYear} onChange={(e) => setEditForm({ ...editForm, targetYear: e.target.value })} placeholder="2025" />
                 </div>
                 <FormInput label="Institution" value={editForm.institution} onChange={(e) => setEditForm({ ...editForm, institution: e.target.value })} />
+                <FormInput label="Position" value={editForm.position} onChange={(e) => setEditForm({ ...editForm, position: e.target.value })} placeholder="e.g. Student, Working Professional, AIR-1" />
                 <FormInput label="Study Goal" value={editForm.studyGoal} onChange={(e) => setEditForm({ ...editForm, studyGoal: e.target.value })} placeholder="e.g. Clear UPSC 2026" />
                 <FormTextarea label="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} rows={2} />
                 <FormInput label="Profile Picture URL" value={editForm.profilePicUrl} onChange={(e) => setEditForm({ ...editForm, profilePicUrl: e.target.value })} placeholder="https://..." />

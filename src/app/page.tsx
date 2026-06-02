@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { HomeClient } from "./HomeClient";
 import { batchGetAppSettings } from "@/lib/app-settings";
+import { safeJsonLd } from "@/lib/sanitize-html";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
 
@@ -59,7 +60,7 @@ export default async function HomePage() {
       {faqSchema && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(faqSchema) }}
         />
       )}
       <HomeClient

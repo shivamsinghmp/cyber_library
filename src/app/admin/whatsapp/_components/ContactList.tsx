@@ -7,6 +7,7 @@ import { UserCircle, MessageSquare, AlertCircle, Users, Search, X } from "lucide
 type ContactInfo = {
   phoneNumber: string;
   latestMessage: string;
+  latestDirection: "INBOUND" | "OUTBOUND";
   timestamp: string;
   user: { id: string; name: string | null; email: string; image: string | null } | null;
 };
@@ -23,6 +24,7 @@ type Props = {
   contacts: ContactInfo[];
   selectedPhone: string | null;
   loading: boolean;
+  unreadPhones: Set<string>;
   onSelect: (phone: string) => void;
 };
 
@@ -32,7 +34,7 @@ function Avatar({ src, name }: { src?: string | null; name?: string | null }) {
   return <span className="text-xs font-bold text-[var(--accent)]">{initials}</span>;
 }
 
-export function ContactList({ contacts, selectedPhone, loading, onSelect }: Props) {
+export function ContactList({ contacts, selectedPhone, loading, unreadPhones, onSelect }: Props) {
   const [tab,      setTab]      = useState<"chats" | "students">("chats");
   const [students, setStudents] = useState<Student[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -73,7 +75,11 @@ export function ContactList({ contacts, selectedPhone, loading, onSelect }: Prop
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5" /> Chats
-          {contacts.length > 0 && (
+          {unreadPhones.size > 0 ? (
+            <span className="ml-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {unreadPhones.size}
+            </span>
+          ) : contacts.length > 0 && (
             <span className="ml-1 rounded-full bg-[var(--accent)]/10 px-1.5 py-0.5 text-[10px] font-bold text-[var(--accent)]">
               {contacts.length}
             </span>
@@ -134,15 +140,20 @@ export function ContactList({ contacts, selectedPhone, loading, onSelect }: Prop
                   className={`w-full p-3 flex items-start gap-3 text-left transition hover:bg-white ${
                     selectedPhone === contact.phoneNumber
                       ? "bg-white border-l-2 border-[var(--accent)]"
-                      : "border-l-2 border-transparent"
+                      : unreadPhones.has(contact.phoneNumber)
+                        ? "bg-emerald-50/60 border-l-2 border-emerald-400"
+                        : "border-l-2 border-transparent"
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                  <div className="relative w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
                     <Avatar src={contact.user?.image} name={contact.user?.name} />
+                    {unreadPhones.has(contact.phoneNumber) && (
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-semibold text-xs text-[var(--cream)] truncate">
+                      <span className={`text-xs truncate ${unreadPhones.has(contact.phoneNumber) ? "font-bold text-gray-900" : "font-semibold text-[var(--cream)]"}`}>
                         {contact.user?.name || contact.phoneNumber}
                       </span>
                       <span className="text-[10px] text-[var(--cream-muted)] shrink-0">
@@ -152,7 +163,12 @@ export function ContactList({ contacts, selectedPhone, loading, onSelect }: Prop
                     {contact.user?.name && (
                       <span className="text-[10px] text-[var(--cream-muted)] font-mono block">{contact.phoneNumber}</span>
                     )}
-                    <p className="text-[11px] text-[var(--cream-muted)] truncate mt-0.5">{contact.latestMessage}</p>
+                    <p className={`text-[11px] truncate mt-0.5 ${unreadPhones.has(contact.phoneNumber) ? "font-semibold text-gray-700" : "text-[var(--cream-muted)]"}`}>
+                      {contact.latestDirection === "INBOUND" && unreadPhones.has(contact.phoneNumber) && (
+                        <span className="text-emerald-600">↙ </span>
+                      )}
+                      {contact.latestMessage}
+                    </p>
                   </div>
                 </button>
               ))}

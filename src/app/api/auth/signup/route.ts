@@ -6,11 +6,12 @@ import { generateStudentId } from "@/lib/studentId";
 import { generateStudentReferralCode } from "@/lib/referral";
 import { rateLimit } from "@/lib/rate-limit";
 import { auditLog } from "@/lib/auditLog";
+import { passwordSchema } from "@/lib/password-schema";
 
 const signupSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   email: z.string().email("Invalid email").max(255),
-  password: z.string().min(8, "Password must be at least 8 characters").max(72, "Password too long"),
+  password: passwordSchema,
   goal: z.string().min(1, "Study goal is required").max(100),
   whatsappNumber: z.string().min(10, "Valid WhatsApp number is required").max(20),
   otp: z.string().length(6, "OTP must be 6 digits"),

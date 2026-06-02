@@ -5,8 +5,7 @@ import { Calendar, ArrowLeft, Clock, Eye, BookOpen, ChevronRight } from "lucide-
 import { prisma } from "@/lib/prisma";
 
 export const revalidate = 60; // ISR: revalidate every 60s — ensures metadata updates quickly after admin edits
-import { sanitizeCustomCss, scopeCustomCss } from "@/lib/sanitize-html";
-import DOMPurify from "isomorphic-dompurify";
+import { sanitizeCustomCss, scopeCustomCss, sanitizeBlogHtml, safeJsonLd } from "@/lib/sanitize-html";
 import { BlogEngagement } from "@/components/BlogEngagement";
 import { ReadingProgress } from "./ReadingProgress";
 
@@ -148,7 +147,7 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound();
 
   const mins = readTime(post.body);
-  const sanitizedBody = injectHeadingIds(DOMPurify.sanitize(post.body));
+  const sanitizedBody = injectHeadingIds(sanitizeBlogHtml(post.body));
   const toc = extractToc(post.body);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
@@ -174,7 +173,7 @@ export default async function BlogPostPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(articleSchema) }}
       />
       <ReadingProgress />
 

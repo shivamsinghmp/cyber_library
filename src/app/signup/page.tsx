@@ -10,12 +10,13 @@ import Image from "next/image";
 import { User, Mail, Lock, Target, Phone, Eye, EyeOff, ShieldCheck, Loader2, Tag } from "lucide-react";
 import toast from "react-hot-toast";
 import { signIn } from "next-auth/react";
+import { passwordSchema, passwordStrength } from "@/lib/password-schema";
 
 const schema = z.object({
   name:            z.string().min(1, "Naam daalna zaroori hai"),
   email:           z.string().email("Valid email chahiye"),
   whatsappNumber:  z.string().min(10, "Valid mobile number chahiye (e.g. +919876543210)"),
-  password:        z.string().min(8, "Password kam se kam 8 characters ka hona chahiye"),
+  password:        passwordSchema,
   confirmPassword: z.string().min(1, "Password dobara daalo"),
   goal:            z.string().min(1, "Apna exam goal choose karo"),
 }).refine(d => d.password === d.confirmPassword, {
@@ -79,7 +80,7 @@ function SignupContent() {
   const logoSrc      = logoUrl?.trim() || "/favicon.svg";
   const isExternalLogo = logoSrc.startsWith("http");
 
-  const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, getValues, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", email: "", whatsappNumber: "", password: "", confirmPassword: "", goal: "" },
   });
@@ -341,7 +342,7 @@ function SignupContent() {
               )}
 
               {/* Password */}
-              <Field label="Password (min 8 characters)" error={errors.password?.message}>
+              <Field label="Password" error={errors.password?.message}>
                 <div className="relative">
                   <Lock className={ICON} style={{ color: "var(--muted-text)" }} />
                   <input {...register("password")} type={showPassword ? "text" : "password"}
@@ -352,6 +353,10 @@ function SignupContent() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <PasswordStrengthBar password={watch("password") ?? ""} />
+                <p className="mt-1 text-[10px]" style={{ color: "var(--muted-text)" }}>
+                  Chahiye: 8+ chars · 1 uppercase (A–Z) · 1 number · 1 special char (!@#$%)
+                </p>
               </Field>
 
               {/* Confirm Password */}
@@ -436,6 +441,29 @@ function SignupContent() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PasswordStrengthBar({ password }: { password: string }) {
+  const { score, label, color } = passwordStrength(password);
+  if (!password) return null;
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex gap-1">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="h-1 flex-1 rounded-full transition-all duration-300"
+            style={{ backgroundColor: i <= score ? color : "#e5e7eb" }}
+          />
+        ))}
+      </div>
+      {label && (
+        <p className="text-[11px] font-semibold" style={{ color }}>
+          {label}
+        </p>
+      )}
     </div>
   );
 }

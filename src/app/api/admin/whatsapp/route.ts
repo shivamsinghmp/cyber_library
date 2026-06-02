@@ -59,6 +59,7 @@ export async function GET(request: Request) {
         phoneNumber: true,
         content: true,
         contentIv: true,
+        direction: true,
         createdAt: true,
         user: { select: { id: true, name: true, image: true, email: true } },
       },
@@ -69,6 +70,7 @@ export async function GET(request: Request) {
       latestPerPhone.map((msg) => ({
         phoneNumber: msg.phoneNumber,
         latestMessage: decryptContent(msg.content, msg.contentIv),
+        latestDirection: msg.direction,
         timestamp: msg.createdAt,
         user: msg.user,
       }))

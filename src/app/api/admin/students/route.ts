@@ -26,47 +26,56 @@ export async function GET(request: Request) {
     const take = 50; 
     const skip = (page - 1) * take;
 
-    const students = await prisma.user.findMany({
-      where: {
-        role: "STUDENT",
-        deletedAt: null,
-        ...(search
-          ? {
-              OR: [
-                { studentId: { contains: search, mode: "insensitive" } },
-                { id: { contains: search, mode: "insensitive" } },
-                { email: { contains: search, mode: "insensitive" } },
-                { name: { contains: search, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        studentId: true,
-        name: true,
-        email: true,
-        goal: true,
-        createdAt: true,
-        profile: {
-          select: {
-            phone: true,
-            whatsappNumber: true,
-            whatsappMarketing: true,
-            studyGoal: true,
-            targetExam: true,
-            totalStudyHours: true,
-            coinBalance: true,
+    const whereClause = {
+      role: "STUDENT" as const,
+      deletedAt: null as null,
+      ...(search
+        ? {
+            OR: [
+              { studentId: { contains: search, mode: "insensitive" as const } },
+              { id:        { contains: search, mode: "insensitive" as const } },
+              { email:     { contains: search, mode: "insensitive" as const } },
+              { name:      { contains: search, mode: "insensitive" as const } },
+            ],
           }
-        }
-      },
-      orderBy: { createdAt: "desc" },
-      take,
-      skip,
-    });
+        : {}),
+    };
+
+    const [students, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          studentId: true,
+          name: true,
+          email: true,
+          goal: true,
+          createdAt: true,
+          profile: {
+            select: {
+              phone: true,
+              whatsappNumber: true,
+              whatsappMarketing: true,
+              studyGoal: true,
+              targetExam: true,
+              totalStudyHours: true,
+              coinBalance: true,
+              position: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take,
+        skip,
+      }),
+      prisma.user.count({ where: whereClause }),
+    ]);
+
+    const hasMore = skip + students.length < total;
 
     // Generate IDs for students missing one — parallel, not sequential
     const missing = students.filter(s => !s.studentId);
+    let finalStudents = students;
     if (missing.length > 0) {
       const ids = await Promise.all(missing.map(() => generateStudentId()));
       await Promise.all(
@@ -75,10 +84,10 @@ export async function GET(request: Request) {
         )
       );
       const idMap = Object.fromEntries(missing.map((s, i) => [s.id, ids[i]]));
-      return NextResponse.json(students.map(s => s.studentId ? s : { ...s, studentId: idMap[s.id] }));
+      finalStudents = students.map(s => s.studentId ? s : { ...s, studentId: idMap[s.id] });
     }
 
-    return NextResponse.json(students);
+    return NextResponse.json({ data: finalStudents, total, page, hasMore });
   } catch (e) {
     console.error("GET /api/admin/students:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

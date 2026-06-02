@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ClipboardList } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, Search } from "lucide-react";
 import { useFetch } from "@/hooks/useFetch";
 
 type LeadRow = {
@@ -19,10 +19,25 @@ function extractField(data: Record<string, unknown>, ...keys: string[]): string 
   return "";
 }
 
+type LeadsResp = { data: LeadRow[]; total: number; page: number; hasMore: boolean };
+
 export default function AdminLeadsPage() {
-  const { data: leads, loading } = useFetch<LeadRow[]>("/api/admin/leads");
+  const [page, setPage]             = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch]         = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const items = leads ?? [];
+
+  const fetchUrl = `/api/admin/leads?page=${page}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+  const { data: resp, loading } = useFetch<LeadsResp>(fetchUrl);
+  const items   = resp?.data    ?? [];
+  const total   = resp?.total   ?? 0;
+  const hasMore = resp?.hasMore ?? false;
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setPage(1);
+    setSearch(searchInput.trim());
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-6">
@@ -42,11 +57,29 @@ export default function AdminLeadsPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-[var(--cream-muted)]">
-          Total leads: <span className="font-semibold text-gray-900">{items.length}</span>
+          Total leads: <span className="font-semibold text-gray-900">{total}</span>
         </p>
-        <Link href="/api/admin/export/leads" className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-[var(--cream)] hover:bg-gray-100">
-          Export as CSV (Excel)
-        </Link>
+        <div className="flex items-center gap-2">
+          <form onSubmit={handleSearch} className="flex gap-1.5">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search by source…"
+                className="w-44 rounded-xl border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs text-[var(--cream)] outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+            <button type="submit" className="rounded-xl bg-[var(--accent)] px-3 py-1.5 text-xs font-bold text-white hover:opacity-90">Go</button>
+            {search && (
+              <button type="button" onClick={() => { setSearchInput(""); setSearch(""); setPage(1); }} className="rounded-xl border border-gray-200 px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-50">✕</button>
+            )}
+          </form>
+          <Link href="/api/admin/export/leads" className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-[var(--cream)] hover:bg-gray-100">
+            Export CSV
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -109,6 +142,27 @@ export default function AdminLeadsPage() {
               })}
             </tbody>
           </table>
+          {/* Pagination */}
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 rounded-b-2xl">
+            <button
+              onClick={() => setPage(p => p - 1)}
+              disabled={page === 1 || loading}
+              className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              <ChevronLeft className="h-3 w-3" /> Prev
+            </button>
+            <span className="text-xs text-[var(--cream-muted)]">
+              Page {page}
+              {total > 0 && <> · {(page - 1) * 50 + 1}–{Math.min(page * 50, total)} of {total}</>}
+            </span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={!hasMore || loading}
+              className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            >
+              Next <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
         </div>
       )}
     </div>

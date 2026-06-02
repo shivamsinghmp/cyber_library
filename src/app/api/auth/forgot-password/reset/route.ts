@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { verifyOtp } from "@/lib/otp";
 import { rateLimit } from "@/lib/rate-limit";
+import { passwordSchema } from "@/lib/password-schema";
 
 export async function POST(request: Request) {
   try {
@@ -31,9 +32,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (password.length < 8) {
+
+    // Validate password strength with shared schema
+    const pwdParsed = passwordSchema.safeParse(password);
+    if (!pwdParsed.success) {
       return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
+        { error: pwdParsed.error.issues[0]?.message ?? "Password requirements poore nahi hue" },
         { status: 400 }
       );
     }

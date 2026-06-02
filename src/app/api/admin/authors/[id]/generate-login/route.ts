@@ -52,12 +52,10 @@ export async function POST(
           where: { id: author.user.id },
           data: { password: hashed },
         });
-        return NextResponse.json({
-          email: author.user.email,
-          password: pwd,
-          userId: author.user.id,
-          message: "Password updated. Share with the author if needed.",
-        });
+        return NextResponse.json(
+          { email: author.user.email, password: pwd, userId: author.user.id, message: "Password updated. Share with the author if needed." },
+          { headers: { "Cache-Control": "no-store, no-cache, private" } }
+        );
       }
       return NextResponse.json(
         { error: "Author already has login. Use newPassword to set a new password." },
@@ -111,12 +109,10 @@ export async function POST(
         where: { id: authorId },
         data: { userId: existing.id },
       });
-      return NextResponse.json({
-        email: uniqueEmail,
-        password,
-        userId: existing.id,
-        message: "Login credentials generated. Share with the author.",
-      });
+      return NextResponse.json(
+        { email: uniqueEmail, password, userId: existing.id, message: "Login credentials generated. Share with the author." },
+        { headers: { "Cache-Control": "no-store, no-cache, private" } }
+      );
     }
 
     const password = randomPassword(12);
@@ -135,12 +131,10 @@ export async function POST(
       data: { userId: user.id },
     });
 
-    return NextResponse.json({
-      email: user.email,
-      password,
-      userId: user.id,
-      message: "Login credentials generated. Share with the author.",
-    });
+    return NextResponse.json(
+      { email: user.email, password, userId: user.id, message: "Login credentials generated. Share with the author." },
+      { headers: { "Cache-Control": "no-store, no-cache, private" } }
+    );
   } catch (e) {
     console.error("POST /api/admin/authors/[id]/generate-login:", e);
     return NextResponse.json({ error: "Failed to generate login" }, { status: 500 });

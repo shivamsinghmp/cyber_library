@@ -127,44 +127,56 @@ export async function fulfillOrder({
     // ids[0] = planType ("MONTHLY" | "YEARLY")
     const planType = ids[0] as "MONTHLY" | "YEARLY";
     const now = new Date();
-    const endDate = new Date(now);
-    if (planType === "MONTHLY") endDate.setMonth(endDate.getMonth() + 1);
-    else endDate.setFullYear(endDate.getFullYear() + 1);
 
     orderDetails = [{ name: `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`, price: amountRupees }];
 
-    // Block duplicate: do not enroll if user already has the same or a higher plan.
-    // (Monthly → Yearly upgrade is allowed; the old plan was cancelled in create-order.)
     const existingActive = await prisma.userSubscription.findFirst({
       where: { userId, status: "ACTIVE", endDate: { gt: now } },
-      select: { id: true, planType: true },
+      select: { id: true, planType: true, endDate: true },
     });
+
+    let membershipStart: Date;
+    let membershipEnd: Date;
+
     if (existingActive) {
       const isUpgrade = existingActive.planType === "MONTHLY" && planType === "YEARLY";
-      if (!isUpgrade) throw new Error("ALREADY_SUBSCRIBED");
-      // Cancel the old monthly sub before activating yearly
-      await prisma.userSubscription.update({
-        where: { id: existingActive.id },
-        data: { status: "CANCELLED" },
+      if (isUpgrade) {
+        // Monthly → Yearly upgrade: cancel old sub, start fresh yearly from now
+        await prisma.userSubscription.update({
+          where: { id: existingActive.id },
+          data: { status: "CANCELLED" },
+        });
+        membershipStart = now;
+        membershipEnd = new Date(now);
+        membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+        await prisma.userSubscription.create({
+          data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
+        });
+      } else {
+        // Same plan or re-purchase: extend from current endDate
+        membershipStart = existingActive.endDate;
+        membershipEnd = new Date(existingActive.endDate);
+        if (planType === "MONTHLY") membershipEnd.setMonth(membershipEnd.getMonth() + 1);
+        else membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+        await prisma.userSubscription.update({
+          where: { id: existingActive.id },
+          data: { endDate: membershipEnd },
+        });
+      }
+    } else {
+      // No active subscription — fresh enrollment
+      membershipStart = now;
+      membershipEnd = new Date(now);
+      if (planType === "MONTHLY") membershipEnd.setMonth(membershipEnd.getMonth() + 1);
+      else membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+      await prisma.userSubscription.create({
+        data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
       });
     }
 
-    await prisma.userSubscription.create({
-      data: {
-        userId,
-        planType,
-        startDate: now,
-        endDate,
-        status: "ACTIVE",
-        amountPaid: amountRupees,
-        transactionId,
-        paymentGatewayId: paymentGatewayId ?? null,
-      },
-    });
-
     fulfillMeta.planType        = planType;
-    fulfillMeta.membershipStart = now;
-    fulfillMeta.membershipEnd   = endDate;
+    fulfillMeta.membershipStart = membershipStart;
+    fulfillMeta.membershipEnd   = membershipEnd;
 
     // Log trial→paid conversion (fire-and-forget)
     const { logTrialEvent } = await import("@/lib/trial-logger");
@@ -192,17 +204,35 @@ export async function fulfillOrder({
     },
   });
 
-  // 3. Record coupon redemption (now that payment is confirmed)
-  // Use createMany + skipDuplicates so a retry/race never double-counts the redemption.
+  // 3. Record coupon redemption (now that payment is confirmed).
+  // Wrap in a transaction so the maxTotalUses count-check and the insert are atomic,
+  // preventing concurrent requests from both passing the check and over-redeeming.
   if (couponCode) {
     try {
-      const coupon = await prisma.coupon.findUnique({ where: { code: couponCode }, select: { id: true } });
-      if (coupon) {
-        await prisma.couponRedemption.createMany({
-          data: [{ couponId: coupon.id, userId }],
-          skipDuplicates: true,
+      await prisma.$transaction(async (tx) => {
+        const coupon = await tx.coupon.findUnique({
+          where: { code: couponCode },
+          select: { id: true, maxTotalUses: true },
         });
-      }
+        if (!coupon) return;
+
+        // Per-user uniqueness check
+        const alreadyUsed = await tx.couponRedemption.findUnique({
+          where: { couponId_userId: { couponId: coupon.id, userId } },
+        });
+        if (alreadyUsed) return;
+
+        // Atomic total-uses check — concurrent transactions see each other's inserts
+        if (coupon.maxTotalUses !== null) {
+          const currentCount = await tx.couponRedemption.count({ where: { couponId: coupon.id } });
+          if (currentCount >= coupon.maxTotalUses) {
+            console.warn(`[fulfillOrder] Coupon ${couponCode} maxTotalUses (${coupon.maxTotalUses}) reached for user ${userId}`);
+            return;
+          }
+        }
+
+        await tx.couponRedemption.create({ data: { couponId: coupon.id, userId } });
+      });
     } catch (e) {
       console.error("[fulfillOrder] Coupon redemption record failed:", e);
     }

@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 
 // Synthetic ID used for the env-based superadmin (never stored in DB)
 const ENV_SUPERADMIN_ID = "ENV_SUPERADMIN";
@@ -170,6 +171,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const requestedRole = credentials.loginAsRole
           ? String(credentials.loginAsRole).trim()
           : null;
+
+        // Per-email rate limit: 10 attempts / 15 min — fallback when Upstash not configured.
+        // (Middleware handles per-IP limit via Upstash when available.)
+        const emailRl = rateLimit(`login_email:${email}`, 10, 900);
+        if (!emailRl.success) return null;
 
         // ── Env-based superadmin (no DB lookup, no bcrypt) ────────────
         const saEmail    = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();

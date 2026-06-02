@@ -36,7 +36,13 @@ export async function GET(request: Request) {
     return new Response("WHATSAPP_VERIFY_TOKEN not configured", { status: 500 });
   }
 
-  if (mode === "subscribe" && token === verifyToken) {
+  const tokenMatch =
+    mode === "subscribe" &&
+    token !== null &&
+    token.length === verifyToken.length &&
+    crypto.timingSafeEqual(Buffer.from(token), Buffer.from(verifyToken));
+
+  if (tokenMatch) {
     console.info("[Webhook/WhatsApp] verified ✓");
     return new Response(challenge ?? "", { status: 200 });
   }

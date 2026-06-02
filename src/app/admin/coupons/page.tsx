@@ -51,6 +51,115 @@ const defaultForm = {
   description: "",
 };
 
+type FormState = typeof defaultForm;
+
+function CouponForm({
+  form,
+  setForm,
+  isEdit,
+  onSubmit,
+  onCancel,
+  saving,
+}: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  isEdit?: boolean;
+  onSubmit: () => Promise<unknown>;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await onSubmit();
+      }}
+      className="space-y-4"
+    >
+      <FormInput
+        label="Code *"
+        value={form.code}
+        onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))}
+        placeholder="e.g. SAVE10"
+        required
+      />
+      <div className="grid grid-cols-2 gap-4">
+        <FormSelect
+          label="Discount type"
+          value={form.discountType}
+          onChange={(e) =>
+            setForm((p) => ({ ...p, discountType: e.target.value as "PERCENT" | "FIXED" }))
+          }
+        >
+          <option value="PERCENT">Percent (%)</option>
+          <option value="FIXED">Fixed (₹)</option>
+        </FormSelect>
+        <FormInput
+          label={`Value ${form.discountType === "PERCENT" ? "(%)" : "(₹)"}`}
+          type="number"
+          min={0}
+          max={form.discountType === "PERCENT" ? 100 : undefined}
+          value={form.discountValue}
+          onChange={(e) => setForm((p) => ({ ...p, discountValue: Number(e.target.value) }))}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <FormInput
+          label="Min order (₹)"
+          type="number"
+          min={0}
+          value={form.minOrder}
+          onChange={(e) => setForm((p) => ({ ...p, minOrder: e.target.value }))}
+          placeholder="Optional"
+        />
+        <FormInput
+          label="Max total uses"
+          type="number"
+          min={0}
+          value={form.maxUses}
+          onChange={(e) => setForm((p) => ({ ...p, maxUses: e.target.value }))}
+          placeholder="Unlimited"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <FormInput
+          label="Valid from"
+          type="date"
+          value={form.validFrom}
+          onChange={(e) => setForm((p) => ({ ...p, validFrom: e.target.value }))}
+        />
+        <FormInput
+          label="Valid until"
+          type="date"
+          value={form.validUntil}
+          onChange={(e) => setForm((p) => ({ ...p, validUntil: e.target.value }))}
+        />
+      </div>
+      <FormInput
+        label="Description (optional)"
+        value={form.description}
+        onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+        placeholder="e.g. 10% off"
+      />
+      <div className="flex gap-6">
+        <FormCheckbox
+          id={`active-${isEdit ? "edit" : "create"}`}
+          label="Active"
+          checked={form.isActive}
+          onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+        />
+        <FormCheckbox
+          id={`public-${isEdit ? "edit" : "create"}`}
+          label="Show publicly on checkout"
+          checked={form.isPublic}
+          onChange={(e) => setForm((p) => ({ ...p, isPublic: e.target.checked }))}
+        />
+      </div>
+      <FormActions onCancel={onCancel} saving={saving} isEdit={isEdit} />
+    </form>
+  );
+}
+
 export default function AdminCouponsPage() {
   const crud = useAdminCRUD<CouponRow>({
     listUrl: "/api/admin/coupons",
@@ -95,100 +204,6 @@ export default function AdminCouponsPage() {
       isPublic: form.isPublic,
       description: form.description.trim() || null,
     };
-  }
-
-  function CouponForm({ isEdit }: { isEdit?: boolean }) {
-    return (
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (isEdit) await crud.handleUpdate(buildPayload());
-          else await crud.handleCreate(buildPayload());
-        }}
-        className="space-y-4"
-      >
-        <FormInput
-          label="Code *"
-          value={form.code}
-          onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-          placeholder="e.g. SAVE10"
-          required
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <FormSelect
-            label="Discount type"
-            value={form.discountType}
-            onChange={(e) =>
-              setForm({ ...form, discountType: e.target.value as "PERCENT" | "FIXED" })
-            }
-          >
-            <option value="PERCENT">Percent (%)</option>
-            <option value="FIXED">Fixed (₹)</option>
-          </FormSelect>
-          <FormInput
-            label={`Value ${form.discountType === "PERCENT" ? "(%)" : "(₹)"}`}
-            type="number"
-            min={0}
-            max={form.discountType === "PERCENT" ? 100 : undefined}
-            value={form.discountValue}
-            onChange={(e) => setForm({ ...form, discountValue: Number(e.target.value) })}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <FormInput
-            label="Min order (₹)"
-            type="number"
-            min={0}
-            value={form.minOrder}
-            onChange={(e) => setForm({ ...form, minOrder: e.target.value })}
-            placeholder="Optional"
-          />
-          <FormInput
-            label="Max total uses"
-            type="number"
-            min={0}
-            value={form.maxUses}
-            onChange={(e) => setForm({ ...form, maxUses: e.target.value })}
-            placeholder="Unlimited"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <FormInput
-            label="Valid from"
-            type="date"
-            value={form.validFrom}
-            onChange={(e) => setForm({ ...form, validFrom: e.target.value })}
-          />
-          <FormInput
-            label="Valid until"
-            type="date"
-            value={form.validUntil}
-            onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
-          />
-        </div>
-        <FormInput
-          label="Description (optional)"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          placeholder="e.g. 10% off"
-        />
-        <div className="flex gap-6">
-          <FormCheckbox
-            id={`active-${isEdit ? "edit" : "create"}`}
-            label="Active"
-            checked={form.isActive}
-            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-          />
-          <FormCheckbox
-            id={`public-${isEdit ? "edit" : "create"}`}
-            label="Show publicly on checkout"
-            checked={form.isPublic}
-            onChange={(e) => setForm({ ...form, isPublic: e.target.checked })}
-          />
-        </div>
-        <FormActions onCancel={crud.closeModals} saving={crud.saving} isEdit={isEdit} />
-      </form>
-    );
   }
 
   return (
@@ -256,11 +271,24 @@ export default function AdminCouponsPage() {
       </AdminTable>
 
       <Modal isOpen={crud.createOpen} title="Create coupon" onClose={crud.closeModals}>
-        <CouponForm />
+        <CouponForm
+          form={form}
+          setForm={setForm}
+          onSubmit={async () => crud.handleCreate(buildPayload())}
+          onCancel={crud.closeModals}
+          saving={crud.saving}
+        />
       </Modal>
 
       <Modal isOpen={!!crud.editItem} title="Edit coupon" onClose={crud.closeModals}>
-        <CouponForm isEdit />
+        <CouponForm
+          form={form}
+          setForm={setForm}
+          isEdit
+          onSubmit={async () => crud.handleUpdate(buildPayload())}
+          onCancel={crud.closeModals}
+          saving={crud.saving}
+        />
       </Modal>
     </div>
   );

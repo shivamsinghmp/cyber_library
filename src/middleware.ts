@@ -34,6 +34,31 @@ const authWriteRatelimit = _redisClient
   ? new Ratelimit({ redis: _redisClient, limiter: Ratelimit.slidingWindow(5, "15 m"), prefix: "@upstash/ratelimit/auth-write" })
   : null;
 
+// Login-specific limit: 10 attempts / 15 min per IP (brute-force protection)
+const loginRatelimit = _redisClient
+  ? new Ratelimit({ redis: _redisClient, limiter: Ratelimit.slidingWindow(10, "15 m"), prefix: "@upstash/ratelimit/login" })
+  : null;
+
+// ── Allowed origins for CSRF origin check ─────────────────────────────────────
+// Computed from NEXT_PUBLIC_SITE_URL. Same-origin requests are always allowed.
+// Webhooks (/api/webhooks/*) and meet-addon routes are excluded — they handle
+// their own CORS or receive requests from trusted external servers (no Origin).
+const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in").replace(/\/$/, "");
+const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
+  SITE_ORIGIN,
+  ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000"] : []),
+]);
+
+// Paths exempt from the Origin check (handle their own CORS or are webhook receivers)
+const ORIGIN_CHECK_EXEMPT = [
+  "/api/webhooks/",    // Meta / Resend webhooks — no browser Origin header
+  "/api/auth/",        // NextAuth handles its own CSRF protection
+  "/api/meet-addon/",  // Google Meet addon — has dedicated CORS logic
+  "/api/health",       // Public health probe
+];
+
+const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 // NOTE: Content-Security-Policy is intentionally NOT set here.
 // next.config.ts already has a comprehensive, route-specific CSP (including a
 // separate policy for /meet-addon that allows Google Meet framing). If we set
@@ -59,6 +84,39 @@ const { auth } = NextAuth(authConfig);
 
 export default auth(async function middleware(request: NextRequest & { auth: { user?: { role?: string } } | null }) {
   const pathname = request.nextUrl.pathname;
+
+  // ── CSRF: Origin header check for state-changing API requests ───────────────
+  // Defense-in-depth: SameSite=Lax cookies are the primary protection; this is
+  // the second layer. If Origin is present and not in the allowed list, reject.
+  // We only check when Origin is present — server-to-server callers (webhooks)
+  // don't send Origin, and those paths are excluded anyway.
+  if (
+    pathname.startsWith("/api/") &&
+    STATE_CHANGING_METHODS.has(request.method) &&
+    !ORIGIN_CHECK_EXEMPT.some((p) => pathname.startsWith(p))
+  ) {
+    const origin = request.headers.get("origin");
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
+      console.warn(`[security] CSRF origin blocked — origin: ${origin}, path: ${pathname}`);
+      return new NextResponse(
+        JSON.stringify({ error: "FORBIDDEN", message: "Cross-origin request not allowed." }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
+  // ── Login brute-force protection ────────────────────────────────────────────
+  if (pathname === "/api/auth/callback/credentials" && loginRatelimit) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
+    const { success, reset } = await loginRatelimit.limit(`login:${ip}`);
+    if (!success) {
+      console.warn(`[security] Login rate limit hit — IP: ${ip}`);
+      return new NextResponse(
+        JSON.stringify({ error: "TOO_MANY_ATTEMPTS", message: "Bahut zyada login attempts. 15 minute baad try karo." }),
+        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.round((reset - Date.now()) / 1000)) } }
+      );
+    }
+  }
 
   // ── Strict rate limit for auth write operations (signup / OTP verify) ──────
   if (AUTH_WRITE_PATHS.some(p => pathname === p || pathname.startsWith(p + "/")) && authWriteRatelimit) {
@@ -199,5 +257,12 @@ export const config = {
     // Auth write endpoints — only here for the strict rate limiter; no session needed
     "/api/auth/signup",
     "/api/auth/verify-email",
+    // Login endpoint — only here for the login brute-force rate limiter
+    "/api/auth/callback/credentials",
+    // Additional state-changing routes covered by CSRF origin check
+    "/api/trial/:path*",
+    "/api/ai/:path*",
+    "/api/slots/:path*",
+    "/api/support/:path*",
   ],
 };

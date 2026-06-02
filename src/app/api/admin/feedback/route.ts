@@ -2,20 +2,42 @@
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
 
-    const feedbacks = await prisma.feedback.findMany({
-      include: {
-        user: { select: { id: true, studentId: true, name: true, email: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 500,
-    });
+    const { searchParams } = new URL(request.url);
+    const page   = Math.max(1, Number(searchParams.get("page") ?? 1));
+    const status = searchParams.get("status") ?? "ALL";
+    const take   = 20;
+    const skip   = (page - 1) * take;
 
-    return NextResponse.json({ feedbacks });
+    const statusWhere = status !== "ALL" ? { status } : {};
+
+    const [feedbacks, total, allTotal, categoryAgg, ratingAgg] = await Promise.all([
+      prisma.feedback.findMany({
+        where: statusWhere,
+        include: { user: { select: { id: true, studentId: true, name: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+      }),
+      prisma.feedback.count({ where: statusWhere }),
+      prisma.feedback.count(),
+      prisma.feedback.groupBy({ by: ["category"], _count: { _all: true } }),
+      prisma.feedback.aggregate({ _avg: { rating: true } }),
+    ]);
+
+    return NextResponse.json({
+      feedbacks,
+      total,
+      allTotal,
+      page,
+      hasMore: skip + feedbacks.length < total,
+      categoryData: categoryAgg.map(a => ({ name: a.category, value: a._count._all })),
+      ratingAvg: Number((ratingAgg._avg.rating ?? 0).toFixed(1)),
+    });
   } catch (error) {
     console.error("Admin Feedback Fetch Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
