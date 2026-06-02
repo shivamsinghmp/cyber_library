@@ -5,6 +5,10 @@ import { redis } from "@/lib/redis";
 import { z } from "zod";
 import { batchGetAppSettings } from "@/lib/app-settings";
 
+// Tell Vercel/Next.js this function can run up to 60 seconds.
+// Without this, Vercel kills the function at the default 10s limit.
+export const maxDuration = 60;
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 const CACHE_TTL_PROFILE = 300;
 
@@ -396,7 +400,7 @@ async function callGoogle(
   });
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 30_000);
+  const timer = setTimeout(() => ctrl.abort(), 55_000);
   const res = await fetch(
     geminiUrl(API_MODEL[model]),
     {
@@ -433,7 +437,7 @@ async function callAnthropic(
   apiKey: string, model: ModelId, messages: Msg[], system: string,
 ): Promise<AICallResult> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 30_000);
+  const timer = setTimeout(() => ctrl.abort(), 55_000);
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST", signal: ctrl.signal,
     headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
@@ -460,7 +464,7 @@ async function callOpenAI(
   apiKey: string, model: ModelId, messages: Msg[], system: string,
 ): Promise<AICallResult> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 30_000);
+  const timer = setTimeout(() => ctrl.abort(), 55_000);
 
   // o1/o1-mini use developer role; others use system role
   const isO1 = model === "gpt-o1" || model === "gpt-o1-mini";
