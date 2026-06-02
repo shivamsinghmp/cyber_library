@@ -39,6 +39,13 @@ export interface CoinMeta {
  * Captures balanceBefore/balanceAfter snapshot for a full audit trail.
  * Pass adminId + meta.adminName when this is triggered by an admin operation.
  */
+// ENV_SUPERADMIN is a synthetic ID (not in DB) — never use as FK reference
+const ENV_SUPERADMIN_ID = "ENV_SUPERADMIN";
+function safeAdminId(id?: string): string | null {
+  if (!id || id === ENV_SUPERADMIN_ID) return null;
+  return id;
+}
+
 export async function awardCoins(
   userId:  string,
   amount:  number,
@@ -65,7 +72,7 @@ export async function awardCoins(
         coins:  amount,
         reason,
         roomId:        roomId  ?? null,
-        adminId:       adminId ?? null,
+        adminId:       safeAdminId(adminId),
         balanceBefore,
         balanceAfter,
         // Rich metadata (all optional — null when not provided)
@@ -127,7 +134,7 @@ export async function deductCoins(
         userId,
         coins:  -amount,
         reason,
-        adminId:       adminId ?? null,
+        adminId:       safeAdminId(adminId),
         balanceBefore,
         balanceAfter,
         sourceCategory: meta?.sourceCategory ?? null,
