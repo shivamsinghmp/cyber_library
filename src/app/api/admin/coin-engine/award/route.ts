@@ -43,10 +43,14 @@ export async function POST(request: Request) {
 
     const systemReason = `ADMIN_MANUAL:${reason}`;
 
+    // VarChar(200) limit on sourceLabel — truncate to avoid DB insert error
+    const labelGrant  = `Admin grant: ${reason}`.slice(0, 200);
+    const labelDeduct = `Admin deduct: ${reason}`.slice(0, 200);
+
     if (amount > 0) {
       await awardCoins(userId, amount, systemReason, undefined, adminId, {
         sourceCategory: "admin_grant",
-        sourceLabel:    `Admin grant: ${reason}`,
+        sourceLabel:    labelGrant,
         referenceType:  "admin",
         referenceId:    adminId,
         referenceName:  adminName,
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
     } else {
       const ok = await deductCoins(userId, Math.abs(amount), systemReason, adminId, {
         sourceCategory: "admin_deduct",
-        sourceLabel:    `Admin deduct: ${reason}`,
+        sourceLabel:    labelDeduct,
         referenceType:  "admin",
         referenceId:    adminId,
         referenceName:  adminName,

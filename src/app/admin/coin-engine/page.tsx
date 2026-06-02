@@ -109,6 +109,7 @@ export default function CoinEnginePage() {
   const [studentsQ, setStudentsQ]         = useState("");
   const [studentsPage, setStudentsPage]   = useState(1);
   const [studentsHasMore, setStudentsHasMore] = useState(false);
+  const [studentsTotal, setStudentsTotal] = useState(0);
 
   // ── NEW: Transaction Log ─────────────────────────────────────────────────────
   const [txns, setTxns]             = useState<TxnRow[]>([]);
@@ -160,6 +161,7 @@ export default function CoinEnginePage() {
       if (res.ok) {
         setStudents(data.data ?? []);
         setStudentsHasMore(data.hasMore ?? false);
+        setStudentsTotal(data.total ?? 0);
         setStudentsPage(p);
       }
     } catch { /* silent */ }
@@ -277,6 +279,7 @@ export default function CoinEnginePage() {
       );
       setAwardAmount(0); setAwardReason("");
       fetchOverview();
+      fetchStudents(1, studentsQ);
       fetchTxns(1, txnType, txnFrom, txnTo, txnStudent);
     } catch { toast.error("Failed to award coins"); }
     finally { setAwarding(false); }
@@ -462,20 +465,32 @@ export default function CoinEnginePage() {
           )}
         </div>
 
-        {/* Pagination */}
-        {(studentsPage > 1 || studentsHasMore) && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <button onClick={() => fetchStudents(studentsPage - 1, studentsQ)} disabled={studentsPage === 1}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40">
-              <ChevronLeft className="h-3 w-3" /> Prev
-            </button>
-            <span className="text-xs text-[var(--cream-muted)]">Page {studentsPage}</span>
-            <button onClick={() => fetchStudents(studentsPage + 1, studentsQ)} disabled={!studentsHasMore}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40">
-              Next <ChevronRight className="h-3 w-3" />
-            </button>
-          </div>
-        )}
+        {/* Pagination — always visible */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <button
+            onClick={() => fetchStudents(studentsPage - 1, studentsQ)}
+            disabled={studentsPage === 1 || studentsLoading}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          >
+            <ChevronLeft className="h-3 w-3" /> Prev
+          </button>
+          <span className="text-xs text-[var(--cream-muted)]">
+            Page {studentsPage}
+            {studentsTotal > 0 && (
+              <>
+                {" · "}
+                {(studentsPage - 1) * 50 + 1}–{Math.min(studentsPage * 50, studentsTotal)} of {fmtNum(studentsTotal)} students
+              </>
+            )}
+          </span>
+          <button
+            onClick={() => fetchStudents(studentsPage + 1, studentsQ)}
+            disabled={!studentsHasMore || studentsLoading}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+          >
+            Next <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
       </div>
 
       {/* ── SECTION 3: Coin Rules Editor (existing) ── */}

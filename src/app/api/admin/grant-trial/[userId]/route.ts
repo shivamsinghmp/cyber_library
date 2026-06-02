@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -9,19 +9,8 @@ export async function POST(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const session = await auth();
-    const adminId = (session?.user as { id?: string })?.id;
-    if (!adminId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const admin = await prisma.user.findUnique({
-      where: { id: adminId },
-      select: { role: true, isSuperAdmin: true },
-    });
-    if (!admin || (admin.role !== "ADMIN" && admin.role !== "EMPLOYEE" && !admin.isSuperAdmin)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
 
     const { userId } = await params;
     const target = await prisma.user.findUnique({

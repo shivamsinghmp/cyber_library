@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getRazorpayCredentials } from "@/lib/razorpay-credentials";
 import { z } from "zod";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { fulfillOrder } from "@/lib/order-fulfillment";
@@ -118,11 +119,20 @@ export async function POST(request: Request) {
             { status: 400 }
           );
         }
-        // Upgrade allowed — cancel the existing monthly sub before creating yearly
-        await prisma.userSubscription.update({
-          where: { id: activeSub.id },
-          data: { status: "CANCELLED" },
+        // Upgrade allowed — cancel the existing monthly sub before creating yearly.
+        // Use updateMany with status filter (optimistic lock): if another concurrent
+        // request already cancelled it, count === 0 and we return 409 to avoid
+        // both requests proceeding to create a Razorpay order.
+        const cancelled = await prisma.userSubscription.updateMany({
+          where: { id: activeSub.id, status: "ACTIVE" },
+          data:  { status: "CANCELLED" },
         });
+        if (cancelled.count === 0) {
+          return NextResponse.json(
+            { error: "Subscription state just changed. Dobara try karo." },
+            { status: 409 }
+          );
+        }
       }
       // Fetch authoritative price from DB — fall back to DEFAULT_PRICING only when DB has no entry
       const { getAppSetting } = await import("@/lib/app-settings");
@@ -202,6 +212,14 @@ export async function POST(request: Request) {
     const rzpTimer = setTimeout(() => rzpController.abort(), 15_000);
     // Idempotency key = userId + items hash — prevents double-charge on network retry
     const idempotencyKey = `${userId}-${Buffer.from(JSON.stringify(ids)).toString("base64url").slice(0, 32)}`;
+    // Bind purchase intent to this order on Razorpay's servers.
+    // Verified in /api/razorpay/verify to prevent order substitution attacks
+    // (where a valid signature for order A is used to fulfill a different item B).
+    const idsHash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify([...ids].sort()))
+      .digest("hex")
+      .slice(0, 32);
     const res = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       signal: rzpController.signal,
@@ -214,6 +232,11 @@ export async function POST(request: Request) {
         amount: amountPaise,
         currency: "INR",
         receipt: "rcpt_" + Date.now(),
+        notes: {
+          type,
+          ids_hash: idsHash,
+          uid: userId.slice(0, 20),
+        },
       }),
     }).finally(() => clearTimeout(rzpTimer));
 

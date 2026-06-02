@@ -174,8 +174,8 @@ export default function MeetAddonMainStagePage() {
         const allTasks = d.tasks ?? [];
         setDailyPromise(allTasks.find((t: any) => t.priority === 0) ?? null);
         setTasks(allTasks.filter((t: any) => t.priority !== 0));
-        setTotalCoins(d.totalPoints ?? 0);
-        setStreakDays(d.streakDays ?? 0);
+        setTotalCoins(d.coinBalance ?? 0);
+        setStreakDays(d.streakDays   ?? 0);
       }
       if (pollRes.ok) {
         const polls = await pollRes.json();

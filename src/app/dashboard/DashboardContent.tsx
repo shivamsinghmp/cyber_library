@@ -440,7 +440,7 @@ export function DashboardContent({ userName }: { userName: string }) {
         const daysLeft = Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
 
         // ── Trial card ──────────────────────────────────────────────
-        if (subscription.isTrial) {
+        if (subscription.isTrial || subscription.planType === "TRIAL") {
           const trialExpiringSoon = daysLeft <= 2;
           return (
             <motion.div variants={anim.container} initial="hidden" animate="show">

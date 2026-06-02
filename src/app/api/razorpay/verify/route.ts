@@ -23,7 +23,10 @@ export async function POST(request: Request) {
       type: z.enum(["CART", "PRODUCT", "REWARD", "SUBSCRIPTION", "COIN_PACK"]),
       ids:  z.array(z.string()).min(1),
       couponCode: z.string().optional(),
-    });
+    }).refine(
+      (d) => d.type !== "SUBSCRIPTION" || ["MONTHLY", "YEARLY"].includes(d.ids[0]),
+      { message: "Invalid subscription plan type", path: ["ids"] }
+    );
 
     const parsed = verifySchema.safeParse(body);
     if (!parsed.success) {
@@ -87,8 +90,33 @@ export async function POST(request: Request) {
         console.error("[razorpay/verify] order lookup failed:", orderRes.status);
         return NextResponse.json({ error: "Order verification failed" }, { status: 502 });
       }
-      const order = (await orderRes.json()) as { amount: number; status: string };
+      const order = (await orderRes.json()) as {
+        amount: number;
+        status: string;
+        notes?: Record<string, string>;
+      };
       amountRupees = order.amount / 100;
+
+      // Verify purchase intent: prevent order substitution attacks.
+      // notes.type and notes.ids_hash were stored by /api/razorpay/create-order
+      // on Razorpay's servers — they cannot be tampered by the client.
+      if (order.notes?.type || order.notes?.ids_hash) {
+        if (order.notes.type && order.notes.type !== type) {
+          console.warn(`[SECURITY] Razorpay order type mismatch — order: ${order.notes.type}, claimed: ${type}, userId: ${userId}`);
+          return NextResponse.json({ error: "Order verification failed" }, { status: 400 });
+        }
+        if (order.notes.ids_hash) {
+          const expectedHash = crypto
+            .createHash("sha256")
+            .update(JSON.stringify([...ids].sort()))
+            .digest("hex")
+            .slice(0, 32);
+          if (order.notes.ids_hash !== expectedHash) {
+            console.warn(`[SECURITY] Razorpay order items mismatch — userId: ${userId}, orderId: ${razorpay_order_id}`);
+            return NextResponse.json({ error: "Order verification failed" }, { status: 400 });
+          }
+        }
+      }
     } catch (e) {
       console.error("[razorpay/verify] order lookup error:", e);
       return NextResponse.json({ error: "Order verification failed" }, { status: 502 });

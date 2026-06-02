@@ -119,6 +119,7 @@ model Profile {
   coinBalance         Int       @default(0) // materialized coin balance — updated atomically on earn/spend
   whatsappMarketing   Boolean   @default(true) // user opted in to WhatsApp marketing messages at signup
   dailyMantra         String?   @db.Text
+  position            String?
   customFields        Json? // admin-defined custom fields (key -> value)
   createdAt           DateTime  @default(now())
   liveStatus          String    @default("Offline")
@@ -428,16 +429,31 @@ model DailyTask {
   taskDate    DateTime  @db.Date // which day this task is for
   title       String    @db.Text // main heading
   description String?   @db.Text // optional details
-  priority    Int       @default(2) // 1 = High, 2 = Medium, 3 = Normal
+  priority    Int       @default(2) // 0 = Daily Promise, 1 = High, 2 = Medium, 3 = Normal
   completedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtasks DailyTaskSubtask[]
 
   @@index([userId, taskDate])
   @@index([userId])
   @@index([taskDate])
+}
+
+// Sub-tasks inside a daily task (max 10 per task)
+model DailyTaskSubtask {
+  id          String    @id @default(cuid())
+  taskId      String
+  title       String    @db.Text
+  completedAt DateTime?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  task DailyTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 // Meet add-on: poll/quiz (admin-created; shown in Meet side panel)

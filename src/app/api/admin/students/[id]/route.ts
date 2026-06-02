@@ -21,6 +21,7 @@ const updateStudentSchema = z.object({
   bio:             z.string().optional().nullable(),
   profilePicUrl:   z.string().optional().nullable(),
   dailyMantra:     z.string().optional().nullable(),
+  position:        z.string().optional().nullable(),
   coinBalance:     z.number().int().min(0).optional(),
   totalPoints:     z.number().int().min(0).optional(),
   currentStreak:   z.number().int().min(0).optional(),
@@ -112,13 +113,13 @@ export async function PUT(
 
     // Profile-level fields
     const profileData: Record<string, unknown> = {};
-    const profileFields = ["fullName","phone","whatsappNumber","studyGoal","targetExam","targetYear","institution","bio","profilePicUrl","dailyMantra","coinBalance","totalPoints","currentStreak","longestStreak"] as const;
+    const profileFields = ["fullName","phone","whatsappNumber","studyGoal","targetExam","targetYear","institution","bio","profilePicUrl","dailyMantra","position","coinBalance","totalPoints","currentStreak","longestStreak"] as const;
     for (const key of profileFields) {
       if (d[key] !== undefined) profileData[key] = d[key];
     }
 
     const updated = await prisma.user.update({
-      where: { id },
+      where: { id, role: "STUDENT" },
       data: userData,
       select: { id: true, studentId: true, name: true, email: true, goal: true, createdAt: true },
     });
@@ -157,7 +158,7 @@ export async function DELETE(
     }
 
     await prisma.user.update({
-      where: { id },
+      where: { id, role: "STUDENT" },
       data: { deletedAt: new Date() },
     });
     return NextResponse.json({ success: true });

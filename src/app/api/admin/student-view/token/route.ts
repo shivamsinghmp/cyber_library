@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireSuperAdmin } from "@/lib/api-helpers";
 import { signAdminViewToken } from "@/lib/adminViewToken";
 import { z } from "zod";
 
@@ -16,7 +16,7 @@ const bodySchema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    const auth = await requireAdmin();
+    const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
 
     const body   = await request.json().catch(() => ({}));

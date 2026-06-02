@@ -60,7 +60,6 @@ export async function GET() {
       prisma.profile.findUnique({
         where: { userId },
         select: {
-          totalStudyHours: true,
           targetYear: true,
           targetExam: true,
         },
@@ -130,9 +129,12 @@ export async function GET() {
     const meetHoursToday = meetSecondsToday / 3600;
     const hoursToday = studyHoursToday + meetHoursToday;
 
-    const profileHours = profile?.totalStudyHours ?? 0;
+    // Sum durationMinutes directly from session records (accurate: profile.totalStudyHours
+    // is an Int column so fractional-hour increments were being truncated to 0)
+    let totalStudyMinutes = 0;
+    for (const s of allSessions) totalStudyMinutes += s.durationMinutes ?? 0;
     const meetHoursTotal = meetSecondsTotal / 3600;
-    const totalStudyHours = profileHours + meetHoursTotal;
+    const totalStudyHours = (totalStudyMinutes / 60) + meetHoursTotal;
     const targetYear = profile?.targetYear ? parseInt(profile.targetYear, 10) : null;
     const endOfTarget =
       targetYear != null && !Number.isNaN(targetYear)

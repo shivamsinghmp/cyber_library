@@ -8,6 +8,7 @@ import {
   Trash2, Send, Target, Check, Zap, Music2, Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import { LoginCard } from "./components/LoginCard";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { AIChatBot }    from "./components/AIChatBot";
@@ -130,11 +131,22 @@ export default function MeetAddonPanelPage() {
                 if (data.slotId) {
                   setResolvedSlot({ slotId: data.slotId, slotName: data.slotName, timeLabel: data.timeLabel });
                   const tok = getToken();
-                  if (tok) fetch("/api/meet-addon/presence", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
-                    body: JSON.stringify({ event: "join", roomKey: data.slotId }),
-                  }).catch(() => {});
+                  if (tok) {
+                    fetch("/api/meet-addon/presence", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+                      body: JSON.stringify({ event: "join", roomKey: data.slotId }),
+                    }).catch(() => {});
+                    // Fetch today's presence time for this slot
+                    fetch(`/api/meet-addon/presence?roomKey=${encodeURIComponent(data.slotId)}`, {
+                      headers: { Authorization: `Bearer ${tok}` },
+                    })
+                      .then(r => r.ok ? r.json() : null)
+                      .then((d: { todaySeconds?: number } | null) => {
+                        if (d?.todaySeconds != null) setSlotTodaySeconds(d.todaySeconds);
+                      })
+                      .catch(() => {});
+                  }
                 }
               }
               setSlotResolving(false);
@@ -211,9 +223,14 @@ export default function MeetAddonPanelPage() {
 
   function handleLogout() { clearToken(); setTokenState(null); }
 
-  const [tasks, setTasks] = useState<{ id: string; title: string; description: string | null; priority: number; completedAt: string | null }[]>([]);
+  type Subtask = { id: string; title: string; completedAt: string | null; sortOrder: number };
+  type Task    = { id: string; title: string; description: string | null; priority: number; completedAt: string | null; subtasks: Subtask[] };
+
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [totalPoints, setTotalPoints] = useState(0);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
 
   const fetchTasks = async () => {
     if (!token) return;
@@ -222,7 +239,8 @@ export default function MeetAddonPanelPage() {
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks || []);
-        if (data.totalPoints !== undefined) setTotalPoints(data.totalPoints);
+        if (data.coinBalance !== undefined) setTotalPoints(data.coinBalance);
+        else if (data.totalPoints !== undefined) setTotalPoints(data.totalPoints);
       } else if (res.status === 401) { handleLogout(); }
     } catch (e) { console.error(e); }
     finally { setTasksLoading(false); }
@@ -327,8 +345,14 @@ export default function MeetAddonPanelPage() {
       } catch { fetchTasks(); }
       return;
     }
+    // Check 5-task limit (excluding daily promise)
+    const regularTasks = tasks.filter(t => t.priority !== 0);
+    if (p !== 0 && regularTasks.length >= 5) {
+      toast.error("Maximum 5 tasks per day allowed 🚫");
+      return;
+    }
     const tempId = `temp-${Date.now()}`;
-    const newTask = { id: tempId, title: taskTitle, description: taskDesc || null, priority: p, completedAt: null };
+    const newTask: Task = { id: tempId, title: taskTitle, description: taskDesc || null, priority: p, completedAt: null, subtasks: [] };
     setTasks(prev => [...prev, newTask].sort((a, b) => a.priority - b.priority));
     setTaskTitle(""); setTaskDesc(""); setTaskPriority("medium");
     try {
@@ -339,7 +363,51 @@ export default function MeetAddonPanelPage() {
       });
       if (res.ok) { const saved = await res.json(); setTasks(prev => prev.map(t => t.id === tempId ? saved : t).sort((a, b) => a.priority - b.priority)); }
       else if (res.status === 401) { handleLogout(); }
-      else fetchTasks();
+      else { setTasks(prev => prev.filter(t => t.id !== tempId)); fetchTasks(); }
+    } catch { fetchTasks(); }
+  };
+
+  const handleAddSubtask = async (taskId: string) => {
+    if (!token) return;
+    const title = (subtaskInputs[taskId] ?? "").trim();
+    if (!title) return;
+    setSubtaskInputs(prev => ({ ...prev, [taskId]: "" }));
+    try {
+      const res = await fetch("/api/meet-addon/today-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ subtask: true, taskId, title }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setTasks(prev => prev.map(t =>
+          t.id === taskId ? { ...t, subtasks: [...(t.subtasks ?? []), saved] } : t
+        ));
+      } else if (res.status === 400) {
+        const d = await res.json();
+        toast.error(d.error || "Cannot add subtask");
+      }
+    } catch {}
+  };
+
+  const handleToggleSubtask = async (taskId: string, subtaskId: string) => {
+    if (!token) return;
+    setTasks(prev => prev.map(t =>
+      t.id !== taskId ? t : {
+        ...t,
+        subtasks: t.subtasks.map(s =>
+          s.id === subtaskId
+            ? { ...s, completedAt: s.completedAt ? null : new Date().toISOString() }
+            : s
+        ),
+      }
+    ));
+    try {
+      await fetch("/api/meet-addon/today-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ subtask: true, markComplete: true, subtaskId }),
+      });
     } catch { fetchTasks(); }
   };
 
@@ -365,6 +433,14 @@ export default function MeetAddonPanelPage() {
       });
     } catch (e) { console.error("Timer sync failed", e); }
   };
+
+  // Live slot-time counter — ticks every second after slot is resolved
+  useEffect(() => {
+    if (!resolvedSlot) return;
+    setSlotLiveSeconds(0);
+    const id = setInterval(() => setSlotLiveSeconds(prev => prev + 1), 1000);
+    return () => clearInterval(id);
+  }, [resolvedSlot?.slotId]);
 
   useEffect(() => {
     if (!isRunning || !token) return;
@@ -740,22 +816,74 @@ export default function MeetAddonPanelPage() {
                     ) : (
                       tasks.filter(t => t.priority !== 0).map((task, idx) => (
                         <motion.div key={task.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.04 }}
-                          className={`group rounded-xl border border-[#C7D2FE] bg-white p-3 flex items-start gap-3 transition-all hover:border-[var(--accent)]/25 hover:bg-[#EEF2FF] ${task.completedAt ? "opacity-35 grayscale" : ""}`}>
-                          <button onClick={() => !task.completedAt && handleCompleteTask(task.id)} disabled={!!task.completedAt}
-                            className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-all ${task.completedAt ? "bg-[#6366F1] border-transparent text-white scale-110" : "border-[#C7D2FE] hover:border-[var(--accent)] text-transparent cursor-pointer"}`}>
-                            <CheckCircle className="w-3.5 h-3.5" />
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-semibold truncate ${task.completedAt ? "line-through text-[#94A3B8]" : "text-[#0F172A] group-hover:text-[#6366F1]"}`}>{task.title}</p>
-                            {task.description && <p className="text-[11px] text-[#94A3B8] truncate mt-0.5">{task.description}</p>}
-                          </div>
-                          {!task.completedAt && (
-                            <div className="shrink-0 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {task.priority === 1 && <span className="text-[9px] font-black text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-md border border-rose-500/20 uppercase">High</span>}
-                              <button onClick={() => { setEditingTaskId(task.id); setTaskTitle(task.title); setTaskDesc(task.description || ""); setTaskPriority(task.priority === 1 ? "high" : task.priority === 3 ? "normal" : "medium"); setShowTaskForm(true); }}
-                                className="w-7 h-7 flex items-center justify-center text-[#94A3B8] hover:text-[#6366F1] hover:bg-[#EEF2FF] rounded-lg transition-colors">
-                                <Pencil className="w-3.5 h-3.5" />
+                          className={`rounded-xl border border-[#C7D2FE] bg-white transition-all ${task.completedAt ? "opacity-35 grayscale" : ""}`}>
+                          {/* Task row */}
+                          <div className="group flex items-start gap-3 p-3">
+                            <button onClick={() => !task.completedAt && handleCompleteTask(task.id)} disabled={!!task.completedAt}
+                              className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-all ${task.completedAt ? "bg-[#6366F1] border-transparent text-white scale-110" : "border-[#C7D2FE] hover:border-[var(--accent)] text-transparent cursor-pointer"}`}>
+                              <CheckCircle className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-semibold truncate ${task.completedAt ? "line-through text-[#94A3B8]" : "text-[#0F172A] group-hover:text-[#6366F1]"}`}>{task.title}</p>
+                              {task.description && <p className="text-[11px] text-[#94A3B8] truncate mt-0.5">{task.description}</p>}
+                              {/* Subtask counter */}
+                              {(task.subtasks?.length ?? 0) > 0 && (
+                                <p className="text-[9px] text-[#94A3B8] mt-0.5">
+                                  {task.subtasks.filter(s => s.completedAt).length}/{task.subtasks.length} subtasks
+                                </p>
+                              )}
+                            </div>
+                            <div className="shrink-0 flex items-center gap-1.5">
+                              {task.priority === 1 && <span className="text-[9px] font-black text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-md border border-rose-500/20 uppercase opacity-0 group-hover:opacity-100 transition-opacity">High</span>}
+                              {/* Expand subtasks */}
+                              <button
+                                onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
+                                className="w-7 h-7 flex items-center justify-center text-[#94A3B8] hover:text-[#6366F1] hover:bg-[#EEF2FF] rounded-lg transition-colors text-[10px] font-black"
+                                title="Subtasks"
+                              >
+                                {expandedTaskId === task.id ? "▲" : "▼"}
                               </button>
+                              {!task.completedAt && (
+                                <button onClick={() => { setEditingTaskId(task.id); setTaskTitle(task.title); setTaskDesc(task.description || ""); setTaskPriority(task.priority === 1 ? "high" : task.priority === 3 ? "normal" : "medium"); setShowTaskForm(true); }}
+                                  className="w-7 h-7 flex items-center justify-center text-[#94A3B8] hover:text-[#6366F1] hover:bg-[#EEF2FF] rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Subtasks panel */}
+                          {expandedTaskId === task.id && (
+                            <div className="border-t border-[#EEF2FF] px-3 pb-3 pt-2 space-y-1.5">
+                              {(task.subtasks ?? []).map(sub => (
+                                <div key={sub.id} className="flex items-center gap-2">
+                                  <button onClick={() => handleToggleSubtask(task.id, sub.id)}
+                                    className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${sub.completedAt ? "bg-emerald-500 border-emerald-500 text-white" : "border-[#C7D2FE] hover:border-[#6366F1]"}`}>
+                                    {sub.completedAt && <span className="text-[8px] font-black">✓</span>}
+                                  </button>
+                                  <span className={`text-[11px] flex-1 ${sub.completedAt ? "line-through text-[#94A3B8]" : "text-[#334155]"}`}>{sub.title}</span>
+                                </div>
+                              ))}
+                              {/* Add subtask input */}
+                              {(task.subtasks?.length ?? 0) < 10 && (
+                                <div className="flex items-center gap-1.5 mt-2">
+                                  <input
+                                    type="text"
+                                    value={subtaskInputs[task.id] ?? ""}
+                                    onChange={e => setSubtaskInputs(prev => ({ ...prev, [task.id]: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === "Enter") handleAddSubtask(task.id); }}
+                                    placeholder="Add subtask..."
+                                    className="flex-1 bg-[#F8FAFF] border border-[#C7D2FE] rounded-lg px-2 py-1 text-[11px] focus:outline-none focus:border-[#6366F1]"
+                                  />
+                                  <button onClick={() => handleAddSubtask(task.id)}
+                                    className="w-6 h-6 rounded-lg bg-[#6366F1] text-white flex items-center justify-center text-[10px] hover:bg-[#4F46E5] transition-colors">
+                                    +
+                                  </button>
+                                </div>
+                              )}
+                              {(task.subtasks?.length ?? 0) >= 10 && (
+                                <p className="text-[9px] text-[#94A3B8] text-center py-1">Max 10 subtasks reached</p>
+                              )}
                             </div>
                           )}
                         </motion.div>

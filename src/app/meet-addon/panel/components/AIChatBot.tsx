@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Sparkles, RotateCcw, Bot, Coins, ShoppingCart } from "lucide-react";
+import { X, Send, Sparkles, RotateCcw, Bot, Coins, ShoppingCart, ImagePlus, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Message = {
@@ -53,6 +53,9 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   const [totalCoins,     setTotalCoins]     = useState<number | null>(null);
   const [coinsError,     setCoinsError]     = useState<CoinsError | null>(null);
   const [qualityWarning, setQualityWarning] = useState<QualityWarning | null>(null);
+  const [imageBase64,    setImageBase64]    = useState<string | null>(null);
+  const [imageMediaType, setImageMediaType] = useState<"image/jpeg" | "image/png" | "image/webp" | "image/gif">("image/jpeg");
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const pendingRetryMsgs   = useRef<Message[] | null>(null);
   const pendingQualityMsgs = useRef<Message[] | null>(null);
@@ -116,10 +119,47 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryCountdown]);
 
-  const callApi = useCallback(async (msgs: Message[], acceptLower = false) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+    const mime = file.type as typeof validTypes[number];
+    if (!validTypes.includes(mime)) { alert("Only JPG, PNG, WebP, GIF supported"); return; }
+
+    // Compress image to max ~900KB base64 (~675KB raw) so it fits the 1.4MB API limit
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX_DIM = 1024; // px — enough for AI vision
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      // Always output JPEG for compressed images (smallest size)
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      setImageBase64(dataUrl.split(",")[1] ?? "");
+      setImageMediaType("image/jpeg");
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); alert("Image load failed"); };
+    img.src = objectUrl;
+    e.target.value = "";
+  };
+
+  const callApi = useCallback(async (msgs: Message[], acceptLower = false, img?: string | null, imgMime?: string) => {
     setLoading(true);
     setCoinsError(null);
     setQualityWarning(null);
+    const body: Record<string, unknown> = {
+      messages: msgs.map(m => ({ role: m.role, content: m.content })),
+      acceptLowerQuality: acceptLower,
+    };
+    if (img) { body.imageBase64 = img; body.mediaType = imgMime ?? "image/jpeg"; }
     try {
       const res = await fetch("/api/ai/studymate", {
         method: "POST",
@@ -127,10 +167,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({
-          messages: msgs.map(m => ({ role: m.role, content: m.content })),
-          acceptLowerQuality: acceptLower,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json().catch(() => ({ error: "Response parse error" }));
@@ -225,7 +262,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
 
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if ((!trimmed && !imageBase64) || loading) return;
 
     setRetryCountdown(null);
     pendingRetryMsgs.current = null;
@@ -233,9 +270,14 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
     setQualityWarning(null);
     setInput("");
 
-    const newMessages: Message[] = [...messages, { role: "user", content: trimmed }];
+    const content = trimmed || (imageBase64 ? "📸 Yeh question solve karo" : "");
+    const capturedImage = imageBase64;
+    const capturedMime  = imageMediaType;
+    setImageBase64(null);
+
+    const newMessages: Message[] = [...messages, { role: "user", content }];
     setMessages(newMessages);
-    await callApi(newMessages);
+    await callApi(newMessages, false, capturedImage, capturedMime);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -499,7 +541,38 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
 
           {/* Input */}
           <div className="px-3 pb-3 pt-2 flex-shrink-0 border-t border-white/5">
+            {/* Image preview */}
+            {imageBase64 && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5">
+                <img
+                  src={`data:${imageMediaType};base64,${imageBase64}`}
+                  alt="upload preview"
+                  className="h-8 w-8 object-cover rounded"
+                />
+                <span className="flex-1 text-[10px] text-white/50 truncate">Image attached</span>
+                <button onClick={() => setImageBase64(null)} className="text-white/30 hover:text-rose-400 transition-colors">
+                  <XCircle className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 focus-within:border-[#6366F1]/50 transition-colors">
+              {/* Image upload button */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={loading}
+                title="Photo of question attach karo"
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-white/30 hover:text-violet-400 transition-colors disabled:opacity-30"
+              >
+                <ImagePlus className="w-4 h-4" />
+              </button>
               <textarea
                 ref={inputRef}
                 rows={1}
@@ -517,7 +590,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               />
               <button
                 onClick={() => send(input)}
-                disabled={!input.trim() || loading}
+                disabled={(!input.trim() && !imageBase64) || loading}
                 className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}
               >
@@ -525,7 +598,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               </button>
             </div>
             <p className="mt-1.5 text-[9px] text-white/20 text-center">
-              Enter = send • Shift+Enter = new line
+              Enter = send • Shift+Enter = new line • 📷 = photo of question
             </p>
           </div>
         </motion.div>

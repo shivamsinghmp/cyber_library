@@ -80,9 +80,10 @@ export async function awardCoins(
         adminReason:    meta?.adminReason    ?? null,
       },
     });
-    await tx.profile.update({
-      where: { userId },
-      data:  { coinBalance: { increment: amount } },
+    await tx.profile.upsert({
+      where:  { userId },
+      create: { userId, coinBalance: Math.max(0, amount) },
+      update: { coinBalance: { increment: amount } },
     });
   });
 }

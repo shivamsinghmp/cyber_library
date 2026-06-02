@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireAdmin, requireSuperAdmin } from "@/lib/api-helpers";
 
 function esc(val: string | number | null | undefined): string {
   const s = String(val ?? "");
-  return s.includes(",") || s.includes('"') || s.includes("\n")
-    ? `"${s.replace(/"/g, '""')}"`
-    : s;
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return safe.includes(",") || safe.includes('"') || safe.includes("\n")
+    ? `"${safe.replace(/"/g, '""')}"`
+    : safe;
 }
 
 /**
@@ -19,14 +20,15 @@ function esc(val: string | number | null | undefined): string {
  */
 export async function GET(request: Request) {
   try {
-    const auth = await requireAdmin();
-    if (auth.error) return auth.error;
-
     const { searchParams } = new URL(request.url);
     const q         = searchParams.get("q")?.trim() ?? "";
     const page      = Math.max(1, Number(searchParams.get("page") ?? 1));
     const exportCsv = searchParams.get("export") === "csv";
     const limit     = exportCsv ? 5000 : 50;
+
+    // CSV export (bulk PII) requires super-admin; paginated view allows all admins
+    const auth = exportCsv ? await requireSuperAdmin() : await requireAdmin();
+    if (auth.error) return auth.error;
 
     const userWhere = {
       deletedAt: null as null,
@@ -41,19 +43,22 @@ export async function GET(request: Request) {
         : {}),
     };
 
-    const profiles = await prisma.profile.findMany({
-      where:   { user: userWhere },
-      select: {
-        userId:      true,
-        coinBalance: true,
-        user: {
-          select: { id: true, name: true, email: true, studentId: true },
+    const [profiles, total] = await Promise.all([
+      prisma.profile.findMany({
+        where:   { user: userWhere },
+        select: {
+          userId:      true,
+          coinBalance: true,
+          user: {
+            select: { id: true, name: true, email: true, studentId: true },
+          },
         },
-      },
-      orderBy: { coinBalance: "desc" },
-      skip:    exportCsv ? 0 : (page - 1) * limit,
-      take:    limit + 1,
-    });
+        orderBy: { coinBalance: "desc" },
+        skip:    exportCsv ? 0 : (page - 1) * limit,
+        take:    limit + 1,
+      }),
+      exportCsv ? Promise.resolve(0) : prisma.profile.count({ where: { user: userWhere } }),
+    ]);
 
     const hasMore = !exportCsv && profiles.length > limit;
     const slice   = profiles.slice(0, limit);
@@ -103,7 +108,7 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json({ data: rows, page, hasMore });
+    return NextResponse.json({ data: rows, page, hasMore, total });
   } catch (e) {
     console.error("GET /api/admin/coin-engine/students:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

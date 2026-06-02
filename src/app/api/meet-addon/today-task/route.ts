@@ -5,6 +5,9 @@ import { getMeetAddonCorsHeaders } from "../cors";
 import { getCoinDelta } from "@/lib/gamification/awards";
 import { applyStudyStreakForQualifyingDay, todayDateUtc } from "@/lib/gamification/study-streak";
 
+const MAX_TASKS_PER_DAY  = 5;  // excluding daily promise (priority 0)
+const MAX_SUBTASKS       = 10; // per task
+
 function todayDate(): Date {
   return todayDateUtc();
 }
@@ -19,7 +22,7 @@ function normalizePriority(v: unknown): number {
   return 2;
 }
 
-function auth(request: NextRequest): { userId: string } | null {
+function authPayload(request: NextRequest): { userId: string } | null {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return null;
@@ -27,11 +30,9 @@ function auth(request: NextRequest): { userId: string } | null {
 }
 
 function taskJson(t: {
-  id: string;
-  title: string;
-  description: string | null;
-  priority: number;
-  completedAt: Date | null;
+  id: string; title: string; description: string | null;
+  priority: number; completedAt: Date | null;
+  subtasks?: { id: string; title: string; completedAt: Date | null; sortOrder: number }[];
 }) {
   return {
     id: t.id,
@@ -39,137 +40,216 @@ function taskJson(t: {
     description: t.description,
     priority: t.priority,
     completedAt: t.completedAt?.toISOString() ?? null,
+    subtasks: (t.subtasks ?? []).map(s => ({
+      id: s.id,
+      title: s.title,
+      completedAt: s.completedAt?.toISOString() ?? null,
+      sortOrder: s.sortOrder,
+    })),
   };
 }
 
+// ── GET ────────────────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  try {
   const cors = getMeetAddonCorsHeaders(request);
-  const payload = auth(request);
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
-  }
-  const taskDate = todayDate();
-  const [tasks, profile] = await Promise.all([
-    prisma.dailyTask.findMany({
-      where: { userId: payload.userId, taskDate },
-      orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
-    }),
-    prisma.profile.findUnique({
-      where: { userId: payload.userId },
-      select: { totalPoints: true }
-    })
-  ]);
-  return NextResponse.json({ tasks: tasks.map(taskJson), totalPoints: profile?.totalPoints || 0 }, { headers: cors });
+  try {
+    const payload = authPayload(request);
+    if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
+
+    const taskDate = todayDate();
+    const [tasks, profile, streak] = await Promise.all([
+      prisma.dailyTask.findMany({
+        where: { userId: payload.userId, taskDate },
+        orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+        include: {
+          subtasks: { orderBy: { sortOrder: "asc" } },
+        },
+      }),
+      prisma.profile.findUnique({
+        where: { userId: payload.userId },
+        select: { coinBalance: true },
+      }),
+      prisma.studyStreak.findUnique({
+        where: { userId: payload.userId },
+        select: { currentDays: true },
+      }),
+    ]);
+
+    return NextResponse.json({
+      tasks: tasks.map(taskJson),
+      coinBalance: profile?.coinBalance ?? 0,
+      streakDays:  streak?.currentDays  ?? 0,
+    }, { headers: cors });
   } catch (e) {
     console.error("[meet-addon/today-task] GET error:", e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500, headers: cors });
   }
 }
 
+// ── POST ───────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
-  try {
   const cors = getMeetAddonCorsHeaders(request);
-  const payload = auth(request);
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
-  }
-  const body = await request.json().catch(() => ({}));
-  const taskDate = todayDate();
-  const markComplete = body.markComplete === true;
-  const targetId =
-    typeof body.taskId === "string"
-      ? body.taskId.trim()
-      : typeof body.id === "string"
-        ? body.id.trim()
-        : "";
+  try {
+    const payload = authPayload(request);
+    if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
 
-  if (markComplete) {
-    if (!targetId) {
-      return NextResponse.json({ error: "taskId required" }, { status: 400, headers: cors });
+    const body = await request.json().catch(() => ({}));
+    const taskDate    = todayDate();
+    const markComplete = body.markComplete === true;
+    const isSubtask    = body.subtask === true;
+
+    // ── Target ID resolution ──────────────────────────────────────────────────
+    const targetId =
+      typeof body.taskId    === "string" ? body.taskId.trim() :
+      typeof body.subtaskId === "string" ? body.subtaskId.trim() :
+      typeof body.id        === "string" ? body.id.trim() : "";
+
+    // ── SUBTASK operations ────────────────────────────────────────────────────
+    if (isSubtask) {
+      // Mark subtask complete
+      if (markComplete) {
+        if (!targetId) return NextResponse.json({ error: "subtaskId required" }, { status: 400, headers: cors });
+        const sub = await prisma.dailyTaskSubtask.findFirst({
+          where: { id: targetId, task: { userId: payload.userId } },
+        });
+        if (!sub) return NextResponse.json({ error: "Subtask not found" }, { status: 404, headers: cors });
+        const updated = await prisma.dailyTaskSubtask.update({
+          where: { id: sub.id },
+          data: { completedAt: sub.completedAt ? null : new Date() },
+        });
+        return NextResponse.json({
+          id: updated.id, title: updated.title,
+          completedAt: updated.completedAt?.toISOString() ?? null,
+          sortOrder: updated.sortOrder,
+        }, { headers: cors });
+      }
+
+      // Create subtask
+      const parentTaskId = typeof body.taskId === "string" ? body.taskId.trim() : "";
+      if (!parentTaskId) return NextResponse.json({ error: "taskId required" }, { status: 400, headers: cors });
+      const title = typeof body.title === "string" ? body.title.trim() : "";
+      if (!title)        return NextResponse.json({ error: "Title required" }, { status: 400, headers: cors });
+
+      const parentTask = await prisma.dailyTask.findFirst({
+        where: { id: parentTaskId, userId: payload.userId },
+        include: { subtasks: { select: { id: true } } },
+      });
+      if (!parentTask) return NextResponse.json({ error: "Task not found" }, { status: 404, headers: cors });
+      if (parentTask.subtasks.length >= MAX_SUBTASKS) {
+        return NextResponse.json(
+          { error: `Maximum ${MAX_SUBTASKS} subtasks allowed per task` },
+          { status: 400, headers: cors }
+        );
+      }
+
+      const sortOrder = typeof body.sortOrder === "number" ? body.sortOrder : parentTask.subtasks.length;
+      const subtask = await prisma.dailyTaskSubtask.create({
+        data: { taskId: parentTaskId, title, sortOrder },
+      });
+      return NextResponse.json({
+        id: subtask.id, title: subtask.title,
+        completedAt: subtask.completedAt?.toISOString() ?? null,
+        sortOrder: subtask.sortOrder,
+      }, { headers: cors });
     }
-    const existing = await prisma.dailyTask.findFirst({
-      where: { id: targetId, userId: payload.userId, taskDate },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404, headers: cors });
+
+    // ── TASK mark complete ────────────────────────────────────────────────────
+    if (markComplete) {
+      if (!targetId) return NextResponse.json({ error: "taskId required" }, { status: 400, headers: cors });
+      const existing = await prisma.dailyTask.findFirst({
+        where: { id: targetId, userId: payload.userId, taskDate },
+        include: { subtasks: { orderBy: { sortOrder: "asc" } } },
+      });
+      if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404, headers: cors });
+      if (existing.completedAt) return NextResponse.json(taskJson(existing), { headers: cors });
+
+      const completedCountBefore = await prisma.dailyTask.count({
+        where: { userId: payload.userId, taskDate, completedAt: { not: null } },
+      });
+      const isFirstCompletionToday = completedCountBefore === 0;
+
+      const updated = await prisma.dailyTask.update({
+        where: { id: existing.id },
+        data: { completedAt: new Date() },
+        include: { subtasks: { orderBy: { sortOrder: "asc" } } },
+      });
+
+      const coins = await getCoinDelta("TODO_COMPLETED");
+      if (coins !== 0) {
+        await prisma.$transaction([
+          prisma.studyCoinLog.create({
+            data: { userId: payload.userId, reason: "TODO_COMPLETED", coins },
+          }),
+          prisma.profile.upsert({
+            where:  { userId: payload.userId },
+            create: { userId: payload.userId, coinBalance: Math.max(0, coins) },
+            update: { coinBalance: { increment: coins } },
+          }),
+        ]);
+      }
+
+      if (isFirstCompletionToday) {
+        await applyStudyStreakForQualifyingDay(payload.userId);
+      }
+
+      return NextResponse.json(taskJson(updated), { headers: cors });
     }
-    if (existing.completedAt) {
-      return NextResponse.json(taskJson(existing), { headers: cors });
+
+    // ── TASK create / edit ────────────────────────────────────────────────────
+    const title       = typeof body.title === "string" ? body.title.trim() : "";
+    const description = typeof body.description === "string" ? body.description.trim() || null
+                        : body.description === null ? null : undefined;
+    const priority = normalizePriority(body.priority);
+
+    // Edit existing task
+    if (targetId) {
+      const existing = await prisma.dailyTask.findFirst({
+        where: { id: targetId, userId: payload.userId, taskDate },
+        include: { subtasks: { orderBy: { sortOrder: "asc" } } },
+      });
+      if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404, headers: cors });
+      if (!title)    return NextResponse.json({ error: "Title required" }, { status: 400, headers: cors });
+
+      const updated = await prisma.dailyTask.update({
+        where: { id: existing.id },
+        data: {
+          title,
+          ...(description !== undefined ? { description: description || null } : {}),
+          priority,
+        },
+        include: { subtasks: { orderBy: { sortOrder: "asc" } } },
+      });
+      return NextResponse.json(taskJson(updated), { headers: cors });
     }
 
-    const completedCountBefore = await prisma.dailyTask.count({
-      where: { userId: payload.userId, taskDate, completedAt: { not: null } },
-    });
-    const isFirstCompletionToday = completedCountBefore === 0;
+    // Create new task
+    if (!title) return NextResponse.json({ error: "Title required" }, { status: 400, headers: cors });
 
-    const updated = await prisma.dailyTask.update({
-      where: { id: existing.id },
-      data: { completedAt: new Date() },
-    });
-
-    const coins = await getCoinDelta("TODO_COMPLETED");
-    if (coins !== 0) {
-      await prisma.$transaction([
-        prisma.studyCoinLog.create({
-          data: { userId: payload.userId, reason: "TODO_COMPLETED", coins },
-        }),
-        prisma.profile.update({
-          where: { userId: payload.userId },
-          data: { totalPoints: { increment: coins } },
-        }),
-      ]);
+    // Enforce 5-task daily limit (excludes daily promise priority=0)
+    if (priority !== 0) {
+      const taskCount = await prisma.dailyTask.count({
+        where: { userId: payload.userId, taskDate, priority: { not: 0 } },
+      });
+      if (taskCount >= MAX_TASKS_PER_DAY) {
+        return NextResponse.json(
+          { error: `Maximum ${MAX_TASKS_PER_DAY} tasks allowed per day` },
+          { status: 400, headers: cors }
+        );
+      }
     }
 
-    if (isFirstCompletionToday) {
-      await applyStudyStreakForQualifyingDay(payload.userId);
-    }
-
-    return NextResponse.json(taskJson(updated), { headers: cors });
-  }
-
-  const title = typeof body.title === "string" ? body.title.trim() : "";
-  const description =
-    typeof body.description === "string" ? body.description.trim() : body.description === null ? null : undefined;
-  const priority = normalizePriority(body.priority);
-
-  if (targetId) {
-    const existing = await prisma.dailyTask.findFirst({
-      where: { id: targetId, userId: payload.userId, taskDate },
-    });
-    if (!existing) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404, headers: cors });
-    }
-    if (!title) {
-      return NextResponse.json({ error: "Title required" }, { status: 400, headers: cors });
-    }
-    const updated = await prisma.dailyTask.update({
-      where: { id: existing.id },
+    const task = await prisma.dailyTask.create({
       data: {
-        title,
-        ...(description !== undefined ? { description: description || null } : {}),
+        userId: payload.userId, taskDate, title,
+        description: description !== undefined ? description || null : null,
         priority,
       },
+      include: { subtasks: { orderBy: { sortOrder: "asc" } } },
     });
-    return NextResponse.json(taskJson(updated), { headers: cors });
-  }
+    return NextResponse.json(taskJson(task), { headers: cors });
 
-  if (!title) {
-    return NextResponse.json({ error: "Title required" }, { status: 400, headers: cors });
-  }
-
-  const task = await prisma.dailyTask.create({
-    data: {
-      userId: payload.userId,
-      taskDate,
-      title,
-      description: description !== undefined ? description || null : null,
-      priority,
-    },
-  });
-  return NextResponse.json(taskJson(task), { headers: cors });
   } catch (e) {
     console.error("[meet-addon/today-task] POST error:", e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error" }, { status: 500, headers: cors });
   }
 }

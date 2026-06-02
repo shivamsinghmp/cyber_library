@@ -274,17 +274,29 @@ async function logUsage(userId: string, coins: number, model: ModelId) {
 // ─── AI Router (Gemini picks best model from available list) ──────────────────
 async function routeToModel(lastMessage: string, available: ModelId[], googleKey: string | null): Promise<ModelId> {
   if (!googleKey || available.length === 0) return available[0] ?? "gemini-2.5-flash";
-  if (available.length === 1) return available[0];
+  if (available.length === 1) {
+    console.log(`[AI Router] single model available → ${available[0]}`);
+    return available[0];
+  }
 
-  // Group available models by task suitability
-  const budget  = available.filter(m => COINS_PER_1000T[m] <= 2);
-  const smart   = available.filter(m => COINS_PER_1000T[m] >= 3 && COINS_PER_1000T[m] <= 7);
-  const premium = available.filter(m => COINS_PER_1000T[m] >= 8);
+  // Group available models by task suitability (cheapest-first within each tier)
+  const budget  = available.filter(m => COINS_PER_1000T[m] <= 2)
+    .sort((a, b) => COINS_PER_1000T[a] - COINS_PER_1000T[b]);
+  const smart   = available.filter(m => COINS_PER_1000T[m] >= 3 && COINS_PER_1000T[m] <= 9)
+    .sort((a, b) => COINS_PER_1000T[a] - COINS_PER_1000T[b]);
+  const premium = available.filter(m => COINS_PER_1000T[m] >= 10)
+    .sort((a, b) => COINS_PER_1000T[a] - COINS_PER_1000T[b]);
 
-  const fallback = budget[0] ?? smart[0] ?? available[0];
+  // Best model for each tier (lowest cost that still fits)
+  const budgetModel  = budget[0]  ?? smart[0]   ?? available[0];
+  const smartModel   = smart[0]   ?? budget[0]  ?? available[0];
+  const premiumModel = premium[0] ?? smart[0]   ?? budget[0] ?? available[0];
+
+  const fallback = budgetModel;
 
   try {
     const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
+    const routerStart = Date.now();
     const res = await fetch(
       geminiUrl("gemini-2.5-flash"),
       {
@@ -292,28 +304,47 @@ async function routeToModel(lastMessage: string, available: ModelId[], googleKey
         headers: vertexAuthHeaders(googleKey),
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text:
-            `Classify this student message into ONE tier. Reply with ONLY one word: budget | smart | premium
+            `Classify this student message into ONE tier. Reply with ONLY one word.
 
-budget  → quick MCQ, motivation, general chat, simple doubt, study plan
-smart   → math derivation, physics/chemistry, step-by-step reasoning, code
-premium → complex multi-step proof, research paper, very long analysis
+TIERS:
+budget  → simple doubt, motivation, MCQ tips, study plan, general chat
+smart   → math derivation, physics/chemistry concepts, code, step-by-step proof
+premium → complex multi-step research, very long analysis, deep ML/advanced math
 
 Message: "${lastMessage.slice(0, 400)}"
 
-Reply:` }] }],
-          generationConfig: { maxOutputTokens: 5, temperature: 0 },
+Reply (budget OR smart OR premium):` }] }],
+          generationConfig: { maxOutputTokens: 8, temperature: 0 },
         }),
         signal: AbortSignal.timeout(3000),
       }
     );
-    if (!res.ok) return fallback;
-    const data = await res.json();
-    const tier = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim().toLowerCase();
 
-    if (tier === "premium" && premium.length > 0) return premium[0];
-    if (tier === "smart"   && smart.length > 0)   return smart[0];
-    return budget[0] ?? fallback;
-  } catch {
+    if (!res.ok) {
+      console.warn(`[AI Router] classifier returned ${res.status} — fallback to ${fallback}`);
+      return fallback;
+    }
+
+    const data = await res.json();
+    const raw  = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim().toLowerCase();
+
+    // Robust parsing: use startsWith to handle "budget.", "smart\n", etc.
+    const tier = raw.startsWith("premium") ? "premium"
+               : raw.startsWith("smart")   ? "smart"
+               : "budget";
+
+    const chosen = tier === "premium" ? premiumModel
+                 : tier === "smart"   ? smartModel
+                 : budgetModel;
+
+    console.log(
+      `[AI Router] "${lastMessage.slice(0, 60)}" → tier=${tier} model=${chosen} ` +
+      `(${Date.now() - routerStart}ms) raw="${raw}"`
+    );
+    return chosen;
+
+  } catch (e) {
+    console.warn(`[AI Router] classifier failed — fallback to ${fallback}:`, (e as Error).message);
     return fallback;
   }
 }
@@ -331,7 +362,7 @@ async function callGoogle(
     const role = m.role === "assistant" ? "model" : "user";
     if (imageBase64 && i === messages.length - 1 && m.role === "user") {
       return { role, parts: [
-        { inline_data: { mime_type: mediaType ?? "image/jpeg", data: imageBase64 } },
+        { inlineData: { mimeType: mediaType ?? "image/jpeg", data: imageBase64 } },
         { text: m.content || "Yeh question solve karo aur shortcut bhi batao" },
       ]};
     }
@@ -483,10 +514,6 @@ export async function POST(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     const { messages, imageBase64, mediaType, acceptLowerQuality } = parsed.data;
 
-    // Rate limit: 5 per minute
-    const { rateLimit } = await import("@/lib/rate-limit");
-    const rl = rateLimit(`ai_burst:${userId}`, 5, 60);
-    if (!rl.success) return NextResponse.json({ error: "Thoda ruko — ek minute mein 5 se zyada messages nahi." }, { status: 429 });
 
     const coins = await getCoins(userId);
 
@@ -497,6 +524,17 @@ export async function POST(request: Request) {
 
     const lastUserMsg = messages.findLast(m => m.role === "user")?.content ?? "";
     let modelId = await routeToModel(lastUserMsg, available, keys.google);
+
+    // Image input requires a Google/Gemini model (Gemini Vision support).
+    // If the router picked Claude/GPT, force the cheapest available Google model.
+    if (imageBase64 && MODEL_PROVIDER[modelId] !== "google") {
+      const googleModel = available.find(m => MODEL_PROVIDER[m] === "google");
+      if (googleModel) modelId = googleModel;
+      else return NextResponse.json(
+        { error: "Image upload ke liye Gemini API key configure karo." },
+        { status: 503 }
+      );
+    }
 
     // Pre-check: enough coins for chosen model?
     let estimated = estimateCoins(messages, modelId);

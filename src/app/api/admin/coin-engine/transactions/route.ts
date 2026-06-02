@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/api-helpers";
+import { requireAdmin, requireSuperAdmin } from "@/lib/api-helpers";
 
 function esc(val: string | number | null | undefined): string {
   const s = String(val ?? "");
-  return s.includes(",") || s.includes('"') || s.includes("\n")
-    ? `"${s.replace(/"/g, '""')}"`
-    : s;
+  // Prefix formula-starter chars so Excel/Sheets doesn't execute them as formulas
+  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return safe.includes(",") || safe.includes('"') || safe.includes("\n")
+    ? `"${safe.replace(/"/g, '""')}"`
+    : safe;
 }
 
 function toIST(date: Date): string {
@@ -31,9 +33,6 @@ function toIST(date: Date): string {
  */
 export async function GET(request: Request) {
   try {
-    const auth = await requireAdmin();
-    if (auth.error) return auth.error;
-
     const { searchParams } = new URL(request.url);
     const type      = searchParams.get("type")     ?? "all";
     const category  = searchParams.get("category")?.trim() ?? "";
@@ -43,6 +42,10 @@ export async function GET(request: Request) {
     const page      = Math.max(1, Number(searchParams.get("page") ?? 1));
     const exportCsv = searchParams.get("export") === "csv";
     const limit     = exportCsv ? 10000 : 50;
+
+    // CSV export (bulk PII + IP addresses) requires super-admin
+    const auth = exportCsv ? await requireSuperAdmin() : await requireAdmin();
+    if (auth.error) return auth.error;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
