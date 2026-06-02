@@ -86,7 +86,8 @@ export default function StudyMateChat() {
   // ← ADDED: session-level token counter + limit
   const [sessionTokens, setSessionTokens] = useState(0);
   const [tokenLimitReached, setTokenLimitReached] = useState(false);
-  const liveTokensRef = useRef(0);   // tracks tokens during active stream (avoids stale state)
+  const liveTokensRef = useRef(0);
+  const initialCoinsRef = useRef<number | null>(null); // set once on first stats load
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const scrollRef   = useRef<HTMLDivElement>(null);
@@ -119,6 +120,7 @@ export default function StudyMateChat() {
       .then((d: Stats | null) => {
         if (d) {
           setStats(d);
+          if (initialCoinsRef.current === null) initialCoinsRef.current = d.totalCoins;
           let greeting: string;
           if (!d.profileComplete) {
             // Onboarding: AI will ask for details — just show a warm welcome
@@ -403,12 +405,13 @@ export default function StudyMateChat() {
     setSessionTokens(0);
     setTokenLimitReached(false);
     liveTokensRef.current = 0;
+    initialCoinsRef.current = stats.totalCoins; // reset baseline to current balance
     setInput("");
     setError(null);
     setCoinsError(null);
     setQualityWarning(null);
     setShowQuick(true);
-  }, []);
+  }, [stats.totalCoins]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
@@ -657,22 +660,31 @@ export default function StudyMateChat() {
         </div>
       )}
 
-      {/* ← ADDED: Live token counter + progress bar */}
-      {sessionTokens > 0 && (() => {
-        const pct = Math.min(Math.round((sessionTokens / SESSION_TOKEN_LIMIT) * 100), 100);
-        const barColor = pct >= 80 ? "bg-red-500" : pct >= 60 ? "bg-amber-400" : "bg-emerald-500";
-        const textColor = pct >= 80 ? "text-red-600" : pct >= 60 ? "text-amber-600" : "text-emerald-600";
+      {/* Coin status bar — total remaining + session used */}
+      {(() => {
+        const initial = initialCoinsRef.current ?? stats.totalCoins;
+        const used    = Math.max(0, initial - stats.totalCoins);
+        const pct     = initial > 0 ? Math.min(Math.round((used / initial) * 100), 100) : 0;
+        const barColor  = pct >= 80 ? "bg-red-500" : pct >= 60 ? "bg-amber-400" : "bg-emerald-500";
+        const usedColor = pct >= 80 ? "text-red-500" : pct >= 60 ? "text-amber-500" : "text-[#6367FF]/60";
         return (
-          <div className="px-4 pt-2 pb-1 border-t border-[#C9BEFF] bg-[#F5F4FF] flex-shrink-0">
+          <div className="px-4 pt-2 pb-1.5 border-t border-[#C9BEFF] bg-[#F5F4FF] flex-shrink-0">
             <div className="flex items-center justify-between mb-1">
-              <span className={`text-[10px] font-bold ${textColor}`}>
-                {sessionTokens.toLocaleString("en-IN")} / {SESSION_TOKEN_LIMIT.toLocaleString("en-IN")} tokens
+              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600">
+                <Coins className="w-3 h-3" />
+                {stats.totalCoins.toLocaleString("en-IN")} coins bache
               </span>
-              <span className="text-[10px] text-[#6367FF]/50">{pct}% used</span>
+              {used > 0 && (
+                <span className={`text-[10px] font-semibold ${usedColor}`}>
+                  {used} used this chat
+                </span>
+              )}
             </div>
-            <div className="h-1 rounded-full bg-[#C9BEFF]/30 overflow-hidden">
-              <div className={`h-full rounded-full transition-all duration-300 ${barColor}`} style={{ width: `${pct}%` }} />
-            </div>
+            {used > 0 && (
+              <div className="h-1 rounded-full bg-[#C9BEFF]/30 overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-300 ${barColor}`} style={{ width: `${pct}%` }} />
+              </div>
+            )}
           </div>
         );
       })()}
