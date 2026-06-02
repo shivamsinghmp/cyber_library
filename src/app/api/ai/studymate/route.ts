@@ -508,8 +508,8 @@ type AICallResult = { reply: string; totalTokens: number; inputTokens: number; o
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const bodySchema = z.object({
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(5000) })).min(1).max(20),
-  // ~1 MB image max: base64 encoding is ~33% larger than binary, so 1_400_000 chars ≈ 1 MB image.
-  imageBase64: z.string().max(1_400_000).optional(),
+  // ~1.5 MB image max after client-side compression (base64 is ~33% larger than binary).
+  imageBase64: z.string().max(2_000_000).optional(),
   mediaType:   z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]).optional(),
   acceptLowerQuality: z.boolean().optional().default(false),
 });
