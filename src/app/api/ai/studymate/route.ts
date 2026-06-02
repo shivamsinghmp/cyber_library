@@ -139,28 +139,7 @@ function buildSystemPrompt(
     name?: string | null; targetExam?: string | null; targetYear?: string | null;
     studyGoal?: string | null; totalStudyHours?: number; currentStreak?: number;
   },
-  onboarding: boolean,
 ): string {
-  // ── Onboarding mode: profile incomplete, collect details first ──
-  if (onboarding) {
-    return `You are StudyMate AI — Let's Study ka personal AI study buddy.
-
-PRIORITY TASK: Yeh student abhi naya hai — unki study profile collect karni hai. Ek friendly, excited message mein yeh 4 cheezein puchho:
-
-1. Naam kya hai?
-2. Kaunsa exam prepare kar rahe ho? (JEE / NEET / UPSC / SSC / CAT / GATE / Board / Other)
-3. Exam kab hai? (month + year, jaise "May 2026")
-4. Is waqt kaunsa subject ya topic sabse mushkil lag raha hai?
-
-RULES:
-- Tone: Excited, warm, jaise koi best friend mil gaya ho
-- Numbered list use karo — ek hi message mein
-- Mention karo ki ye details hamesha yaad rakhoge
-- 6-8 lines max
-- Plain text only — no markdown`;
-  }
-
-  // ── Normal mode: personalised study buddy ──
   const ctx = [
     profile.name && `Student naam: ${profile.name}`,
     profile.targetExam && `Target exam: ${profile.targetExam}`,
@@ -173,7 +152,11 @@ RULES:
   return `You are StudyMate AI — Let's Study ka personal AI study buddy. Tum ek caring elder sibling ho jo genuinely student ki success chahta hai.
 
 STUDENT INFO (personalize every response using this):
-${ctx}
+${ctx || "(profile abhi collect nahi hua — conversation se naturally pick karo)"}
+
+PROFILE COLLECTION — SILENT RULE:
+Kabhi bhi student se explicitly naam, exam, ya year mat puchho. Profile details conversation se automatically extract hoti hain.
+Agar student ne apna naam, exam, ya year khud mention kiya ho toh use use karo — warna bina puchhe seedha help karo.
 
 LANGUAGE — MANDATORY:
 ALWAYS respond in Hinglish (Hindi + English mix). Never reply in pure English.
@@ -616,8 +599,7 @@ export async function POST(request: Request) {
     }
 
     const profile = await getProfile(userId);
-    const onboarding = isProfileIncomplete(profile);
-    const system = buildSystemPrompt(profile, onboarding);
+    const system = buildSystemPrompt(profile);
 
     // Call model with fallback to cheapest available
     let reply: string;
@@ -670,8 +652,8 @@ export async function POST(request: Request) {
       status:       "success",
     });
 
-    // If profile was incomplete and student has replied to onboarding, extract and save silently
-    if (onboarding && messages.length >= 3 && keys.google) {
+    // Always try to extract profile details silently from conversation — never ask the student
+    if (keys.google && messages.length >= 2) {
       extractAndSaveProfile(userId, messages, keys.google).catch(() => {});
     }
 
@@ -682,7 +664,7 @@ export async function POST(request: Request) {
       tokensUsed: totalTokens,
       inputTokens,
       outputTokens,
-      profileComplete: !onboarding,
+      profileComplete: !isProfileIncomplete(profile),
     });
   } catch (e) {
     if ((e as Error).name === "AbortError") {
