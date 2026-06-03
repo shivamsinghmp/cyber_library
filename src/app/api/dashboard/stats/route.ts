@@ -56,7 +56,7 @@ export async function GET() {
 
     const now = new Date();
 
-    const [profile, studyStreak, sessionsToday, allSessions, meetPresenceRows, firstSub, user, activeMeetSession] = await Promise.all([
+    const [profile, studyStreak, sessionsToday, allSessions, meetPresenceRows, activeMeetSession, firstSub, user] = await Promise.all([
       prisma.profile.findUnique({
         where: { userId },
         select: {
