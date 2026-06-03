@@ -57,13 +57,15 @@ export async function GET(request: NextRequest) {
     if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: cors });
 
     const taskDate = todayDate();
-    const [tasks, profile, streak] = await Promise.all([
+    const now = new Date();
+    const localTodayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const localTodayEnd   = new Date(localTodayStart.getTime() + 86_400_000);
+
+    const [tasks, profile, streak, sessionsToday, meetPresenceToday] = await Promise.all([
       prisma.dailyTask.findMany({
         where: { userId: payload.userId, taskDate },
         orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
-        include: {
-          subtasks: { orderBy: { sortOrder: "asc" } },
-        },
+        include: { subtasks: { orderBy: { sortOrder: "asc" } } },
       }),
       prisma.profile.findUnique({
         where: { userId: payload.userId },
@@ -73,12 +75,32 @@ export async function GET(request: NextRequest) {
         where: { userId: payload.userId },
         select: { currentDays: true },
       }),
+      prisma.studySession.findMany({
+        where: { userId: payload.userId, startedAt: { gte: localTodayStart, lt: localTodayEnd } },
+        select: { durationMinutes: true },
+      }),
+      prisma.meetPresenceSession.findMany({
+        where: { userId: payload.userId, startedAt: { gte: localTodayStart, lt: localTodayEnd } },
+        select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
+      }),
     ]);
+
+    // Total study hours today (study sessions + meet presence)
+    const studyMinutesToday = sessionsToday.reduce((s, r) => s + (r.durationMinutes ?? 0), 0);
+    let meetSecondsToday = 0;
+    for (const m of meetPresenceToday) {
+      const end = m.endedAt ?? m.lastHeartbeatAt ?? now;
+      const a = Math.max(m.startedAt.getTime(), localTodayStart.getTime());
+      const b = Math.min(end.getTime(), localTodayEnd.getTime());
+      if (b > a) meetSecondsToday += (b - a) / 1000;
+    }
+    const hoursToday = (studyMinutesToday / 60) + (meetSecondsToday / 3600);
 
     return NextResponse.json({
       tasks: tasks.map(taskJson),
       coinBalance: profile?.coinBalance ?? 0,
       streakDays:  streak?.currentDays  ?? 0,
+      hoursToday,
     }, { headers: cors });
   } catch (e) {
     console.error("[meet-addon/today-task] GET error:", e);

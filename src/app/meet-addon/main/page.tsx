@@ -145,6 +145,8 @@ export default function MeetAddonMainStagePage() {
 
   const [spotifyOpen, setSpotifyOpen] = useState(false);
   const [chatOpen,    setChatOpen]    = useState(false);
+  const [hoursToday, setHoursToday]   = useState(0);
+  const [dailyGoalHours, setDailyGoalHours] = useState(3);
   const [timerMode, setTimerMode] = useState<"focus" | "break">("focus");
   const [timerDuration, setTimerDuration] = useState(25 * 60);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -178,6 +180,7 @@ export default function MeetAddonMainStagePage() {
         setTasks(allTasks.filter((t: any) => t.priority !== 0));
         setTotalCoins(d.coinBalance ?? 0);
         setStreakDays(d.streakDays   ?? 0);
+        if (typeof d.hoursToday === "number") setHoursToday(d.hoursToday);
       }
       if (pollRes.ok) {
         const polls = await pollRes.json();
@@ -196,6 +199,8 @@ export default function MeetAddonMainStagePage() {
     const t = getToken(); const n = getName();
     if (t) setToken(t);
     if (n) setStudentName(n);
+    const savedGoal = parseFloat(localStorage.getItem("study_daily_goal_hours") ?? "3");
+    if (!isNaN(savedGoal) && savedGoal > 0) setDailyGoalHours(savedGoal);
   }, []);
 
   useEffect(() => {
@@ -676,6 +681,61 @@ export default function MeetAddonMainStagePage() {
                 </Card>
               ))}
             </div>
+
+            {/* Daily Study Goal Progress */}
+            {(() => {
+              const liveHoursToday = hoursToday + slotLiveSeconds / 3600;
+              const goalPct = Math.min(100, Math.round((liveHoursToday / dailyGoalHours) * 100));
+              const goalDone = liveHoursToday >= dailyGoalHours;
+              const R = 44, circ = 2 * Math.PI * R;
+              return (
+                <Card className={`p-5 ${goalDone ? "bg-emerald-50 border-emerald-200" : "bg-[#EEF2FF] border-[#C7D2FE]"}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#94A3B8]">Daily Goal</p>
+                    {goalDone && <span className="text-[10px] font-black text-emerald-500">🎉 Complete!</span>}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {/* Ring */}
+                    <div className="relative flex items-center justify-center flex-shrink-0" style={{ width: 96, height: 96 }}>
+                      <svg width="96" height="96" viewBox="0 0 96 96" className="-rotate-90">
+                        <defs>
+                          <linearGradient id="goalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor={goalDone ? "#10B981" : "#6366F1"} />
+                            <stop offset="100%" stopColor={goalDone ? "#06B6D4" : "#8B5CF6"} />
+                          </linearGradient>
+                        </defs>
+                        <circle cx="48" cy="48" r={R} fill="none" stroke="#E0E7FF" strokeWidth="8" />
+                        <circle cx="48" cy="48" r={R} fill="none" stroke="url(#goalGrad)" strokeWidth="8"
+                          strokeLinecap="round"
+                          strokeDasharray={circ}
+                          strokeDashoffset={circ * (1 - goalPct / 100)}
+                          style={{ transition: "stroke-dashoffset 1s ease" }} />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className={`text-lg font-black leading-none ${goalDone ? "text-emerald-600" : "text-[#6366F1]"}`}>{goalPct}%</span>
+                      </div>
+                    </div>
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-2xl font-black tabular-nums leading-none ${goalDone ? "text-emerald-600" : "text-[#6366F1]"}`}>
+                        {formatDuration(Math.round(liveHoursToday * 3600))}
+                      </p>
+                      <p className="text-[10px] text-[#94A3B8] font-semibold mt-1">of {dailyGoalHours}h goal</p>
+                      {!goalDone && (
+                        <p className="text-[10px] font-bold text-[#6366F1] mt-1">
+                          {formatDuration(Math.round(Math.max(0, dailyGoalHours - liveHoursToday) * 3600))} remaining
+                        </p>
+                      )}
+                      {/* Bar */}
+                      <div className="mt-2 h-1.5 rounded-full bg-[#C7D2FE] overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-1000"
+                          style={{ width: `${goalPct}%`, background: goalDone ? "linear-gradient(135deg,#10B981,#06B6D4)" : "linear-gradient(135deg,#6366F1,#8B5CF6)" }} />
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })()}
 
             {/* Task completion ring */}
             <Card className="p-5 flex flex-col items-center gap-3">
