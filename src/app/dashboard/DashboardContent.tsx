@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import {
   Square, Timer, BookOpen, Flame, CalendarCheck,
   Zap, Trophy, ChevronRight, Play, Star, Target,
-  TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight, Coins, Gift,
+  TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight, Coins, Gift, Plus,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -369,6 +369,12 @@ export function DashboardContent({ userName }: { userName: string }) {
             >
               <Coins className="h-3.5 w-3.5 text-amber-600" />
               <span className="text-[10px] font-bold text-amber-700">{totalCoins.toLocaleString("en-IN")} coins</span>
+            </Link>
+            <Link href="/dashboard/wallet/buy-coins"
+              className="flex items-center gap-1.5 rounded-2xl border border-amber-400 bg-amber-400 px-3 py-2 hover:bg-amber-500 hover:border-amber-500 transition-colors"
+            >
+              <Plus className="h-3 w-3 text-amber-900" />
+              <span className="text-[10px] font-bold text-amber-900">Buy Coins</span>
             </Link>
           </div>
         </motion.div>
