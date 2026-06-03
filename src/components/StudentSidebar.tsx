@@ -168,7 +168,9 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
           type="button"
           onClick={async () => {
             try { await fetch("/api/auth/record-logout", { method: "POST" }); } catch {}
-            signOut({ callbackUrl: "/" });
+            // Clear admin-view cookie so it doesn't linger after logout
+            document.cookie = "__asv=; path=/; max-age=0";
+            signOut({ callbackUrl: "/login" });
           }}
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--muted-text)] transition-all hover:bg-red-50 hover:text-red-600"
         >

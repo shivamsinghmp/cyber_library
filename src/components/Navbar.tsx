@@ -201,8 +201,9 @@ export function Navbar({ initialLogoUrl, initialTitle, initialTagline }: NavbarP
                     onClick={async () => {
                       try { await fetch("/api/auth/record-logout", { method: "POST" }); } catch { }
                       localStorage.removeItem("vl_meet_addon_token");
+                      document.cookie = "__asv=; path=/; max-age=0";
                       if (hasAddonToken) window.location.reload();
-                      signOut({ callbackUrl: "/" });
+                      signOut({ callbackUrl: "/login" });
                     }}
                     className="flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 hover:border-red-300 hover:text-red-500 hover:bg-red-50"
                     style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: "white" }}
@@ -358,8 +359,9 @@ export function Navbar({ initialLogoUrl, initialTitle, initialTagline }: NavbarP
                       onClick={() => {
                         setOpen(false);
                         localStorage.removeItem("vl_meet_addon_token");
+                        document.cookie = "__asv=; path=/; max-age=0";
                         if (hasAddonToken) window.location.reload();
-                        signOut({ callbackUrl: "/" });
+                        signOut({ callbackUrl: "/login" });
                       }}
                       className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-100"
                     >

@@ -86,7 +86,7 @@ function PlanCard({
 export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const { active, loading, planType, endDate, trialUsed } = useSubscription();
   const [pricing, setPricing]         = useState<PricingData | null>(null);
   const [trialLoading, setTrialLoading] = useState(false);
@@ -118,7 +118,13 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  if (loading) {
+  // Logged-out user reached here (bfcache / stale router cache) — send to login
+  if (sessionStatus === "unauthenticated") {
+    router.replace("/login?callbackUrl=" + encodeURIComponent(pathname));
+    return null;
+  }
+
+  if (loading || sessionStatus === "loading") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--accent)] border-t-transparent" />
@@ -131,7 +137,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const monthly: PriceTier = pricing?.monthly ?? { originalPrice: 999, offerPrice: 499 };
   const yearly: PriceTier  = pricing?.yearly  ?? { originalPrice: 4999, offerPrice: 1999 };
 
-  if (!active && !loading) {
+  if (!active && !loading && sessionStatus === "authenticated") {
     return (
       <div className="relative min-h-[60vh]">
         {/* Blurred content behind */}
