@@ -293,6 +293,34 @@ export default function MeetAddonMainStagePage() {
     return () => clearInterval(tick);
   }, [resolvedSlot?.slotId, token]);
 
+  // Presence heartbeat — ping every 30s so dashboard study time stays live
+  useEffect(() => {
+    if (!resolvedSlot?.slotId || !token) return;
+
+    const ping = () => fetch("/api/meet-addon/presence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ event: "ping", roomKey: resolvedSlot.slotId }),
+    }).catch(() => {});
+
+    const id = setInterval(ping, 30_000);
+
+    // Send "end" when user closes/leaves the tab (keepalive survives page unload)
+    const onUnload = () => {
+      fetch("/api/meet-addon/presence", {
+        method: "POST", keepalive: true,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ event: "end", roomKey: resolvedSlot.slotId }),
+      }).catch(() => {});
+    };
+    window.addEventListener("beforeunload", onUnload);
+
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("beforeunload", onUnload);
+    };
+  }, [resolvedSlot?.slotId, token]);
+
   const handlePollSubmit = async (pollId: string, answer: string) => {
     if (!token || pollSubmitting) return;
     setPollSubmitting(true);
