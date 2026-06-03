@@ -56,7 +56,7 @@ export async function GET() {
 
     const now = new Date();
 
-    const [profile, studyStreak, sessionsToday, allSessions, meetPresenceRows, firstSub, user] = await Promise.all([
+    const [profile, studyStreak, sessionsToday, allSessions, meetPresenceRows, firstSub, user, activeMeetSession] = await Promise.all([
       prisma.profile.findUnique({
         where: { userId },
         select: {
@@ -85,6 +85,11 @@ export async function GET() {
       prisma.meetPresenceSession.findMany({
         where: { userId, startedAt: { gte: new Date(now.getFullYear() - 2, 0, 1) } },
         select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
+      }),
+      // Extra: detect currently active meet session (no endedAt)
+      prisma.meetPresenceSession.findFirst({
+        where: { userId, endedAt: null },
+        select: { id: true },
       }),
       prisma.roomSubscription.findFirst({
         where: { userId },
@@ -157,6 +162,7 @@ export async function GET() {
       targetExam: profile?.targetExam ?? null,
       totalAttendance,
       totalAbsent,
+      hasActiveMeetSession: !!activeMeetSession,
     });
   } catch (e) {
     console.error("GET /api/dashboard/stats:", e);

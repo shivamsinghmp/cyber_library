@@ -20,6 +20,7 @@ type DashboardStats = {
   sessionsToday: number; goalCountdown: number | null;
   targetYear: number | null; targetExam: string | null;
   totalAttendance: number; totalAbsent: number;
+  hasActiveMeetSession: boolean;
 };
 
 type StudyRoomItem = {
@@ -170,6 +171,8 @@ export function DashboardContent({ userName }: { userName: string }) {
   const [gamification, setGamification] = useState<GamificationData | null>(null);
   const [activeSession, setActiveSession] = useState<{ id: string; startedAt: string } | null>(null);
   const [sessionElapsedSeconds, setSessionElapsedSeconds] = useState(0);
+  const [meetLiveSeconds, setMeetLiveSeconds] = useState(0);
+  const lastStatsFetchRef = useRef(0);
   const [stoppingSession, setStoppingSession] = useState(false);
   const [studiedDates, setStudiedDates] = useState<Set<string>>(new Set());
   const [weeklyHours, setWeeklyHours] = useState<{ label: string; hours: number; isToday?: boolean }[]>([]);
@@ -197,7 +200,12 @@ export function DashboardContent({ userName }: { userName: string }) {
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch("/api/dashboard/stats");
-      if (res.ok) setStats(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+        lastStatsFetchRef.current = Date.now();
+        setMeetLiveSeconds(0); // reset — stats already includes time up to now
+      }
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -223,6 +231,15 @@ export function DashboardContent({ userName }: { userName: string }) {
     const tick = () => setSessionElapsedSeconds(Math.floor((Date.now() - started) / 1000));
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
   }, [activeSession?.id, activeSession?.startedAt]);
+
+  // Meet addon live seconds — ticks every second when meet session is active
+  useEffect(() => {
+    if (!stats?.hasActiveMeetSession) { setMeetLiveSeconds(0); return; }
+    const id = setInterval(() => {
+      setMeetLiveSeconds(Math.floor((Date.now() - lastStatsFetchRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [stats?.hasActiveMeetSession]);
 
   // Parallel initial data fetch — all independent requests fired at once
   useEffect(() => {
@@ -324,7 +341,7 @@ export function DashboardContent({ userName }: { userName: string }) {
 
   const subscription = useSubscription();
 
-  const liveHoursToday = (stats?.hoursToday ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
+  const liveHoursToday = (stats?.hoursToday ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0) + meetLiveSeconds / 3600;
   const liveTotalHours = (stats?.totalStudyHours ?? 0) + (activeSession ? sessionElapsedSeconds / 3600 : 0);
   const streak = stats?.currentStreak ?? gamification?.streakDays ?? 0;
   const bestStreak = stats?.longestStreak ?? gamification?.longestStreakDays ?? 0;
