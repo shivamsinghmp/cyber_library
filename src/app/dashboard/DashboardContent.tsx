@@ -8,6 +8,7 @@ import {
   Square, Timer, BookOpen, Flame, CalendarCheck,
   Zap, Trophy, ChevronRight, Play, Star, Target,
   TrendingUp, Clock, CheckCheck, Crown, AlertTriangle, ArrowRight, Coins, Gift, Plus,
+  Pencil, Check, X,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 
@@ -174,6 +175,24 @@ export function DashboardContent({ userName }: { userName: string }) {
   const [weeklyHours, setWeeklyHours] = useState<{ label: string; hours: number; isToday?: boolean }[]>([]);
   const [coinSummary, setCoinSummary] = useState<CoinSummary | null>(null);
   const [pricingData, setPricingData] = useState<PricingData | null>(null);
+  const [dailyGoalHours, setDailyGoalHours] = useState(3);
+  const [goalEditing, setGoalEditing] = useState(false);
+  const [goalInput, setGoalInput] = useState("3");
+
+  // Load goal from localStorage on mount
+  useEffect(() => {
+    const saved = parseFloat(localStorage.getItem("study_daily_goal_hours") ?? "3");
+    if (!isNaN(saved) && saved > 0) { setDailyGoalHours(saved); setGoalInput(String(saved)); }
+  }, []);
+
+  function saveGoal() {
+    const val = parseFloat(goalInput);
+    if (!isNaN(val) && val >= 0.5 && val <= 24) {
+      setDailyGoalHours(val);
+      localStorage.setItem("study_daily_goal_hours", String(val));
+    }
+    setGoalEditing(false);
+  }
 
   const fetchStats = useCallback(async () => {
     try {
@@ -588,14 +607,51 @@ export function DashboardContent({ userName }: { userName: string }) {
 
           {/* Progress bar */}
           <div className="mb-4">
-            <div className="flex justify-between text-[9px] text-[var(--muted-text)] mb-1.5">
-              <span className="font-semibold">Today's goal</span>
-              <span className="font-bold text-[var(--accent)]">{Math.min(100, Math.round((liveHoursToday / 3) * 100))}%</span>
+            <div className="flex justify-between items-center text-[9px] text-[var(--muted-text)] mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold">Today's goal</span>
+                {!goalEditing ? (
+                  <button
+                    onClick={() => { setGoalInput(String(dailyGoalHours)); setGoalEditing(true); }}
+                    title="Set daily goal"
+                    className="flex items-center gap-0.5 text-[var(--accent)] opacity-60 hover:opacity-100 transition-opacity"
+                  >
+                    <span className="font-bold">{dailyGoalHours}h</span>
+                    <Pencil className="h-2.5 w-2.5" />
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number" min="0.5" max="24" step="0.5"
+                      value={goalInput}
+                      onChange={e => setGoalInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") saveGoal(); if (e.key === "Escape") setGoalEditing(false); }}
+                      className="w-12 text-[9px] border border-[var(--accent)] rounded px-1 py-0.5 text-center font-bold text-[var(--accent)] bg-white outline-none"
+                      autoFocus
+                    />
+                    <span className="text-[8px]">h</span>
+                    <button onClick={saveGoal} className="text-emerald-500 hover:text-emerald-700 transition-colors">
+                      <Check className="h-3 w-3" />
+                    </button>
+                    <button onClick={() => setGoalEditing(false)} className="text-red-400 hover:text-red-600 transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <span className="font-bold text-[var(--accent)]">
+                {Math.min(100, Math.round((liveHoursToday / dailyGoalHours) * 100))}%
+              </span>
             </div>
             <div className="h-2 rounded-full bg-[var(--cream-muted)] overflow-hidden">
               <div className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[#2DD4BF] transition-all duration-500"
-                style={{ width: `${Math.min(100, (liveHoursToday / 3) * 100)}%` }} />
+                style={{ width: `${Math.min(100, (liveHoursToday / dailyGoalHours) * 100)}%` }} />
             </div>
+            <p className="text-[9px] text-[var(--muted-text)] mt-1">
+              {liveHoursToday >= dailyGoalHours
+                ? "🎉 Goal complete!"
+                : `${formatHours(Math.max(0, dailyGoalHours - liveHoursToday))} remaining`}
+            </p>
           </div>
 
           {activeSession ? (
