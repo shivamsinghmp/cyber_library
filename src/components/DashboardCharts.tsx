@@ -30,6 +30,12 @@ type ChartData = {
   };
 };
 
+function formatHours(h: number) {
+  if (!h) return "0m";
+  const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  return hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
+}
+
 export default function DashboardCharts() {
   const [data, setData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,8 +86,7 @@ export default function DashboardCharts() {
           <div className="absolute -left-4 -top-4 h-12 w-12 rounded-full bg-[var(--accent)]/20 blur-xl"></div>
           <p className="relative z-10 mb-1 text-xs font-semibold text-[var(--cream-muted)] uppercase tracking-wider">{label}</p>
           <div className="relative z-10 flex items-end gap-1 text-[var(--accent)]">
-            <span className="text-xl font-extrabold">{payload[0].value}</span>
-            <span className="mb-0.5 text-xs font-medium opacity-80">hours</span>
+            <span className="text-xl font-extrabold">{formatHours(payload[0].value)}</span>
           </div>
         </div>
       );
@@ -209,12 +214,12 @@ export default function DashboardCharts() {
                    Study Trajectory
                  </h3>
                  <p className="mt-1 text-2xl font-extrabold text-[var(--cream)] tabular-nums tracking-tight">
-                    {data.summary.totalHours.toFixed(1)} <span className="text-sm font-semibold text-[var(--cream-muted)]">avg hrs</span>
+                    {formatHours(data.summary.totalHours / Math.max(1, data.studyData.length))} <span className="text-sm font-semibold text-[var(--cream-muted)]">avg/day</span>
                  </p>
                </div>
                <div className="rounded-lg border border-[var(--wood)]/20 bg-[var(--background)] px-3 py-1.5 shadow-inner">
                   <span className="text-[10px] font-medium text-[var(--cream-muted)] block mb-0.5">Total Focus</span>
-                  <span className="text-sm font-bold text-[var(--accent)]">{data.summary.totalHours} hrs</span>
+                  <span className="text-sm font-bold text-[var(--accent)]">{formatHours(data.summary.totalHours)}</span>
                </div>
             </div>
 

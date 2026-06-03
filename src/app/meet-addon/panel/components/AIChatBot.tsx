@@ -5,10 +5,12 @@ import { X, Send, Sparkles, RotateCcw, Bot, Coins, ShoppingCart, ImagePlus, XCir
 import { motion, AnimatePresence } from "framer-motion";
 
 type Message = {
+  id: string;
   role: "user" | "assistant";
   content: string;
   modelUsed?: string;
   coinsUsed?: number;
+  isStreaming?: boolean;
 };
 
 type CoinsError = { message: string; coinsNeeded: number; currentCoins: number };
@@ -21,14 +23,14 @@ function getToken(): string {
   try { return localStorage.getItem("vl_meet_addon_token") ?? ""; } catch { return ""; }
 }
 
+function genId() { return Math.random().toString(36).slice(2, 9); }
+
 const QUICK_PROMPTS = [
   "Aaj study plan bana do",
   "Motivation chahiye",
   "Shortcut trick batao",
   "Kal ka revision plan",
 ];
-
-const RETRY_SECONDS = 30;
 
 const MODEL_EMOJI: Record<string, string> = {
   "gemini-2.5-flash": "⚡", "gemini-2.0-flash": "⚡",
@@ -49,7 +51,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   const [messages,       setMessages]       = useState<Message[]>([]);
   const [input,          setInput]          = useState("");
   const [loading,        setLoading]        = useState(false);
-  const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
   const [totalCoins,     setTotalCoins]     = useState<number | null>(null);
   const [coinsError,     setCoinsError]     = useState<CoinsError | null>(null);
   const [qualityWarning, setQualityWarning] = useState<QualityWarning | null>(null);
@@ -57,7 +58,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   const [imageMediaType, setImageMediaType] = useState<"image/jpeg" | "image/png" | "image/webp" | "image/gif">("image/jpeg");
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  const pendingRetryMsgs   = useRef<Message[] | null>(null);
   const pendingQualityMsgs = useRef<Message[] | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const scrollRef  = useRef<HTMLDivElement>(null);
@@ -101,24 +101,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialPrompt]);
 
-  // Countdown ticker — auto-retry when reaches 0
-  useEffect(() => {
-    if (retryCountdown === null) return;
-    if (retryCountdown <= 0) {
-      const msgs = pendingRetryMsgs.current;
-      pendingRetryMsgs.current = null;
-      setRetryCountdown(null);
-      if (msgs) {
-        setMessages((prev) => prev.slice(0, -1));
-        callApi(msgs);
-      }
-      return;
-    }
-    const t = setTimeout(() => setRetryCountdown((c) => (c ?? 1) - 1), 1000);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [retryCountdown]);
-
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -126,12 +108,11 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
     const mime = file.type as typeof validTypes[number];
     if (!validTypes.includes(mime)) { alert("Only JPG, PNG, WebP, GIF supported"); return; }
 
-    // Compress image to max ~900KB base64 (~675KB raw) so it fits the 1.4MB API limit
     const img = new Image();
     const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
-      const MAX_DIM = 1024; // px — enough for AI vision
+      const MAX_DIM = 1024;
       let { width, height } = img;
       if (width > MAX_DIM || height > MAX_DIM) {
         const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
@@ -141,7 +122,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
       const canvas = document.createElement("canvas");
       canvas.width = width; canvas.height = height;
       canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-      // Always output JPEG for compressed images (smallest size)
       const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
       setImageBase64(dataUrl.split(",")[1] ?? "");
       setImageMediaType("image/jpeg");
@@ -150,6 +130,57 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
     img.src = objectUrl;
     e.target.value = "";
   };
+
+  // SSE stream consumer — accumulates chunks then replaces with final stripped text
+  const consumeStream = useCallback(async (res: Response, streamMsgId: string) => {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr) continue;
+          try {
+            const ev = JSON.parse(jsonStr) as Record<string, unknown>;
+            if (ev.t === "c") {
+              const chunk = (ev.d as string) ?? "";
+              setMessages(prev => prev.map(m =>
+                m.id === streamMsgId ? { ...m, content: m.content + chunk } : m
+              ));
+            } else if (ev.t === "done") {
+              const coinsUsed = ev.coins as number | undefined;
+              setMessages(prev => prev.map(m => m.id === streamMsgId ? {
+                ...m,
+                content:     (ev.full as string) ?? m.content,
+                isStreaming: false,
+                modelUsed:   (ev.model as string) ?? undefined,
+                coinsUsed,
+              } : m));
+              if (coinsUsed != null)
+                setTotalCoins(prev => prev != null ? Math.max(0, prev - coinsUsed) : null);
+              break outer;
+            } else if (ev.t === "err") {
+              setMessages(prev => prev.map(m => m.id === streamMsgId
+                ? { ...m, content: (ev.msg as string) ?? "AI service error. Dobara try karo.", isStreaming: false }
+                : m));
+              break outer;
+            }
+          } catch { /* skip malformed event */ }
+        }
+      }
+    } catch { /* reader cancelled or network error */ }
+    finally {
+      setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, isStreaming: false } : m));
+      setLoading(false);
+    }
+  }, []);
 
   const callApi = useCallback(async (msgs: Message[], acceptLower = false, img?: string | null, imgMime?: string) => {
     setLoading(true);
@@ -160,29 +191,22 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
       acceptLowerQuality: acceptLower,
     };
     if (img) { body.imageBase64 = img; body.mediaType = imgMime ?? "image/jpeg"; }
+
     try {
       const res = await fetch("/api/ai/studymate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify(body),
       });
 
-      const data = await res.json().catch(() => ({ error: "Response parse error" }));
-
+      // Pre-stream errors come back as JSON on non-200
       if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Response parse error" }));
         if (data.error === "coins_required") {
-          setCoinsError({
-            message: data.message ?? "Coins khatam ho gaye!",
-            coinsNeeded: data.coinsNeeded ?? 1,
-            currentCoins: data.currentCoins ?? 0,
-          });
+          setCoinsError({ message: data.message ?? "Coins khatam!", coinsNeeded: data.coinsNeeded ?? 1, currentCoins: data.currentCoins ?? 0 });
           if (data.currentCoins != null) setTotalCoins(data.currentCoins);
-          return;
+          setLoading(false); return;
         }
-
         if (data.error === "quality_warning") {
           pendingQualityMsgs.current = msgs;
           setQualityWarning({
@@ -193,64 +217,29 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
             currentCoins:        data.currentCoins,
           });
           if (data.currentCoins != null) setTotalCoins(data.currentCoins);
-          return;
+          setLoading(false); return;
         }
-
-        if (data.retryable) {
-          // Silently retry with lower quality before showing busy banner
-          try {
-            const r2 = await fetch("/api/ai/studymate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-              body: JSON.stringify({ messages: msgs.map(m => ({ role: m.role, content: m.content })), acceptLowerQuality: true }),
-            });
-            const d2 = await r2.json().catch(() => ({ error: "Parse error" }));
-            if (r2.ok) {
-              setMessages((prev) => [...prev, { role: "assistant", content: d2.reply, modelUsed: d2.modelUsed, coinsUsed: d2.coinsUsed }]);
-              if (d2.coinsUsed != null) setTotalCoins(prev => prev != null ? Math.max(0, prev - d2.coinsUsed) : null);
-              return;
-            }
-          } catch { /* fall through to countdown */ }
-
-          pendingRetryMsgs.current = msgs;
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: `Abhi AI bahut busy hai 🙏 — ${RETRY_SECONDS}s mein auto-retry hoga.` },
-          ]);
-          setRetryCountdown(RETRY_SECONDS);
-          return;
-        }
-
-        const errMsg =
-          res.status === 401
-            ? "Session expire ho gayi. Panel se logout karke dobara login karo."
-            : res.status === 503 || data.error === "AI not configured"
-              ? "StudyMate AI abhi available nahi hai. Admin se contact karo."
-              : res.status === 504 || data.error?.includes("timed out")
-                ? "AI timeout ho gayi. Thodi der baad try karo."
-                : data.error || `Error ${res.status}. Dobara try karo.`;
-
-        setMessages((prev) => [...prev, { role: "assistant", content: errMsg }]);
-      } else {
-        setMessages((prev) => [...prev, {
-          role: "assistant",
-          content: data.reply,
-          modelUsed: data.modelUsed,
-          coinsUsed: data.coinsUsed,
-        }]);
-        if (data.coinsUsed != null) {
-          setTotalCoins(prev => prev != null ? Math.max(0, prev - data.coinsUsed) : null);
-        }
+        const errMsg = res.status === 401
+          ? "Session expire ho gayi. Panel se logout karke dobara login karo."
+          : res.status === 503 || data.error === "AI not configured"
+            ? "StudyMate AI abhi available nahi hai. Admin se contact karo."
+            : res.status === 504 || data.error?.includes("timed out")
+              ? "AI timeout ho gayi. Thodi der baad try karo."
+              : data.error || `Error ${res.status}. Dobara try karo.`;
+        setMessages(prev => [...prev, { id: genId(), role: "assistant", content: errMsg }]);
+        setLoading(false); return;
       }
+
+      // 200 = SSE stream — add placeholder and start consuming
+      const streamMsgId = genId();
+      setMessages(prev => [...prev, { id: streamMsgId, role: "assistant", content: "", isStreaming: true }]);
+      await consumeStream(res, streamMsgId);
+
     } catch {
-      setMessages((prev) => [...prev, {
-        role: "assistant",
-        content: "Network error. Internet connection check karo.",
-      }]);
-    } finally {
+      setMessages(prev => [...prev, { id: genId(), role: "assistant", content: "Network error. Internet connection check karo." }]);
       setLoading(false);
     }
-  }, []);
+  }, [consumeStream]);
 
   const handleAcceptLowerQuality = async () => {
     const msgs = pendingQualityMsgs.current;
@@ -264,8 +253,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
     const trimmed = text.trim();
     if ((!trimmed && !imageBase64) || loading) return;
 
-    setRetryCountdown(null);
-    pendingRetryMsgs.current = null;
     setCoinsError(null);
     setQualityWarning(null);
     setInput("");
@@ -275,24 +262,19 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
     const capturedMime  = imageMediaType;
     setImageBase64(null);
 
-    const newMessages: Message[] = [...messages, { role: "user", content }];
+    const newMessages: Message[] = [...messages, { id: genId(), role: "user", content }];
     setMessages(newMessages);
     await callApi(newMessages, false, capturedImage, capturedMime);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      send(input);
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); }
   }
 
   function clearChat() {
     setMessages([]);
-    setRetryCountdown(null);
     setCoinsError(null);
     setQualityWarning(null);
-    pendingRetryMsgs.current = null;
     pendingQualityMsgs.current = null;
   }
 
@@ -383,7 +365,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               <>
                 {messages.map((m, i) => (
                   <motion.div
-                    key={i}
+                    key={m.id ?? i}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}
@@ -409,8 +391,11 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                         }
                       >
                         {m.content}
+                        {m.isStreaming && (
+                          <span className="inline-block w-0.5 h-3 bg-white/60 animate-pulse ml-0.5 align-middle" />
+                        )}
                       </div>
-                      {m.role === "assistant" && (m.modelUsed || (m.coinsUsed != null && m.coinsUsed > 0)) && (
+                      {m.role === "assistant" && !m.isStreaming && (m.modelUsed || (m.coinsUsed != null && m.coinsUsed > 0)) && (
                         <div className="flex items-center gap-1.5 px-1">
                           {m.modelUsed && (
                             <span className="text-[9px] text-white/25">
@@ -428,8 +413,8 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               </>
             )}
 
-            {/* Typing indicator */}
-            {loading && (
+            {/* Typing indicator — only before first streaming chunk arrives */}
+            {loading && !messages.some(m => m.isStreaming) && (
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -441,9 +426,9 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                 </div>
                 <div className="rounded-2xl rounded-tl-sm px-3 py-2.5 flex items-center gap-1"
                   style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  {[0, 0.15, 0.3].map((d, i) => (
+                  {[0, 0.15, 0.3].map((d, idx) => (
                     <motion.span
-                      key={i}
+                      key={idx}
                       className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]"
                       animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
                       transition={{ duration: 0.9, repeat: Infinity, delay: d }}
@@ -517,31 +502,11 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               </motion.div>
             )}
 
-            {/* Auto-retry countdown */}
-            {retryCountdown !== null && !loading && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-center gap-2 py-1"
-              >
-                <span className="text-[10px] text-amber-400/70">
-                  🔄 Auto-retry in {retryCountdown}s
-                </span>
-                <button
-                  onClick={() => { setRetryCountdown(null); pendingRetryMsgs.current = null; }}
-                  className="text-[10px] text-white/30 hover:text-white/60 underline transition-colors"
-                >
-                  cancel
-                </button>
-              </motion.div>
-            )}
-
             <div ref={bottomRef} />
           </div>
 
           {/* Input */}
           <div className="px-3 pb-3 pt-2 flex-shrink-0 border-t border-white/5">
-            {/* Image preview */}
             {imageBase64 && (
               <div className="mb-2 flex items-center gap-2 rounded-lg bg-white/5 border border-white/10 px-2 py-1.5">
                 <img
@@ -556,7 +521,6 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               </div>
             )}
             <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 focus-within:border-[#6366F1]/50 transition-colors">
-              {/* Image upload button */}
               <input
                 ref={imageInputRef}
                 type="file"
@@ -594,7 +558,10 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                 className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}
               >
-                <Send className="w-3.5 h-3.5 text-white" />
+                {loading
+                  ? <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
+                  : <Send className="w-3.5 h-3.5 text-white" />
+                }
               </button>
             </div>
             <p className="mt-1.5 text-[9px] text-white/20 text-center">

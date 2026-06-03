@@ -107,7 +107,7 @@ function StudyBarChart({ data }: { data: { label: string; hours: number; isToday
       {data.map((d, i) => (
         <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
           <span className={`text-[9px] font-bold ${d.hours > 0 ? "text-[var(--accent)]" : "text-[var(--muted-text)]"}`}>
-            {d.hours > 0 ? `${d.hours.toFixed(1)}h` : ""}
+            {d.hours > 0 ? formatHours(d.hours) : ""}
           </span>
           <div
             className="w-full rounded-t-lg transition-all duration-500"
@@ -621,8 +621,8 @@ export function DashboardContent({ userName }: { userName: string }) {
               <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 border border-blue-100">
                 <BookOpen className="h-4 w-4 text-blue-600" />
               </div>
-              <p className="stat-label">Total Hours</p>
-              <p className="stat-value">{Math.floor(liveTotalHours)}h</p>
+              <p className="stat-label">Study Time</p>
+              <p className="stat-value">{formatHours(liveTotalHours)}</p>
               <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">+{formatHours(liveHoursToday)} today</p>
             </div>
             <div>
@@ -771,7 +771,7 @@ export function DashboardContent({ userName }: { userName: string }) {
                     <div className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[#2DD4BF] transition-all"
                       style={{ width: `${(hours / maxHours) * 100}%` }} />
                   </div>
-                  <span className="text-[10px] font-bold text-[var(--body-text)] w-8 text-right">{hours}h</span>
+                  <span className="text-[10px] font-bold text-[var(--body-text)] w-12 text-right">{formatHours(hours)}</span>
                 </div>
               );
             })}

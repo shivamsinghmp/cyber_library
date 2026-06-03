@@ -130,7 +130,7 @@ export function StaffStudentLookup() {
               <p><span className="text-[var(--cream-muted)]">Phone / WhatsApp:</span> <span className="text-[var(--cream)]">{student.profile?.whatsappNumber || student.profile?.phone || "—"}</span></p>
               <p><span className="text-[var(--cream-muted)]">Goal:</span> <span className="text-[var(--cream)]">{student.goal || student.profile?.studyGoal || "—"}</span></p>
               <p><span className="text-[var(--cream-muted)]">Target exam:</span> <span className="text-[var(--cream)]">{student.profile?.targetExam ?? "—"}</span></p>
-              <p><span className="text-[var(--cream-muted)]">Total study hours:</span> <span className="text-[var(--cream)]">{student.profile?.totalStudyHours ?? 0}h</span></p>
+              <p><span className="text-[var(--cream-muted)]">Total study time:</span> <span className="text-[var(--cream)]">{(() => { const h = student.profile?.totalStudyHours ?? 0; const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return hh > 0 ? `${hh}h ${mm}m` : `${mm}m`; })()}</span></p>
               <p><span className="text-[var(--cream-muted)]">Attendance (days ≥30 min):</span> <span className="text-[var(--cream)]">{student.attendanceDays ?? 0}</span></p>
               <p><span className="text-[var(--cream-muted)]">Joined:</span> <span className="text-[var(--cream)]">{new Date(student.createdAt).toLocaleString()}</span></p>
             </div>

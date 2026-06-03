@@ -5,7 +5,7 @@ import { todayDateUtc, applyStudyStreakForQualifyingDay } from "@/lib/gamificati
 import { getCoinDelta } from "@/lib/gamification/awards";
 import { requireUser, requireModule } from "@/lib/api-helpers";
 
-const MAX_DAILY_TASKS = 3;
+const MAX_DAILY_TASKS = 5;
 const MAX_CUSTOM_RANGE_DAYS = 366;
 const LIST_TAKE = 500;
 

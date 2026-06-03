@@ -276,7 +276,7 @@ export default function TasksPage() {
             <Sparkles className="w-4 h-4 text-[var(--accent)]" />
             <h3 className="text-sm font-bold text-[var(--foreground)]">New Task (Today)</h3>
           </div>
-          <p className="text-xs text-[var(--muted-text)] mb-5 leading-relaxed">Tasks are tracked for today's streak via Meet Add-on. Max 3 daily goals recommended.</p>
+          <p className="text-xs text-[var(--muted-text)] mb-5 leading-relaxed">Tasks are tracked for today's streak via Meet Add-on. Max 5 daily goals recommended.</p>
 
           <form onSubmit={handleCreateTask} className="space-y-4">
             <div className="space-y-1.5">
@@ -320,7 +320,7 @@ export default function TasksPage() {
           {/* Tips */}
           <div className="mt-5 rounded-xl bg-[var(--accent-pale)] border border-[var(--accent-border)] p-4">
             <p className="text-xs font-semibold text-[var(--accent)] mb-1">💡 Pro Tip</p>
-            <p className="text-xs text-[var(--muted-text)] leading-relaxed">Set 1–3 high-priority tasks each morning. Complete them via Meet Add-on to earn streak points.</p>
+            <p className="text-xs text-[var(--muted-text)] leading-relaxed">Set 1–5 high-priority tasks each morning. Complete them via Meet Add-on to earn streak points.</p>
           </div>
         </div>
       </div>

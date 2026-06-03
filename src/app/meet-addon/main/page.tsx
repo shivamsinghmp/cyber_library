@@ -50,8 +50,10 @@ function formatTime(s: number) {
 }
 function formatDuration(s: number) {
   if (s <= 0) return "0m";
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
 }
 
 // ── Circular Timer ────────────────────────────────────────────────────────────
@@ -218,9 +220,48 @@ export default function MeetAddonMainStagePage() {
   }, [fetchData, planAccess?.allowed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    let sessionCreated = false;
     async function initMeet() {
       if (typeof window !== "undefined" && window.self === window.top) return;
-      try { const { meet } = await import("@googleworkspace/meet-addons/meet.addons"); await meet.addon.createAddonSession({ cloudProjectNumber: "273461550329" }); } catch {}
+      try {
+        const { meet } = await import("@googleworkspace/meet-addons/meet.addons");
+        if (!sessionCreated) {
+          sessionCreated = true;
+          const addonSession = await meet.addon.createAddonSession({ cloudProjectNumber: "273461550329" });
+          try {
+            const mainStageClient = await addonSession.createMainStageClient();
+            const meetingInfo = await mainStageClient.getMeetingInfo();
+            const info = meetingInfo as unknown as Record<string, unknown>;
+            const meetingId = (info?.meetingId ?? info?.callId ?? "") as string;
+            if (meetingId) {
+              const tok = getToken();
+              const res = await fetch(
+                `/api/meet-addon/resolve-slot?meetingId=${encodeURIComponent(meetingId)}`,
+                { headers: tok ? { Authorization: `Bearer ${tok}` } : {} }
+              );
+              if (res.ok) {
+                const data = await res.json() as { slotId?: string; slotName?: string; timeLabel?: string };
+                if (data.slotId && tok) {
+                  setResolvedSlot({ slotId: data.slotId, slotName: data.slotName ?? "", timeLabel: data.timeLabel ?? "" });
+                  fetch("/api/meet-addon/presence", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+                    body: JSON.stringify({ event: "join", roomKey: data.slotId }),
+                  }).catch(() => {});
+                  fetch(`/api/meet-addon/presence?roomKey=${encodeURIComponent(data.slotId)}`, {
+                    headers: { Authorization: `Bearer ${tok}` },
+                  })
+                    .then(r => r.ok ? r.json() : null)
+                    .then((d: { todaySeconds?: number } | null) => {
+                      if (d?.todaySeconds != null) setSlotTodaySeconds(d.todaySeconds);
+                    })
+                    .catch(() => {});
+                }
+              }
+            }
+          } catch { /* meeting info not available in dev/standalone mode */ }
+        }
+      } catch {}
     }
     initMeet();
   }, []);
