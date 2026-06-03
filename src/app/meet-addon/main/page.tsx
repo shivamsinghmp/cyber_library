@@ -717,13 +717,15 @@ export default function MeetAddonMainStagePage() {
                     </div>
                     {/* Details */}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-2xl font-black tabular-nums leading-none ${goalDone ? "text-emerald-600" : "text-[#6366F1]"}`}>
-                        {formatDuration(Math.round(liveHoursToday * 3600))}
+                      <p className={`text-3xl font-black tabular-nums leading-none ${goalDone ? "text-emerald-600" : "text-[#6366F1]"}`}>
+                        {Math.round(liveHoursToday * 60)}<span className="text-base font-bold ml-0.5">m</span>
                       </p>
-                      <p className="text-[10px] text-[#94A3B8] font-semibold mt-1">of {dailyGoalHours}h goal</p>
+                      <p className="text-[10px] text-[#94A3B8] font-semibold mt-1">
+                        studied today · goal {dailyGoalHours * 60}m
+                      </p>
                       {!goalDone && (
                         <p className="text-[10px] font-bold text-[#6366F1] mt-1">
-                          {formatDuration(Math.round(Math.max(0, dailyGoalHours - liveHoursToday) * 3600))} remaining
+                          {Math.round(Math.max(0, dailyGoalHours - liveHoursToday) * 60)}m remaining
                         </p>
                       )}
                       {/* Bar */}
