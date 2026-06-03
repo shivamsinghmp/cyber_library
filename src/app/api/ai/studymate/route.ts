@@ -74,23 +74,23 @@ const API_MODEL: Record<ModelId, string> = {
   "gpt-o1":           "o1",
 };
 
-// ─── Pricing: 1 coin = ₹0.10 | formula: ceil(tokens/1000) × rate ─────────────
+// ─── Pricing: 1 coin = ₹0.50 | formula: ceil(tokens/1000) × rate ─────────────
 // 1000 tokens = 1 unit | 2000 tokens = 2 units | 10000 tokens = 10 units
-// All rates guarantee 50%+ profit over actual API cost
+// All rates guarantee 650%+ profit over actual API cost
 const COINS_PER_1000T: Record<ModelId, number> = {
-  "gemini-2.5-flash": 1,   // API ₹0.014/1000t → charge ₹0.10  → 614% profit
-  "gemini-2.0-flash": 1,   // API ₹0.019/1000t → charge ₹0.10  → 426% profit
-  "gemini-1.5-pro":   4,   // API ₹0.23/1000t  → charge ₹0.40  →  74% profit
-  "gemini-2.5-pro":   6,   // API ₹0.40/1000t  → charge ₹0.60  →  50% profit
-  "claude-haiku":     3,   // API ₹0.18/1000t  → charge ₹0.30  →  67% profit
-  "claude-sonnet":   10,   // API ₹0.66/1000t  → charge ₹1.00  →  52% profit
-  "claude-opus":     50,   // API ₹3.28/1000t  → charge ₹5.00  →  52% profit
-  "gpt-4o-mini":      1,   // API ₹0.028/1000t → charge ₹0.10  → 257% profit
-  "gpt-4.1-mini":     2,   // API ₹0.074/1000t → charge ₹0.20  → 170% profit
-  "gpt-4.1":          6,   // API ₹0.37/1000t  → charge ₹0.60  →  62% profit
-  "gpt-4o":           7,   // API ₹0.46/1000t  → charge ₹0.70  →  52% profit
-  "gpt-o1-mini":      9,   // API ₹0.55/1000t  → charge ₹0.90  →  64% profit
-  "gpt-o1":          42,   // API ₹2.77/1000t  → charge ₹4.20  →  52% profit
+  "gemini-2.5-flash": 1,   // API ₹0.014/1000t → charge ₹0.50  → 3471% profit
+  "gemini-2.0-flash": 1,   // API ₹0.019/1000t → charge ₹0.50  → 2531% profit
+  "gemini-1.5-pro":   4,   // API ₹0.23/1000t  → charge ₹2.00  →  769% profit
+  "gemini-2.5-pro":   6,   // API ₹0.40/1000t  → charge ₹3.00  →  650% profit
+  "claude-haiku":     3,   // API ₹0.18/1000t  → charge ₹1.50  →  733% profit
+  "claude-sonnet":   10,   // API ₹0.66/1000t  → charge ₹5.00  →  658% profit
+  "claude-opus":     50,   // API ₹3.28/1000t  → charge ₹25.00 →  662% profit
+  "gpt-4o-mini":      1,   // API ₹0.028/1000t → charge ₹0.50  → 1686% profit
+  "gpt-4.1-mini":     2,   // API ₹0.074/1000t → charge ₹1.00  → 1251% profit
+  "gpt-4.1":          6,   // API ₹0.37/1000t  → charge ₹3.00  →  711% profit
+  "gpt-4o":           7,   // API ₹0.46/1000t  → charge ₹3.50  →  661% profit
+  "gpt-o1-mini":      9,   // API ₹0.55/1000t  → charge ₹4.50  →  718% profit
+  "gpt-o1":          42,   // API ₹2.77/1000t  → charge ₹21.00 →  658% profit
 };
 
 // Example: 10,000 tokens on claude-opus = ceil(10000/1000) × 50 = 500 coins = ₹50

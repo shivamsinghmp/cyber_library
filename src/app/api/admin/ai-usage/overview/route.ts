@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/api-helpers";
 
-const COIN_VALUE_INR = 0.10; // 1 coin = ₹0.10
+const COIN_VALUE_INR = 0.50; // 1 coin = ₹0.50
 
 /** GET /api/admin/ai-usage/overview — Platform AI usage stats for the current month */
 export async function GET() {

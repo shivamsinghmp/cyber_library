@@ -9,10 +9,10 @@ import { DEFAULT_PRICING } from "@/lib/pricing-defaults";
 import { rateLimit } from "@/lib/rate-limit";
 
 const COIN_PACKS: Record<string, { coins: number; priceRupees: number; label: string }> = {
-  COINS_100:  { coins: 100,  priceRupees: 10,  label: "Starter Pack"  },
-  COINS_350:  { coins: 350,  priceRupees: 30,  label: "Study Pack"    },
-  COINS_700:  { coins: 700,  priceRupees: 55,  label: "Power Pack"    },
-  COINS_1500: { coins: 1500, priceRupees: 100, label: "Pro Pack"      },
+  COINS_100:  { coins: 100,  priceRupees: 50,  label: "Starter Pack"  },
+  COINS_350:  { coins: 350,  priceRupees: 150, label: "Study Pack"    },
+  COINS_700:  { coins: 700,  priceRupees: 275, label: "Power Pack"    },
+  COINS_1500: { coins: 1500, priceRupees: 499, label: "Pro Pack"      },
 };
 
 const bodySchema = z.object({

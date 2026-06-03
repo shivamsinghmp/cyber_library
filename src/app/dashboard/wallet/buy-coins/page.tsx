@@ -38,48 +38,48 @@ const PACKS: Pack[] = [
   {
     id: "COINS_100",
     coins: 100,
-    priceRupees: 10,
+    priceRupees: 50,
     label: "Starter Pack",
     icon: Zap,
     color: "text-sky-600",
     bg: "bg-sky-50",
     border: "border-sky-200",
-    perCoin: "₹0.10/coin",
+    perCoin: "₹0.50/coin",
   },
   {
     id: "COINS_350",
     coins: 350,
-    priceRupees: 30,
+    priceRupees: 150,
     label: "Study Pack",
     icon: Star,
     color: "text-emerald-600",
     bg: "bg-emerald-50",
     border: "border-emerald-200",
-    perCoin: "₹0.086/coin",
+    perCoin: "₹0.43/coin",
     badge: "Popular",
   },
   {
     id: "COINS_700",
     coins: 700,
-    priceRupees: 55,
+    priceRupees: 275,
     label: "Power Pack",
     icon: Rocket,
     color: "text-violet-600",
     bg: "bg-violet-50",
     border: "border-violet-200",
-    perCoin: "₹0.079/coin",
+    perCoin: "₹0.39/coin",
     badge: "Save 21%",
   },
   {
     id: "COINS_1500",
     coins: 1500,
-    priceRupees: 100,
+    priceRupees: 499,
     label: "Pro Pack",
     icon: Crown,
     color: "text-amber-600",
     bg: "bg-amber-50",
     border: "border-amber-200",
-    perCoin: "₹0.067/coin",
+    perCoin: "₹0.33/coin",
     badge: "Best Value",
   },
 ];
@@ -96,7 +96,7 @@ function loadRazorpayScript(): Promise<void> {
   });
 }
 
-const COINS_PER_RUPEE = 10; // 1 coin = ₹0.10
+const COINS_PER_RUPEE = 2; // 1 coin = ₹0.50
 
 export default function BuyCoinsPage() {
   const router = useRouter();
@@ -269,7 +269,7 @@ export default function BuyCoinsPage() {
       <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3">
         <Coins className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
         <div>
-          <p className="text-sm font-bold text-amber-900">1 coin = ₹0.10</p>
+          <p className="text-sm font-bold text-amber-900">1 coin = ₹0.50</p>
           <p className="text-xs text-amber-700 mt-0.5">
             Coins AI StudyMate chatbot pe use hote hain. Har model alag coins use karta hai — budget models mein sirf 1 coin/1000 tokens, Claude Opus premium mein 50 coins/1000 tokens.
           </p>

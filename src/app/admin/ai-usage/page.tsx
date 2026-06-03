@@ -246,7 +246,7 @@ export default function AIUsagePage() {
           </h2>
           <div className="grid grid-cols-3 gap-6 mb-5">
             {[
-              { label: "Students ne pay kiya", value: fmtInr(m.revenueInr), sub: `${fmtNum(m.coinsCharged)} coins × ₹0.10`, color: "text-indigo-600", bg: "bg-indigo-500" },
+              { label: "Students ne pay kiya", value: fmtInr(m.revenueInr), sub: `${fmtNum(m.coinsCharged)} coins × ₹0.50`, color: "text-indigo-600", bg: "bg-indigo-500" },
               { label: "API cost laga", value: fmtInr(m.totalCostInr), sub: `${fmtK(m.totalTokens)} tokens across all models`, color: "text-rose-600", bg: "bg-rose-400" },
               { label: "Aapka profit", value: fmtInr(m.profitInr), sub: `${m.profitMarginPct}% profit margin`, color: m.profitInr >= 0 ? "text-emerald-600" : "text-amber-600", bg: m.profitInr >= 0 ? "bg-emerald-500" : "bg-amber-400" },
             ].map(({ label, value, sub, color, bg }) => (
@@ -429,7 +429,7 @@ export default function AIUsagePage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {logs.map(row => {
-                  const revenueInr = parseFloat((row.coinsCharged * 0.10).toFixed(2));
+                  const revenueInr = parseFloat((row.coinsCharged * 0.50).toFixed(2));
                   const profitInr  = parseFloat((revenueInr - row.costInr).toFixed(4));
                   return (
                     <tr key={row.id}

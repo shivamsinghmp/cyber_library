@@ -6,10 +6,10 @@ import { sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { sendPurchaseReceipt } from "@/lib/email";
 
 const COIN_PACKS: Record<string, { coins: number; priceRupees: number; label: string }> = {
-  COINS_100:  { coins: 100,  priceRupees: 10,  label: "Starter Pack"  },
-  COINS_350:  { coins: 350,  priceRupees: 30,  label: "Study Pack"    },
-  COINS_700:  { coins: 700,  priceRupees: 55,  label: "Power Pack"    },
-  COINS_1500: { coins: 1500, priceRupees: 100, label: "Pro Pack"      },
+  COINS_100:  { coins: 100,  priceRupees: 50,  label: "Starter Pack"  },
+  COINS_350:  { coins: 350,  priceRupees: 150, label: "Study Pack"    },
+  COINS_700:  { coins: 700,  priceRupees: 275, label: "Power Pack"    },
+  COINS_1500: { coins: 1500, priceRupees: 499, label: "Pro Pack"      },
 };
 
 export async function fulfillOrder({
@@ -106,7 +106,7 @@ export async function fulfillOrder({
     let packLabel = "";
     if (packId.startsWith("COINS_CUSTOM_")) {
       const rupees = parseInt(packId.replace("COINS_CUSTOM_", ""), 10);
-      coinsToCredit = rupees * 10;
+      coinsToCredit = rupees * 2;
       packLabel = `Custom Pack (${coinsToCredit} coins)`;
     } else {
       const pack = COIN_PACKS[packId];
