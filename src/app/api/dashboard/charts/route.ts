@@ -8,7 +8,7 @@ async function sumStudyHoursForRange(
   rangeStart: Date,
   rangeEnd: Date
 ): Promise<number> {
-  const [studySessions, meetPresence] = await Promise.all([
+  const [studySessions, meetPresence, pomodoro] = await Promise.all([
     prisma.studySession.findMany({
       where: { userId, startedAt: { gte: rangeStart, lte: rangeEnd } },
       select: { startedAt: true, durationMinutes: true },
@@ -16,6 +16,10 @@ async function sumStudyHoursForRange(
     prisma.meetPresenceSession.findMany({
       where: { userId, startedAt: { gte: rangeStart, lte: rangeEnd } },
       select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
+    }),
+    prisma.pomodoroTimerSession.findMany({
+      where: { userId, startedAt: { gte: rangeStart, lte: rangeEnd } },
+      select: { startedAt: true, completedSeconds: true },
     }),
   ]);
 
@@ -35,7 +39,11 @@ async function sumStudyHoursForRange(
       const b = Math.min(ended.getTime(), dayEnd.getTime());
       if (b > a) dailyMeetSecs += (b - a) / 1000;
     }
-    total += dailyMinutes / 60 + dailyMeetSecs / 3600;
+    let dailyPomodoroSecs = 0;
+    for (const p of pomodoro) {
+      if (isSameDay(new Date(p.startedAt), day)) dailyPomodoroSecs += p.completedSeconds ?? 0;
+    }
+    total += dailyMinutes / 60 + dailyMeetSecs / 3600 + dailyPomodoroSecs / 3600;
   }
   return Number(total.toFixed(2));
 }
@@ -54,17 +62,17 @@ function buildInsights(
     if (diff > 0.25) {
       insights.push(
         isWeek
-          ? `Outstanding performance! Aapne pichle week ke mukable ${diff.toFixed(1)} hours zyada deep work kiya hai. Keep the momentum going! 🔥`
-          : `Brilliant work! Is period mein aapne pichle time se ${diff.toFixed(1)} hours ka extra focus show kiya hai. 🚀`
+          ? `Outstanding performance! You did ${diff.toFixed(1)} more hours of deep work than last week. Keep the momentum going! 🔥`
+          : `Brilliant work! You put in ${diff.toFixed(1)} extra hours of focus compared to last period. 🚀`
       );
     } else if (diff < -0.25) {
       insights.push(
         isWeek
-          ? `Aapka focus is week thoda drop hua hai (${Math.abs(diff).toFixed(1)} hrs kam). Ek choti si planning se aap apna solid rhythm wapas la sakte hain! 💪`
-          : `Study load thoda decrease hua hai. Consistency build karne ke liye chhote (short) deep focus sessions zaroor try karein. ⏳`
+          ? `Your focus dropped a bit this week (${Math.abs(diff).toFixed(1)} hrs less). A small planning session can help you get back to your solid rhythm! 💪`
+          : `Study load decreased slightly. Try short deep-focus sessions to build consistency. ⏳`
       );
     } else {
-      insights.push("Brilliant balance! Aapka study routine bilkul steady aur consistent chal raha hai. Ekdum perfect pace! 🎯");
+      insights.push("Brilliant balance! Your study routine is perfectly steady and consistent. Exactly the right pace! 🎯");
     }
   }
 
@@ -75,7 +83,7 @@ function buildInsights(
       if (studyData[i].hours > studyData[best].hours) best = i;
     }
     const weekday = format(new Date(studyData[best].rawDate), "EEEE");
-    insights.push(`🌟 ${weekday} aapka sabse productive aur high-focus din raha!`);
+    insights.push(`🌟 ${weekday} was your most productive and high-focus day!`);
   }
 
   return insights;
@@ -103,7 +111,7 @@ export async function GET(req: NextRequest) {
     endDate = endOfDay(endDate);
 
     // 1. All data fetched in parallel
-    const [studySessions, meetPresence, tasks] = await Promise.all([
+    const [studySessions, meetPresence, tasks, pomodoroSessions] = await Promise.all([
       prisma.studySession.findMany({
         where: { userId, startedAt: { gte: startDate, lte: endDate } },
         select: { startedAt: true, durationMinutes: true },
@@ -115,6 +123,10 @@ export async function GET(req: NextRequest) {
       prisma.dailyTask.findMany({
         where: { userId, taskDate: { gte: startDate, lte: endDate } },
         select: { completedAt: true },
+      }),
+      prisma.pomodoroTimerSession.findMany({
+        where: { userId, startedAt: { gte: startDate, lte: endDate } },
+        select: { startedAt: true, completedSeconds: true },
       }),
     ]);
 
@@ -137,8 +149,14 @@ export async function GET(req: NextRequest) {
         const b = Math.min(ended.getTime(), dayEnd.getTime());
         if (b > a) dailyMeetSecs += (b - a) / 1000;
       }
-      
-      const totalHours = (dailyMinutes / 60) + (dailyMeetSecs / 3600);
+
+      // Pomodoro focus sessions
+      let dailyPomodoroSecs = 0;
+      for (const p of pomodoroSessions) {
+        if (isSameDay(new Date(p.startedAt), day)) dailyPomodoroSecs += p.completedSeconds ?? 0;
+      }
+
+      const totalHours = (dailyMinutes / 60) + (dailyMeetSecs / 3600) + (dailyPomodoroSecs / 3600);
       
       return {
         date: format(day, "MMM dd"),
