@@ -369,7 +369,7 @@ export default async function BlogPostPage({ params }: Props) {
                 {morePosts.length > 0 && (
                   <div className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: "var(--border)" }}>
                     <p className="mb-3 text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted-text)" }}>
-                      Aur Padho
+                      Read More
                     </p>
                     <ul className="space-y-3">
                       {morePosts.map((p) => (
@@ -416,7 +416,7 @@ export default async function BlogPostPage({ params }: Props) {
                       className="mt-4 flex items-center justify-center gap-1 rounded-xl py-2 text-xs font-bold transition-colors hover:bg-[var(--accent-pale)]"
                       style={{ color: "var(--accent)" }}
                     >
-                      Sab Posts Dekho <ChevronRight className="h-3.5 w-3.5" />
+                      All Posts <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
                   </div>
                 )}
@@ -434,7 +434,7 @@ export default async function BlogPostPage({ params }: Props) {
                     More Articles
                   </h2>
                   <p className="mt-1 text-sm" style={{ color: "var(--muted-text)" }}>
-                    Aur bhi interesting padhai hai — ek nazar maaro
+                    More interesting reads — take a look
                   </p>
                 </div>
                 <Link

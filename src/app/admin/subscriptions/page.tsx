@@ -159,7 +159,7 @@ export default function AdminSubscriptionsPage() {
   async function grantSubscription(e: React.FormEvent) {
     e.preventDefault();
     const student = typeof foundStudent === "object" && foundStudent !== null ? foundStudent : null;
-    if (!student) { toast.error("Pehle student dhundho"); return; }
+    if (!student) { toast.error("Please search for a student first"); return; }
     setGranting(true);
     try {
       const res = await fetch("/api/admin/subscriptions", {
@@ -259,9 +259,9 @@ export default function AdminSubscriptionsPage() {
                 <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
                   <AlertCircle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
                   <div>
-                    <p className="text-sm font-semibold text-red-700">Student nahi mila</p>
+                    <p className="text-sm font-semibold text-red-700">Student not found</p>
                     <p className="text-xs text-red-500 mt-0.5">
-                      Student ID, email ya exact internal ID check karo — name se search nahi hota.
+                      Check the Student ID, email, or exact internal ID — search by name is not supported.
                     </p>
                   </div>
                 </div>
@@ -291,10 +291,10 @@ export default function AdminSubscriptionsPage() {
                         ⚠️ Active subscription hai: {foundStudent.activeSub.planType} — expires{" "}
                         {new Date(foundStudent.activeSub.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                       </p>
-                      <p className="text-[10px] text-amber-600 mt-0.5">Grant karne pe yeh cancel ho jayegi aur nayi shuru hogi.</p>
+                      <p className="text-[10px] text-amber-600 mt-0.5">Granting will cancel the existing subscription and start a new one.</p>
                     </div>
                   ) : (
-                    <p className="text-xs text-emerald-600">No active subscription — new one grant hogi.</p>
+                    <p className="text-xs text-emerald-600">No active subscription — a new one will be granted.</p>
                   )}
                 </div>
               )}
@@ -355,7 +355,7 @@ export default function AdminSubscriptionsPage() {
                 <button type="button" disabled
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 py-3 text-sm font-bold text-gray-400 cursor-not-allowed"
                 >
-                  <Gift className="h-4 w-4" /> Pehle student dhundho
+                  <Gift className="h-4 w-4" /> Search for a student first
                 </button>
               )}
             </form>

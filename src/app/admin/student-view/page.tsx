@@ -126,7 +126,7 @@ export default function AdminStudentViewPage() {
           Student View
         </h1>
         <p className="text-sm text-[#64748B] mt-1">
-          Student ka dashboard admin ke nazar se dekho. Har access log hota hai.
+          View the student's dashboard from an admin perspective. All access is logged.
         </p>
       </div>
 
@@ -139,7 +139,7 @@ export default function AdminStudentViewPage() {
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Student ID (VL-2026-03-47291), email ya DB ID daalo…"
+            placeholder="Enter student ID (VL-2026-03-47291), email, or DB ID…"
             className="w-full rounded-xl border pl-10 pr-4 py-3 text-sm font-medium text-[#0F172A] focus:outline-none focus:border-[#6366F1] transition-colors"
             style={{ borderColor: "#E2E8F0", background: "#F8FAFF" }}
           />
@@ -274,7 +274,7 @@ export default function AdminStudentViewPage() {
         ) : logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-[#94A3B8] gap-2">
             <History className="w-8 h-8" />
-            <p className="text-sm font-medium">Aaj koi access nahi hua</p>
+            <p className="text-sm font-medium">No access logged today</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

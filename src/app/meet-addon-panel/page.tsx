@@ -53,7 +53,7 @@ function AddonPanel() {
 
   // ── Link code login ──────────────────────────────────────────────────────────
   async function loginWithCode() {
-    if (codeInput.length !== 6) { setAuthError("6-digit code daalo."); return; }
+    if (codeInput.length !== 6) { setAuthError("Please enter a 6-digit code."); return; }
     setAuthLoading(true); setAuthError(null);
     const res = await fetch("/api/meet-addon/link-with-code", {
       method: "POST",
@@ -61,7 +61,7 @@ function AddonPanel() {
       body: JSON.stringify({ code: codeInput }),
     }).catch(() => null);
     if (!res?.ok) {
-      setAuthError((await res?.json().catch(() => ({}))).error || "Code galat hai.");
+      setAuthError((await res?.json().catch(() => ({}))).error || "Invalid code.");
       setAuthLoading(false); return;
     }
     const d = await res.json();
@@ -71,7 +71,7 @@ function AddonPanel() {
 
   // ── Fallback: password login ───────────────────────────────────────────────
   async function loginWithPassword() {
-    if (!email || !password) { setAuthError("Email aur password daalo."); return; }
+    if (!email || !password) { setAuthError("Please enter your email and password."); return; }
     setAuthLoading(true); setAuthError(null);
     const res = await fetch("/api/meet-addon/login", {
       method: "POST",
@@ -197,17 +197,17 @@ function AddonPanel() {
         <div style={s.section}>
           {!token ? (
             <>
-              <p style={s.heading}>Login karo</p>
-              <p style={s.hint}>Dashboard → Meet Add-on → "Code Generate Karo"</p>
+              <p style={s.heading}>Log In</p>
+              <p style={s.hint}>Dashboard → Meet Add-on → "Generate Code"</p>
               <input style={s.input} placeholder="6-digit code" inputMode="numeric"
                 maxLength={6} value={codeInput}
                 onChange={e => setCodeInput(e.target.value.replace(/\D/g,"").slice(0,6))} />
               <button style={s.btn} disabled={authLoading} onClick={loginWithCode}>
-                {authLoading ? "Logging in…" : "Code se Login"}
+                {authLoading ? "Logging in…" : "Log In with Code"}
               </button>
               {authError && <p style={s.err}>{authError}</p>}
               <details style={{ marginTop: 4 }}>
-                <summary style={{ ...s.linkBtn, cursor: "pointer" }}>Password se login karo</summary>
+                <summary style={{ ...s.linkBtn, cursor: "pointer" }}>Log in with password</summary>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
                   <input style={s.input} placeholder="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
                   <input style={s.input} placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
@@ -219,13 +219,13 @@ function AddonPanel() {
             // Logged in but no meetCode from URL
             <>
               {userName && <p style={s.hint}>👋 {userName}</p>}
-              <p style={s.heading}>Meet link daalo</p>
+              <p style={s.heading}>Enter Meet link</p>
               <input style={s.input} placeholder="meet.google.com/abc-def-ghi"
                 value={manualInput} onChange={e => setManualInput(e.target.value)} />
               <button style={s.btn} onClick={() => {
                 const c = extractMeetCode(manualInput);
                 if (c) setMeetCode(c);
-              }}>Detect Karo</button>
+              }}>Detect</button>
             </>
           )}
         </div>
@@ -235,7 +235,7 @@ function AddonPanel() {
       {screen === "detecting" && (
         <div style={{ ...s.section, alignItems: "center", justifyContent: "center", flex: 1 }}>
           <div style={s.spinner} />
-          <p style={{ ...s.hint, marginTop: 10 }}>Slot detect ho rahi hai…</p>
+          <p style={{ ...s.hint, marginTop: 10 }}>Detecting slot…</p>
         </div>
       )}
 
@@ -253,9 +253,9 @@ function AddonPanel() {
           </div>
           <p style={s.waitText}>
             {confirming
-              ? "Attendance record ho rahi hai…"
+              ? "Recording attendance…"
               : remaining > 0
-              ? `${Math.floor(remaining / 60)}m ${remaining % 60}s baad attendance mark hogi`
+              ? `Attendance will be marked in ${Math.floor(remaining / 60)}m ${remaining % 60}s`
               : "Confirming…"}
           </p>
         </div>
@@ -266,7 +266,7 @@ function AddonPanel() {
         <div style={{ ...s.section, alignItems: "center" }}>
           <div style={s.checkmark}>✓</div>
           <p style={s.confirmedText}>
-            {alreadyCheckedIn ? "Aaj pehle se mark hai!" : "Attendance ho gayi!"}
+            {alreadyCheckedIn ? "Already marked today!" : "Attendance recorded!"}
           </p>
           {userName && <p style={s.hint}>{userName}</p>}
           <div style={{ ...s.slotCard, width: "100%" }}>
@@ -280,14 +280,14 @@ function AddonPanel() {
       {screen === "no_slot" && (
         <div style={s.section}>
           <p style={{ textAlign: "center", fontSize: 26, margin: 0 }}>🔍</p>
-          <p style={s.heading}>Slot nahi mila</p>
-          <p style={s.hint}>Is Meet se koi study room match nahi hua. Admin se check karo ki slot ka Meet link correct set hai.</p>
-          <input style={{ ...s.input, marginTop: 6 }} placeholder="Aur Meet link try karo"
+          <p style={s.heading}>No slot found</p>
+          <p style={s.hint}>No study room matched this Meet link. Please check with the admin that the slot's Meet link is set correctly.</p>
+          <input style={{ ...s.input, marginTop: 6 }} placeholder="Try another Meet link"
             value={manualInput} onChange={e => setManualInput(e.target.value)} />
           <button style={s.btn} onClick={() => {
             const c = extractMeetCode(manualInput);
             if (c && token) { setMeetCode(c); startSession(token, c); }
-          }}>Try Karo</button>
+          }}>Try</button>
         </div>
       )}
 
@@ -295,9 +295,9 @@ function AddonPanel() {
       {screen === "error" && (
         <div style={{ ...s.section, alignItems: "center" }}>
           <p style={{ fontSize: 26 }}>⚠️</p>
-          <p style={s.heading}>Kuch gadbad ho gayi</p>
+          <p style={s.heading}>Something went wrong</p>
           <button style={s.btn} onClick={() => { if (token && meetCode) startSession(token, meetCode); }}>
-            Dobara Try Karo
+            Try Again
           </button>
         </div>
       )}

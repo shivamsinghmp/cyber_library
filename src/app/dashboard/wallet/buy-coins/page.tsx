@@ -124,7 +124,7 @@ export default function BuyCoinsPage() {
 
       await loadRazorpayScript();
       if (!window.Razorpay) {
-        toast.error("Payment gateway load nahi hua. Dobara try karo.");
+        toast.error("Payment gateway failed to load. Please try again.");
         setBuying(null);
         return;
       }
@@ -153,10 +153,10 @@ export default function BuyCoinsPage() {
               setSuccess({ coins: pack.coins, label: pack.label });
             } else {
               const d = await verifyRes.json().catch(() => ({}));
-              toast.error(d.error ?? "Payment verify nahi hua. Support se contact karo.");
+              toast.error(d.error ?? "Payment could not be verified. Please contact support.");
             }
           } catch {
-            toast.error("Verification error. Support se contact karo.");
+            toast.error("Verification error. Please contact support.");
           } finally {
             setBuying(null);
           }
@@ -192,7 +192,7 @@ export default function BuyCoinsPage() {
 
       const { orderId, keyId, amount } = orderData as { orderId: string; keyId: string; amount: number };
       await loadRazorpayScript();
-      if (!window.Razorpay) { toast.error("Payment gateway load nahi hua."); setBuying(null); return; }
+      if (!window.Razorpay) { toast.error("Payment gateway failed to load."); setBuying(null); return; }
 
       const rzp = new window.Razorpay({
         key: keyId, amount, order_id: orderId,
@@ -205,7 +205,7 @@ export default function BuyCoinsPage() {
               body: JSON.stringify({ ...response, type: "COIN_PACK", ids: [packId] }),
             });
             if (verifyRes.ok) setSuccess({ coins: customCoins, label: "Custom Pack" });
-            else { const d = await verifyRes.json().catch(() => ({})); toast.error(d.error ?? "Payment verify nahi hua."); }
+            else { const d = await verifyRes.json().catch(() => ({})); toast.error(d.error ?? "Payment could not be verified."); }
           } catch { toast.error("Verification error."); }
           finally { setBuying(null); }
         },
@@ -228,7 +228,7 @@ export default function BuyCoinsPage() {
         </motion.div>
         <h1 className="text-3xl font-black text-[var(--foreground)]">Coins Added!</h1>
         <p className="mt-2 text-[var(--muted-text)]">
-          <strong className="text-amber-600">{success.coins.toLocaleString("en-IN")} coins</strong> aapke wallet mein add ho gaye.
+          <strong className="text-amber-600">{success.coins.toLocaleString("en-IN")} coins</strong> have been added to your wallet.
         </p>
         <p className="mt-1 text-sm text-[var(--muted-text)]">{success.label} successfully purchased.</p>
         <div className="mt-8 flex flex-col gap-3">
@@ -236,13 +236,13 @@ export default function BuyCoinsPage() {
             href="/dashboard/wallet"
             className="w-full rounded-2xl bg-amber-400 hover:bg-amber-500 py-3 text-sm font-bold text-amber-900 shadow-md transition-all text-center"
           >
-            Wallet Dekho
+            Go to Wallet
           </Link>
           <Link
             href="/dashboard/studymate"
             className="w-full rounded-2xl border border-[var(--cream-muted)] py-3 text-sm font-semibold text-[var(--body-text)] hover:bg-[var(--cream)] transition-colors text-center"
           >
-            AI StudyMate Use Karo
+            Use AI StudyMate
           </Link>
         </div>
       </div>
@@ -271,7 +271,7 @@ export default function BuyCoinsPage() {
         <div>
           <p className="text-sm font-bold text-amber-900">1 coin = ₹0.50</p>
           <p className="text-xs text-amber-700 mt-0.5">
-            Coins AI StudyMate chatbot pe use hote hain. Har model alag coins use karta hai — budget models mein sirf 1 coin/1000 tokens, Claude Opus premium mein 50 coins/1000 tokens.
+            Coins are used in the AI StudyMate chatbot. Each model uses a different amount — budget models use just 1 coin/1000 tokens, while Claude Opus premium uses 50 coins/1000 tokens.
           </p>
         </div>
       </div>
@@ -349,7 +349,7 @@ export default function BuyCoinsPage() {
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-[var(--muted-text)]">Custom Amount</p>
-            <p className="text-[10px] text-[var(--muted-text)]">Apni marzi ka amount daalo (min ₹10, max ₹10,000)</p>
+            <p className="text-[10px] text-[var(--muted-text)]">Enter any amount (min ₹10, max ₹10,000)</p>
           </div>
         </div>
 
@@ -392,14 +392,14 @@ export default function BuyCoinsPage() {
 
         {customAmount && !customValid && (
           <p className="mt-2 text-xs text-red-500">
-            {customRupees < 10 ? "Minimum ₹10 daalo." : "Maximum ₹10,000 tak allowed hai."}
+            {customRupees < 10 ? "Minimum amount is ₹10." : "Maximum amount allowed is ₹10,000."}
           </p>
         )}
       </motion.div>
 
       {/* Footer note */}
       <p className="mt-6 text-center text-[10px] text-[var(--muted-text)]">
-        Payment Razorpay ke through secured hai. Coins turant add ho jaate hain payment ke baad.
+        Payments are secured through Razorpay. Coins are added instantly after payment.
       </p>
     </div>
   );

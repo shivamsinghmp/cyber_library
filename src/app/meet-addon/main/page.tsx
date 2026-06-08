@@ -164,6 +164,13 @@ export default function MeetAddonMainStagePage() {
   const [slotTodaySeconds, setSlotTodaySeconds] = useState(0);
   const [slotLiveSeconds, setSlotLiveSeconds] = useState(0);
   const [completedSessions, setCompletedSessions] = useState(0);
+  // Focus-timer live counter (standalone — no slot resolved)
+  const [focusLiveSeconds, setFocusLiveSeconds] = useState(0);
+  const focusSessionStartRef = useRef<number | null>(null);
+  const resolvedSlotRef = useRef<typeof resolvedSlot>(null);
+  const tokenRef = useRef<string | null>(null);
+  const timerDurationRef = useRef(25 * 60);
+  const timerModeRef = useRef<"focus" | "break">("focus");
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -192,6 +199,12 @@ export default function MeetAddonMainStagePage() {
       }
     } catch {}
   }, [token]);
+
+  // Keep refs in sync so the isRunning effect has fresh values without stale closures
+  useEffect(() => { resolvedSlotRef.current = resolvedSlot; }, [resolvedSlot]);
+  useEffect(() => { tokenRef.current = token; }, [token]);
+  useEffect(() => { timerDurationRef.current = timerDuration; }, [timerDuration]);
+  useEffect(() => { timerModeRef.current = timerMode; }, [timerMode]);
 
   // Bootstrap from localStorage — client only
   useEffect(() => {
@@ -277,9 +290,43 @@ export default function MeetAddonMainStagePage() {
         if (t <= 1) { setIsRunning(false); setCompletedSessions(s => s + 1); return 0; }
         return t - 1;
       }), 1000);
-    } else { if (timerRef.current) clearInterval(timerRef.current); }
+      // Record focus session start (standalone — no slot)
+      if (timerModeRef.current === "focus" && !resolvedSlotRef.current) {
+        if (!focusSessionStartRef.current) focusSessionStartRef.current = Date.now();
+      }
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+      // Save focus session to DB when timer stops (standalone only)
+      const startedAt = focusSessionStartRef.current;
+      if (startedAt && timerModeRef.current === "focus" && !resolvedSlotRef.current) {
+        focusSessionStartRef.current = null;
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        if (elapsed >= 60 && tokenRef.current) {
+          const planned = timerDurationRef.current;
+          fetch("/api/meet-addon/pomodoro-session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+            body: JSON.stringify({
+              roomKey: "local-room",
+              plannedSeconds: planned,
+              completedSeconds: elapsed,
+              completedFully: elapsed >= planned - 2,
+            }),
+          }).catch(() => {});
+        }
+        setFocusLiveSeconds(0);
+      }
+    }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isRunning]);
+
+  // Increment focusLiveSeconds while Focus timer runs (standalone — no slot resolved)
+  useEffect(() => {
+    if (!isRunning || timerMode !== "focus" || resolvedSlot) return;
+    const tick = setInterval(() => setFocusLiveSeconds(s => s + 1), 1000);
+    return () => clearInterval(tick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, timerMode, resolvedSlot?.slotId]);
 
   useEffect(() => {
     if (!currentPoll || pollSeconds <= 0) return;
@@ -342,12 +389,21 @@ export default function MeetAddonMainStagePage() {
     }).catch(() => {});
   };
 
-  const setDuration = (minutes: number) => { setIsRunning(false); setTimerDuration(minutes * 60); setTimeLeft(minutes * 60); };
+  const setDuration = (minutes: number) => {
+    setIsRunning(false);
+    setTimerDuration(minutes * 60);
+    setTimeLeft(minutes * 60);
+    setFocusLiveSeconds(0);
+    focusSessionStartRef.current = null;
+  };
   const toggleMode = (mode: "focus" | "break") => { setTimerMode(mode); setDuration(mode === "focus" ? 25 : 5); };
 
   const pct = timerDuration > 0 ? Math.round((timeLeft / timerDuration) * 100) : 0;
   const doneTasks = tasks.filter(t => !!t.completedAt).length;
   const taskPct = tasks.length > 0 ? Math.round((doneTasks / tasks.length) * 100) : 0;
+  // Live seconds to add on top of server-fetched hoursToday:
+  // slot users → slotLiveSeconds; standalone → focusLiveSeconds while timer runs
+  const liveExtra = resolvedSlot ? slotLiveSeconds : focusLiveSeconds;
 
   // Prevent SSR/client mismatch
   if (!mounted) return <div className="min-h-[100dvh]" style={{ background: "var(--page-bg)" }} />;
@@ -509,9 +565,9 @@ export default function MeetAddonMainStagePage() {
       {!zenMode && planAccess?.state === "trial" && (
         <div className="relative z-10 mx-6 mt-3 flex items-center justify-between gap-4 px-5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 flex-shrink-0">
           <span className="text-xs font-semibold text-amber-700">
-            ⚠️ Free trial chal raha hai —{" "}
-            <strong>{planAccess.daysLeft} din bache hain.</strong>{" "}
-            Add-on poora unlock rakhne ke liye plan lein.
+            ⚠️ Free trial active —{" "}
+            <strong>{planAccess.daysLeft} days left.</strong>{" "}
+            Get a plan to keep the add-on fully unlocked.
           </span>
           <a
             href="/pricing"
@@ -520,7 +576,7 @@ export default function MeetAddonMainStagePage() {
             className="text-[10px] font-black uppercase tracking-wider text-white px-3 py-1.5 rounded-lg shrink-0"
             style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
           >
-            Plan Lein →
+            Get a Plan →
           </a>
         </div>
       )}
@@ -700,7 +756,7 @@ export default function MeetAddonMainStagePage() {
                 { icon: Coins,       label: "Study Coins",  value: totalCoins,   cls: "text-amber-500",   bg: "bg-amber-50 border-amber-200" },
                 { icon: Flame,       label: "Day Streak",   value: `${streakDays}d`, cls: "text-orange-500", bg: "bg-orange-50 border-orange-200" },
                 { icon: CheckCircle2,label: "Tasks Done",   value: `${doneTasks}/${tasks.length}`, cls: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
-                { icon: CalendarDays,label: "Session",      value: formatDuration(slotTodaySeconds + slotLiveSeconds), cls: "text-[#6366F1]", bg: "bg-[#EEF2FF] border-[#C7D2FE]" },
+                { icon: CalendarDays,label: "Session",      value: formatDuration(slotTodaySeconds + liveExtra), cls: "text-[#6366F1]", bg: "bg-[#EEF2FF] border-[#C7D2FE]" },
               ].map(({ icon: Icon, label, value, cls, bg }) => (
                 <Card key={label} className={`${bg} p-4 flex flex-col gap-2 !bg-opacity-100`}>
                   <Icon className={`w-5 h-5 ${cls}`} />
@@ -712,7 +768,7 @@ export default function MeetAddonMainStagePage() {
 
             {/* Daily Study Goal Progress */}
             {(() => {
-              const liveHoursToday = hoursToday + slotLiveSeconds / 3600;
+              const liveHoursToday = hoursToday + liveExtra / 3600;
               const goalPct = Math.min(100, Math.round((liveHoursToday / dailyGoalHours) * 100));
               const goalDone = liveHoursToday >= dailyGoalHours;
               const R = 44, circ = 2 * Math.PI * R;
@@ -799,9 +855,9 @@ export default function MeetAddonMainStagePage() {
               <p className="text-xs text-[#64748B] leading-relaxed">
                 {isRunning
                   ? timerMode === "focus"
-                    ? "🎯 Deep work session chal raha hai. Phone door rakho, ek kaam karo."
-                    : "☕ Brain ko rest do. Pani piyo, aankhein band karo."
-                  : "▶ Timer start karo aur ek kaam pe focus karo. Baaki baad mein."}
+                    ? "🎯 Deep work session in progress. Put your phone away and do one thing."
+                    : "☕ Rest your brain. Drink water, close your eyes."
+                  : "▶ Start the timer and focus on one task. Everything else can wait."}
               </p>
             </Card>
 
@@ -810,7 +866,7 @@ export default function MeetAddonMainStagePage() {
                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400 mb-2">Active Slot</p>
                 <p className="text-sm font-bold text-emerald-700">{resolvedSlot.slotName}</p>
                 {resolvedSlot.timeLabel && <p className="text-[10px] text-emerald-500 mt-0.5">{resolvedSlot.timeLabel}</p>}
-                <p className="text-2xl font-black text-emerald-600 mt-2 tabular-nums">{formatDuration(slotTodaySeconds + slotLiveSeconds)}</p>
+                <p className="text-2xl font-black text-emerald-600 mt-2 tabular-nums">{formatDuration(slotTodaySeconds + liveExtra)}</p>
               </Card>
             )}
           </div>

@@ -41,7 +41,7 @@ export async function PUT(request: Request) {
     const body = await request.json().catch(() => ({}));
     const templateName = typeof body.templateName === "string" ? body.templateName.trim() : "";
     if (!templateName) {
-      return NextResponse.json({ error: "templateName required hai" }, { status: 400 });
+      return NextResponse.json({ error: "templateName is required" }, { status: 400 });
     }
 
     // Verify template exists and is APPROVED
@@ -51,10 +51,10 @@ export async function PUT(request: Request) {
     });
 
     if (!tmpl) {
-      return NextResponse.json({ error: "Template nahi mila" }, { status: 404 });
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
     if (tmpl.status !== "APPROVED") {
-      return NextResponse.json({ error: "Sirf APPROVED templates select ho sakte hain" }, { status: 400 });
+      return NextResponse.json({ error: "Only APPROVED templates can be selected" }, { status: 400 });
     }
 
     // Atomic: clear existing signup trigger → set new one
@@ -73,7 +73,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `${templateName} ab signup trigger hai`,
+      message: `${templateName} is now the signup trigger`,
     });
   } catch (e) {
     console.error("PUT /api/admin/whatsapp/signup-trigger:", e);

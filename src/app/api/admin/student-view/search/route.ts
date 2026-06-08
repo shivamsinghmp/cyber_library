@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("id")?.trim() ?? "";
-    if (!q) return NextResponse.json({ error: "Student ID required hai" }, { status: 400 });
+    if (!q) return NextResponse.json({ error: "Student ID is required" }, { status: 400 });
 
     const user = await prisma.user.findFirst({
       where: {
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Student nahi mila", searched: q }, { status: 404 });
+      return NextResponse.json({ error: "Student not found", searched: q }, { status: 404 });
     }
 
     // Fetch admin's display name for log

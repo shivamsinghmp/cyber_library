@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const localTodayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const localTodayEnd   = new Date(localTodayStart.getTime() + 86_400_000);
 
-    const [tasks, profile, streak, sessionsToday, meetPresenceToday] = await Promise.all([
+    const [tasks, profile, streak, sessionsToday, meetPresenceToday, pomodoroToday] = await Promise.all([
       prisma.dailyTask.findMany({
         where: { userId: payload.userId, taskDate },
         orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
@@ -83,9 +83,13 @@ export async function GET(request: NextRequest) {
         where: { userId: payload.userId, startedAt: { gte: localTodayStart, lt: localTodayEnd } },
         select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
       }),
+      prisma.pomodoroTimerSession.findMany({
+        where: { userId: payload.userId, startedAt: { gte: localTodayStart, lt: localTodayEnd } },
+        select: { completedSeconds: true },
+      }),
     ]);
 
-    // Total study hours today (study sessions + meet presence)
+    // Total study hours today (study sessions + meet presence + standalone pomodoro sessions)
     const studyMinutesToday = sessionsToday.reduce((s, r) => s + (r.durationMinutes ?? 0), 0);
     let meetSecondsToday = 0;
     for (const m of meetPresenceToday) {
@@ -94,7 +98,8 @@ export async function GET(request: NextRequest) {
       const b = Math.min(end.getTime(), localTodayEnd.getTime());
       if (b > a) meetSecondsToday += (b - a) / 1000;
     }
-    const hoursToday = (studyMinutesToday / 60) + (meetSecondsToday / 3600);
+    const pomodoroSecondsToday = pomodoroToday.reduce((s, r) => s + (r.completedSeconds ?? 0), 0);
+    const hoursToday = (studyMinutesToday / 60) + (meetSecondsToday / 3600) + (pomodoroSecondsToday / 3600);
 
     return NextResponse.json({
       tasks: tasks.map(taskJson),

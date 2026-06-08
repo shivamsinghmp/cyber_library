@@ -186,7 +186,7 @@ export function ToggleProfileForm() {
     e.preventDefault();
     const wa = phone.trim();
     if (wa && !validateWhatsApp(wa)) {
-      setWhatsappError("Valid 10-digit number daalo (e.g. 9876543210)");
+      setWhatsappError("Please enter a valid 10-digit number (e.g. 9876543210)");
       return;
     }
     setWhatsappError("");
@@ -224,7 +224,7 @@ export function ToggleProfileForm() {
     try {
       const res  = await fetch("/api/auth/verify-email/send-otp", { method: "POST", credentials: "include" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setOtpError(data.error ?? "OTP nahi bheja."); setOtpStep("idle"); return; }
+      if (!res.ok) { setOtpError(data.error ?? "OTP could not be sent."); setOtpStep("idle"); return; }
       if (data.alreadyVerified) {
         setOtpStep("done");
         setProfile(p => p ? { ...p, emailVerified: true } : p);
@@ -236,7 +236,7 @@ export function ToggleProfileForm() {
   }
 
   async function handleConfirmOtp() {
-    if (otpCode.length !== 6) { setOtpError("6 digit OTP daalo."); return; }
+    if (otpCode.length !== 6) { setOtpError("Please enter a 6-digit OTP."); return; }
     setOtpStep("verifying"); setOtpError(null);
     try {
       const res  = await fetch("/api/auth/verify-email/confirm-otp", {
@@ -246,10 +246,10 @@ export function ToggleProfileForm() {
         body: JSON.stringify({ code: otpCode }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setOtpError(data.error ?? "OTP galat hai."); setOtpStep("input"); return; }
+      if (!res.ok) { setOtpError(data.error ?? "Invalid OTP."); setOtpStep("input"); return; }
       setOtpStep("done");
       setProfile(p => p ? { ...p, emailVerified: true } : p);
-      toast.success("Email verify ho gaya! ✅");
+      toast.success("Email verified! ✅");
       router.refresh();
     } catch { setOtpError("Network error."); setOtpStep("input"); }
   }
@@ -534,11 +534,11 @@ export function ToggleProfileForm() {
               {otpStep === "idle" && (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-[var(--cream-muted)]">
-                    Email abhi verify nahi hua. OTP aapki email pe jayega.
+                    Email not yet verified. An OTP will be sent to your email.
                   </p>
                   <button onClick={handleSendOtp}
                     className="shrink-0 flex items-center gap-2 rounded-xl bg-amber-500/15 border border-amber-500/25 px-5 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/25 hover:text-amber-200">
-                    <Mail className="h-4 w-4" /> OTP Bhejo
+                    <Mail className="h-4 w-4" /> Send OTP
                   </button>
                 </div>
               )}
@@ -546,14 +546,14 @@ export function ToggleProfileForm() {
               {otpStep === "sending" && (
                 <div className="flex items-center gap-2.5 text-sm text-[var(--cream-muted)]">
                   <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-                  OTP bheja ja raha hai…
+                  Sending OTP…
                 </div>
               )}
 
               {(otpStep === "input" || otpStep === "verifying") && (
                 <div className="space-y-3">
                   <p className="text-sm text-[var(--cream-muted)]">
-                    <span className="font-semibold text-[var(--cream)]">{profile.email}</span> pe 6-digit OTP bheja gaya hai.
+                    A 6-digit OTP has been sent to <span className="font-semibold text-[var(--cream)]">{profile.email}</span>.
                   </p>
                   <div className="flex gap-3">
                     <div className="relative max-w-[180px]">
@@ -580,7 +580,7 @@ export function ToggleProfileForm() {
                   <button onClick={handleSendOtp}
                     disabled={otpCooldown > 0 || otpStep === "verifying"}
                     className="text-xs text-[var(--cream-muted)] underline underline-offset-2 hover:text-[var(--cream)] disabled:no-underline disabled:opacity-40">
-                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "OTP dobara bhejo"}
+                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend OTP"}
                   </button>
                 </div>
               )}

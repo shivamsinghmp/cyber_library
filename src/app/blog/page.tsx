@@ -6,8 +6,8 @@ import { prisma } from "@/lib/prisma";
 export const revalidate = 60; // ISR: rebuild at most every 60 s, serve static otherwise
 
 export const metadata: Metadata = {
-  title: "Blog – Padhai Tips & Focus Strategies | Let's Study",
-  description: "Focus kaise kare, exam preparation, study habits aur deep work ke baare mein tips. Let's Study ka official blog.",
+  title: "Blog – Study Tips & Focus Strategies | Let's Study",
+  description: "Tips on how to focus, exam preparation, study habits, and deep work strategies. The official Let's Study blog.",
 };
 
 function formatDate(s: Date | string) {
@@ -63,7 +63,7 @@ export default async function BlogPage() {
             <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-[0.15em]"
               style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
               <BookOpen className="h-3.5 w-3.5" />
-              Padhai & Focus Tips
+              Study & Focus Tips
             </span>
           </div>
 
@@ -76,7 +76,7 @@ export default async function BlogPage() {
           </h1>
 
           <p className="mt-3 text-lg leading-relaxed" style={{ color: "var(--body-text)" }}>
-            Focus kaise kare, exam ki preparation kaise karein aur consistent kaise rahein — in sab pe real tips.
+            Real tips on how to focus, prepare for exams, and stay consistent.
           </p>
         </div>
 
@@ -89,15 +89,15 @@ export default async function BlogPage() {
               <Sparkles className="h-8 w-8" style={{ color: "var(--accent)" }} />
             </div>
             <h3 className="text-lg font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-              Jaldi Aayega!
+              Coming Soon!
             </h3>
             <p className="text-sm" style={{ color: "var(--muted-text)" }}>
-              Abhi koi post nahi hai. Jaldi content add hoga — tab wapas aana!
+              No posts yet. Content will be added soon — check back later!
             </p>
             <Link href="/"
               className="mt-6 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold text-white"
               style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
-              ← Home Pe Jao
+              ← Back to Home
             </Link>
           </div>
         )}
@@ -150,7 +150,7 @@ export default async function BlogPage() {
 
                 <span className="inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-extrabold text-white transition-all group-hover:gap-3"
                   style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 4px 14px rgba(99,102,241,0.35)" }}>
-                  Pura Padho
+                  Read More
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </span>
               </div>
@@ -162,7 +162,7 @@ export default async function BlogPage() {
         {rest.length > 0 && (
           <>
             <p className="mb-5 text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--muted-text)" }}>
-              Aur Articles
+              More Articles
             </p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {rest.map((post, idx) => {
@@ -206,7 +206,7 @@ export default async function BlogPage() {
 
                       <div className="mt-5 flex items-center gap-1.5 text-sm font-extrabold transition-colors group-hover:gap-2.5"
                         style={{ color: color.text }}>
-                        Padho
+                        Read
                         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                       </div>
                     </div>
@@ -225,17 +225,17 @@ export default async function BlogPage() {
               style={{ background: "linear-gradient(135deg, #EEF2FF, #FFFFFF, #F5F3FF)" }}>
               <div>
                 <p className="font-extrabold" style={{ color: "var(--foreground)" }}>
-                  Padhai seriously leni hai?
+                  Ready to study seriously?
                 </p>
                 <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>
-                  Articles padhne ke saath-saath live study sessions bhi join karo — free mein.
+                  Read articles and join live study sessions — for free.
                 </p>
               </div>
               <Link href="/study-room"
                 className="shrink-0 group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-6 py-3 text-sm font-extrabold text-white transition-all hover:scale-105"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 6px 20px rgba(99,102,241,0.35)" }}>
                 <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                Study Room Join Karo →
+                Join Study Room →
               </Link>
             </div>
           </div>
@@ -246,7 +246,7 @@ export default async function BlogPage() {
           <Link href="/"
             className="inline-flex items-center gap-1.5 text-sm font-bold transition-colors hover:text-[var(--accent)]"
             style={{ color: "var(--muted-text)" }}>
-            ← Home Pe Wapas Jao
+            ← Back to Home
           </Link>
         </div>
       </div>

@@ -55,8 +55,8 @@ export function SlotsBooking({
   hideLoginPrompt,
   slotType = "STUDY",
   title = "Live Study Rooms",
-  description = "Apna slot choose karo aur aaj se padhai shuru karo. Camera on, mic off — pure focus zone.",
-  emptyMessage = "Abhi koi study room available nahi hai. Thodi der baad dobara check karo.",
+  description = "Choose your slot and start studying today. Camera on, mic off — pure focus zone.",
+  emptyMessage = "No study rooms available right now. Please check back later.",
 }: SlotsBookingProps) {
   const { data: session } = useSession();
   const [slots, setSlots]           = useState<SlotItem[]>([]);
@@ -115,7 +115,7 @@ export function SlotsBooking({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: "var(--accent)" }} />
                 <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--accent)" }} />
               </span>
-              Sessions Chal Rahi Hain
+              Sessions Live Now
             </span>
           </motion.div>
 
@@ -159,10 +159,10 @@ export function SlotsBooking({
               </div>
               <div>
                 <p className="text-sm font-extrabold" style={{ color: "var(--foreground)" }}>
-                  Slot book karne ke liye login karo
+                  Log in to book a slot
                 </p>
                 <p className="text-xs font-semibold" style={{ color: "var(--muted-text)" }}>
-                  Free account mein sabhi features available hain
+                  All features are available in a free account
                 </p>
               </div>
             </div>
@@ -170,7 +170,7 @@ export function SlotsBooking({
               <Link href="/login"
                 className="rounded-full border px-5 py-2 text-xs font-bold transition hover:-translate-y-0.5"
                 style={{ borderColor: "var(--accent-border)", color: "var(--accent)", background: "white" }}>
-                Login Karo
+                Log In
               </Link>
               <Link href="/signup"
                 className="rounded-full px-5 py-2 text-xs font-extrabold text-white transition hover:scale-105"
@@ -189,7 +189,7 @@ export function SlotsBooking({
               <Loader2 className="h-8 w-8 animate-spin text-white" />
             </div>
             <p className="text-sm font-semibold" style={{ color: "var(--muted-text)" }}>
-              Slots load ho rahe hain…
+              Loading slots…
             </p>
           </div>
 
@@ -202,7 +202,7 @@ export function SlotsBooking({
               <ShieldCheck className="h-8 w-8" style={{ color: "var(--accent)" }} />
             </div>
             <h3 className="text-lg font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-              Abhi Koi Slot Nahi Hai
+              No Slots Available
             </h3>
             <p className="text-sm leading-relaxed" style={{ color: "var(--muted-text)" }}>
               {emptyMessage}
@@ -276,7 +276,7 @@ export function SlotsBooking({
                       {isFull ? (
                         <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5">
                           <Users className="h-4 w-4 text-red-400 shrink-0" />
-                          <p className="text-xs font-extrabold text-red-600">Slot full ho gaya</p>
+                          <p className="text-xs font-extrabold text-red-600">Slot is full</p>
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
@@ -285,14 +285,14 @@ export function SlotsBooking({
                             <p className="text-xs font-bold"
                               style={{ color: urgencyColor(slot.seatsLeft) }}>
                               {isUrgent
-                                ? `Sirf ${slot.seatsLeft} seats bachi hain! ⚡`
+                                ? `Only ${slot.seatsLeft} seats left! ⚡`
                                 : `${slot.seatsLeft} seats available`}
                             </p>
                           </div>
                           {isUrgent && (
                             <span className="rounded-full px-2.5 py-0.5 text-[10px] font-extrabold"
                               style={{ background: "#FEF3C7", color: "#B45309" }}>
-                              Jaldi!
+                              Hurry!
                             </span>
                           )}
                         </div>
@@ -313,14 +313,14 @@ export function SlotsBooking({
                         <button disabled
                           className="w-full cursor-not-allowed rounded-2xl border py-3.5 text-sm font-extrabold opacity-50"
                           style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: "var(--page-bg)" }}>
-                          Full Ho Gaya
+                          Full
                         </button>
                       ) : !session?.user ? (
                         <Link href="/login"
                           className="group/btn flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-3.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02]"
                           style={{ background: colorSet.gradient, boxShadow: `0 6px 20px ${colorSet.glow}` }}>
                           <Video className="h-4 w-4" />
-                          Login Karke Join Karo
+                          Log In to Join
                         </Link>
                       ) : slot.meetLink ? (
                         <a href={slot.meetLink} target="_blank" rel="noreferrer"
@@ -333,7 +333,7 @@ export function SlotsBooking({
                         </a>
                       ) : (
                         <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 py-3.5 text-center text-sm font-extrabold text-amber-700">
-                          Meet Link Aayega Jaldi
+                          Meet Link Coming Soon
                         </div>
                       )}
                     </div>
@@ -358,17 +358,17 @@ export function SlotsBooking({
               </div>
               <div>
                 <p className="text-sm font-extrabold" style={{ color: "var(--foreground)" }}>
-                  Pehli baar join kar rahe ho?
+                  Joining for the first time?
                 </p>
                 <p className="text-xs font-semibold" style={{ color: "var(--muted-text)" }}>
-                  Slot book karo → Google Meet link milega → Camera on karo, mic off → Padhai shuru!
+                  Book a slot → Get a Google Meet link → Camera on, mic off → Start studying!
                 </p>
               </div>
             </div>
             <Link href="/rules"
               className="shrink-0 rounded-full border px-5 py-2 text-xs font-bold transition hover:-translate-y-0.5"
               style={{ borderColor: "var(--border)", color: "var(--foreground)", background: "var(--page-bg)" }}>
-              Rules Padho →
+              Read Rules →
             </Link>
           </motion.div>
         )}
