@@ -205,7 +205,7 @@ function SignupContent() {
 
           {/* Benefits */}
           <div className="space-y-3">
-            [
+            {[
               { emoji: "✅", text: "Completely Free", sub: "No hidden charges" },
               { emoji: "⚡", text: "Ready in 2 minutes", sub: "Quick signup, instant access" },
               { emoji: "🎯", text: "Set your goal", sub: "UPSC, JEE, NEET, GATE, CAT" },

@@ -153,7 +153,7 @@ function LoginForm() {
 
           {/* Stats cards */}
           <div className="space-y-3">
-            [
+            {[
               { emoji: "🔥", label: "Average 7-day streak", sub: "among consistent students" },
               { emoji: "📚", label: "500+ study hours daily", sub: "across the community" },
               { emoji: "🏆", label: "India's top aspirants", sub: "UPSC, JEE, NEET, GATE" },
