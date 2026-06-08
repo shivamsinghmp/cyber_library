@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         apiKey = settings["GEMINI_API_KEY"] ?? settings["VERTEX_API_KEY"] ?? null;
       }
       if (!apiKey) {
-        return NextResponse.json({ ok: false, error: "Gemini API key configured nahi hai — pehle save karo" });
+        return NextResponse.json({ ok: false, error: "Gemini API key is not configured — please save one first" });
       }
 
       const { geminiUrl, vertexAuthHeaders } = await import("@/lib/vertex-auth");
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
           signal: AbortSignal.timeout(15_000),
         }
       );
-      if (res.status === 401 || res.status === 403) return NextResponse.json({ ok: false, error: "Invalid API key (403) — aistudio.google.com se naya key generate karo" });
+      if (res.status === 401 || res.status === 403) return NextResponse.json({ ok: false, error: "Invalid API key (403) — generate a new key from aistudio.google.com" });
       if (res.status === 429) return NextResponse.json({ ok: true, message: "Gemini configured ✓ (rate limited — will work fine)" });
       if (!res.ok) {
         const txt = await res.text().catch(() => "");

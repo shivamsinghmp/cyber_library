@@ -20,10 +20,10 @@ export default function GlobalError({ error, reset }: ErrorProps) {
           <AlertTriangle className="w-8 h-8 text-red-500" />
         </div>
         <h1 className="text-[#0F2830] text-2xl font-bold font-heading mb-2">
-          Kuch galat ho gaya
+          Something went wrong
         </h1>
         <p className="text-[#0D9488] text-sm mb-2">
-          Ek unexpected error aa gaya. Hamari team ko pata chal gaya hai.
+          An unexpected error occurred. Our team has been notified.
         </p>
         {error.digest && (
           <p className="text-[#0D9488]/50 text-xs mb-6 font-mono">
@@ -35,7 +35,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
           className="inline-flex items-center gap-2 bg-[#0D9488] hover:bg-[#0F766E] text-white font-semibold px-5 py-2.5 rounded-full transition-colors text-sm shadow-[0_4px_18px_rgba(13,148,136,0.35)]"
         >
           <RefreshCw className="w-4 h-4" />
-          Dobara try karo
+          Try Again
         </button>
       </div>
     </div>

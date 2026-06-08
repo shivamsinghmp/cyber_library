@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       const elapsed = (Date.now() - session.startedAt.getTime()) / 1000;
       if (elapsed < MIN_PRESENCE_SECONDS) {
         return NextResponse.json({
-          error: "Abhi 10 min nahi hue.",
+          error: "10 minutes have not passed yet.",
           remainingSeconds: Math.ceil(MIN_PRESENCE_SECONDS - elapsed),
         }, { status: 400, headers: cors });
       }

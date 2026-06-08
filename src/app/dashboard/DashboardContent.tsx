@@ -443,7 +443,7 @@ export function DashboardContent({ userName }: { userName: string }) {
                       <>
                         <p className="text-sm font-bold text-red-800">Your Free Trial Has Ended</p>
                         <p className="text-xs text-red-700">
-                          Trial khatam ho gaya — subscribe karo aur apni study journey jaari rakho.
+                          Your trial has ended — subscribe to continue your study journey.
                         </p>
                       </>
                     ) : (

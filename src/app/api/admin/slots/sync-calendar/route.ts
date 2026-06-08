@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     if (!slot) return NextResponse.json({ error: "Slot not found" }, { status: 404 });
     if (!slot.calendarEventId) {
       return NextResponse.json(
-        { error: "Is slot ka Google Calendar Event ID nahi hai. Pehle 'Generate Meet' se create karo." },
+        { error: "This slot does not have a Google Calendar Event ID. Please create one via 'Generate Meet' first." },
         { status: 400 }
       );
     }

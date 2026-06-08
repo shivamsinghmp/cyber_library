@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     } catch (fulfillErr) {
       // ALREADY_SUBSCRIBED — user paid but already has an active subscription (race condition)
       if (fulfillErr instanceof Error && fulfillErr.message === "ALREADY_SUBSCRIBED") {
-        return NextResponse.json({ error: "Aapka subscription already active hai." }, { status: 409 });
+        return NextResponse.json({ error: "Your subscription is already active." }, { status: 409 });
       }
       // P2002 = unique constraint violation — concurrent webhook fired simultaneously,
       // the first call already fulfilled this payment. Return success idempotently.

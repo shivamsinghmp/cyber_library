@@ -130,7 +130,7 @@ export function BlogEngagement({ slug, initialViews = 0 }: { slug: string; initi
           <div className="rounded-2xl border px-6 py-5 text-center"
             style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)" }}>
             <p className="text-sm font-semibold" style={{ color: "var(--accent)" }}>
-              Discussion join karne ke liye login karo.
+              Log in to join the discussion.
             </p>
             <p className="mt-1 text-xs" style={{ color: "var(--muted-text)" }}>
               (Spam prevention enabled)
@@ -146,7 +146,7 @@ export function BlogEngagement({ slug, initialViews = 0 }: { slug: string; initi
             </div>
           ) : comments.length === 0 ? (
             <p className="text-center text-sm font-medium py-6" style={{ color: "var(--muted-text)" }}>
-              No comments yet. Pehle comment karo!
+              No comments yet. Be the first to comment!
             </p>
           ) : (
             comments.map((comment) => (

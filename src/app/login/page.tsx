@@ -19,8 +19,8 @@ const LOGIN_AS_OPTIONS = [
 ] as const;
 
 const schema = z.object({
-  email:    z.string().email("Valid email chahiye"),
-  password: z.string().min(1, "Password daalo"),
+  email:    z.string().email("Please enter a valid email"),
+  password: z.string().min(1, "Please enter your password"),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -88,7 +88,7 @@ function LoginForm() {
             return;
           }
         } catch {}
-        setSubmitError("Email ya password galat hai. Dobara check karo.");
+        setSubmitError("Incorrect email or password. Please try again.");
         return;
       }
       if (result?.ok) {
@@ -106,8 +106,8 @@ function LoginForm() {
         window.location.href = isSafe ? callbackUrl! : defaultTarget;
         return;
       }
-      setSubmitError("Kuch gadbad ho gayi. Dobara try karo.");
-    } catch { setSubmitError("Kuch gadbad ho gayi. Dobara try karo."); }
+      setSubmitError("Something went wrong. Please try again.");
+    } catch { setSubmitError("Something went wrong. Please try again."); }
   }
 
   return (
@@ -143,20 +143,20 @@ function LoginForm() {
         <div className="relative z-10 space-y-8">
           <div>
             <h2 className="text-3xl font-extrabold text-white leading-tight mb-3">
-              Wapas aa gaye? <br/>
-              <span style={{ color: "#BAE6FD" }}>Padhai ka wait kar rahi hai.</span>
+              Welcome back! <br/>
+              <span style={{ color: "#BAE6FD" }}>Your study session is waiting.</span>
             </h2>
             <p className="text-sm text-white/70 leading-relaxed">
-              Aaj ka session join karo — aur dekho kitne log already padh rahe hain tere saath.
+              Join today's session — see how many students are already studying with you.
             </p>
           </div>
 
           {/* Stats cards */}
           <div className="space-y-3">
-            {[
-              { emoji: "🔥", label: "Average 7-din ki streak", sub: "consistent students ki" },
-              { emoji: "📚", label: "Roz 500+ ghante ki padhai", sub: "puri community milake" },
-              { emoji: "🏆", label: "India ke top aspirants", sub: "UPSC, JEE, NEET, GATE" },
+            [
+              { emoji: "🔥", label: "Average 7-day streak", sub: "among consistent students" },
+              { emoji: "📚", label: "500+ study hours daily", sub: "across the community" },
+              { emoji: "🏆", label: "India's top aspirants", sub: "UPSC, JEE, NEET, GATE" },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3 rounded-2xl px-4 py-3"
                 style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -173,7 +173,7 @@ function LoginForm() {
         {/* Bottom quote */}
         <div className="relative z-10">
           <p className="text-xs text-white/40 italic">
-            "Akele padhna mushkil hai — yahan sabke saath aasaan ho jaata hai."
+            "Studying alone is hard — here it becomes easier with everyone around you."
           </p>
         </div>
       </div>
@@ -200,10 +200,10 @@ function LoginForm() {
           {/* Heading */}
           <div className="mb-7">
             <h1 className="text-2xl font-extrabold" style={{ color: "var(--foreground)" }}>
-              Wapas Aao! 👋
+              Welcome Back! 👋
             </h1>
             <p className="mt-1 text-sm" style={{ color: "var(--muted-text)" }}>
-              Apna email aur password daalo — session ready hai
+              Enter your email and password — your session is ready
             </p>
           </div>
 
@@ -212,7 +212,7 @@ function LoginForm() {
             <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
               <span className="text-lg">✅</span>
               <p className="text-sm font-semibold text-emerald-700">
-                Email verify ho gaya! Ab login karo.
+                Email verified! You can now log in.
               </p>
             </div>
           )}
@@ -220,7 +220,7 @@ function LoginForm() {
             <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
               <span className="text-lg">✅</span>
               <p className="text-sm font-semibold text-emerald-700">
-                Account ban gaya! Ab login karo.
+                Account created! You can now log in.
               </p>
             </div>
           )}
@@ -234,7 +234,7 @@ function LoginForm() {
               {/* Role selector */}
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-extrabold uppercase tracking-widest" style={{ color: "var(--foreground)" }}>
-                  Main kaun hoon
+                  I am a
                 </label>
                 <div className="relative">
                   <User className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--muted-text)" }} />
@@ -260,7 +260,7 @@ function LoginForm() {
                 </label>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--muted-text)" }} />
-                  <input {...register("email")} type="email" placeholder="tumhari@email.com"
+                  <input {...register("email")} type="email" placeholder="your@email.com"
                     className="w-full rounded-xl border pl-10 py-2.5 text-sm font-medium outline-none transition focus:ring-2"
                     style={{ borderColor: "var(--border)", color: "var(--foreground)" }} />
                 </div>
@@ -275,7 +275,7 @@ function LoginForm() {
                   </label>
                   <Link href="/forgot-password"
                     className="text-[11px] font-bold hover:underline" style={{ color: "var(--accent)" }}>
-                    Bhool gaye?
+                    Forgot?
                   </Link>
                 </div>
                 <div className="relative">
@@ -297,10 +297,10 @@ function LoginForm() {
               {unverifiedEmail && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 space-y-1">
                   <p className="text-sm font-semibold text-amber-700">
-                    Email verify nahi hua hai.
+                    Email not verified.
                   </p>
                   <p className="text-xs text-amber-600">
-                    Login karo — Dashboard pe Profile mein jaake OTP se verify kar sakte ho.
+                    Log in — then go to Profile in the Dashboard to verify via OTP.
                   </p>
                 </div>
               )}
@@ -323,7 +323,7 @@ function LoginForm() {
                 <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
                 {isSubmitting
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Checking…</>
-                  : "Let's Study Shuru Karo →"
+                  : "Start Studying →"
                 }
               </button>
             </form>
@@ -331,9 +331,9 @@ function LoginForm() {
 
           {/* Bottom link */}
           <p className="mt-5 text-center text-sm" style={{ color: "var(--muted-text)" }}>
-            Pehli baar aa rahe ho?{" "}
+            New here?{" "}
             <Link href="/signup" className="font-extrabold hover:underline ml-1" style={{ color: "var(--accent)" }}>
-              Free Account Banao
+              Create a Free Account
             </Link>
           </p>
         </div>

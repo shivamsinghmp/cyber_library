@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const rl = rateLimit(`signup_ip:${ip}`, 5, 3600); // 5 signups per IP per hour
     if (!rl.success) {
-      return NextResponse.json({ error: "Too many signup attempts. 1 hour baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many signup attempts. Please try again in 1 hour." }, { status: 429 });
     }
 
     const body = await request.json();
@@ -61,13 +61,13 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: { email: ["Yeh email pehle se registered hai. Login karo ya dusri email use karo."] } },
+        { error: { email: ["This email is already registered. Please log in or use a different email."] } },
         { status: 409 }
       );
     }
     if (existingProfile) {
       return NextResponse.json(
-        { error: { whatsappNumber: ["Yeh mobile number pehle se registered hai. Login karo ya dusra number use karo."] } },
+        { error: { whatsappNumber: ["This mobile number is already registered. Please log in or use a different number."] } },
         { status: 409 }
       );
     }

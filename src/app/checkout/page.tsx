@@ -201,7 +201,7 @@ function CheckoutForm() {
         setCouponMessage({ type: "success", text: `Coupon applied: ${data.description ?? data.code}` });
         setCouponInput("");
       } else {
-        setCouponMessage({ type: "error", text: data.error ?? "Coupon apply nahi hua" });
+        setCouponMessage({ type: "error", text: data.error ?? "Coupon could not be applied" });
       }
     } catch { setCouponMessage({ type: "error", text: "Network error" }); }
     finally { setCouponApplying(false); }
@@ -264,7 +264,7 @@ function CheckoutForm() {
       }
 
       if (payloadIds.length === 0) {
-        toast.error("Checkout session invalid hai. Wapas jao aur dobara try karo.");
+        toast.error("Invalid checkout session. Please go back and try again.");
         setSubmitting(false);
         return;
       }

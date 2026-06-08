@@ -105,12 +105,12 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
       const res  = await fetch("/api/trial/activate", { method: "POST" });
       const json = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast.success("7-day free trial start ho gaya! 🎉");
+        toast.success("7-day free trial started! 🎉");
         router.refresh();
       } else {
-        toast.error(json.error ?? "Trial activate nahi hua.");
+        toast.error(json.error ?? "Could not activate trial.");
       }
-    } catch { toast.error("Kuch galat hua. Dobara try karo."); }
+    } catch { toast.error("Something went wrong. Please try again."); }
     finally { setTrialLoading(false); }
   }
 

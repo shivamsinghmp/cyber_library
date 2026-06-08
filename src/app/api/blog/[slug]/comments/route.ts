@@ -47,7 +47,7 @@ export async function POST(
     // 10 comments per user per hour — prevents comment spam
     const rl = rateLimit(`comment:${session.user.id}`, 10, 3600);
     if (!rl.success) {
-      return NextResponse.json({ error: "Too many comments. Thodi der baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many comments. Please try again later." }, { status: 429 });
     }
 
     const { slug } = await params;

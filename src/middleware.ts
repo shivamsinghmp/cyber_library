@@ -107,44 +107,56 @@ export default auth(async function middleware(request: NextRequest & { auth: { u
 
   // ── Login brute-force protection ────────────────────────────────────────────
   if (pathname === "/api/auth/callback/credentials" && loginRatelimit) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
-    const { success, reset } = await loginRatelimit.limit(`login:${ip}`);
-    if (!success) {
-      console.warn(`[security] Login rate limit hit — IP: ${ip}`);
-      return new NextResponse(
-        JSON.stringify({ error: "TOO_MANY_ATTEMPTS", message: "Bahut zyada login attempts. 15 minute baad try karo." }),
-        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.round((reset - Date.now()) / 1000)) } }
-      );
+    try {
+      const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
+      const { success, reset } = await loginRatelimit.limit(`login:${ip}`);
+      if (!success) {
+        console.warn(`[security] Login rate limit hit — IP: ${ip}`);
+        return new NextResponse(
+          JSON.stringify({ error: "TOO_MANY_ATTEMPTS", message: "Too many login attempts. Please try again in 15 minutes." }),
+          { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.round((reset - Date.now()) / 1000)) } }
+        );
+      }
+    } catch (e) {
+      console.warn("[security] Login ratelimit unavailable, skipping:", e);
     }
   }
 
   // ── Strict rate limit for auth write operations (signup / OTP verify) ──────
   if (AUTH_WRITE_PATHS.some(p => pathname === p || pathname.startsWith(p + "/")) && authWriteRatelimit) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
-    const { success, reset } = await authWriteRatelimit.limit(`auth-write:${ip}`);
-    if (!success) {
-      console.warn(`[security] Auth-write rate limit hit — IP: ${ip}, path: ${pathname}`);
-      return new NextResponse(
-        JSON.stringify({ error: "TOO_MANY_REQUESTS", message: "Bahut zyada requests. 15 minute baad try karo." }),
-        { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.round((reset - Date.now()) / 1000)) } }
-      );
+    try {
+      const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
+      const { success, reset } = await authWriteRatelimit.limit(`auth-write:${ip}`);
+      if (!success) {
+        console.warn(`[security] Auth-write rate limit hit — IP: ${ip}, path: ${pathname}`);
+        return new NextResponse(
+          JSON.stringify({ error: "TOO_MANY_REQUESTS", message: "Too many requests. Please try again in 15 minutes." }),
+          { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.round((reset - Date.now()) / 1000)) } }
+        );
+      }
+    } catch (e) {
+      console.warn("[security] Auth-write ratelimit unavailable, skipping:", e);
     }
   }
 
   if (pathname.startsWith("/api/") && ratelimit) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
-    const { success, limit, remaining, reset } = await ratelimit.limit(`ratelimit_api_${ip}`);
-    if (!success) {
-      console.warn(`[SECURITY] Rate Limit Exceeded for IP: ${ip}`);
-      return new NextResponse(JSON.stringify({ error: "Too many requests" }), {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "X-RateLimit-Limit": limit.toString(),
-          "X-RateLimit-Remaining": remaining.toString(),
-          "X-RateLimit-Reset": reset.toString(),
-        },
-      });
+    try {
+      const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? request.headers.get("x-real-ip") ?? "127.0.0.1";
+      const { success, limit, remaining, reset } = await ratelimit.limit(`ratelimit_api_${ip}`);
+      if (!success) {
+        console.warn(`[SECURITY] Rate Limit Exceeded for IP: ${ip}`);
+        return new NextResponse(JSON.stringify({ error: "Too many requests" }), {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "X-RateLimit-Limit": limit.toString(),
+            "X-RateLimit-Remaining": remaining.toString(),
+            "X-RateLimit-Reset": reset.toString(),
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("[security] API ratelimit unavailable, skipping:", e);
     }
   }
 

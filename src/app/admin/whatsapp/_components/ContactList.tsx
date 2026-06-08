@@ -129,7 +129,7 @@ export function ContactList({ contacts, selectedPhone, loading, unreadPhones, on
             <div className="p-8 text-center text-sm text-[var(--cream-muted)] opacity-60 flex flex-col items-center gap-2">
               <AlertCircle className="w-7 h-7" />
               <p>No conversations yet.</p>
-              <p className="text-xs">Students tab se kisi ko message bhejo.</p>
+              <p className="text-xs">Send a message from the Students tab.</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -183,7 +183,7 @@ export function ContactList({ contacts, selectedPhone, loading, unreadPhones, on
           ) : students.length === 0 ? (
             <div className="p-8 text-center text-sm text-[var(--cream-muted)] opacity-60 flex flex-col items-center gap-2">
               <Users className="w-7 h-7" />
-              <p>{search ? "Koi match nahi mila." : "Koi student number registered nahi hai."}</p>
+              <p>{search ? "No match found." : "No student numbers registered yet."}</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">

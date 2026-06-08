@@ -11,8 +11,8 @@ type Props = {
 };
 
 const RECIPIENT_FILTERS = [
-  { value: "all",        label: "All Students",        sub: "Sabhi registered students" },
-  { value: "subscribed", label: "Subscribed Only",     sub: "Active subscription wale" },
+  { value: "all",        label: "All Students",        sub: "All registered students" },
+  { value: "subscribed", label: "Subscribed Only",     sub: "Students with an active subscription" },
 ];
 
 export function EmailBulkSendTab({ signatures, drafts }: Props) {
@@ -29,8 +29,8 @@ export function EmailBulkSendTab({ signatures, drafts }: Props) {
   }
 
   async function handleSend() {
-    if (!subject.trim() || !html.trim()) { toast.error("Subject aur HTML body chahiye"); return; }
-    if (!confirm(`Yeh email "${RECIPIENT_FILTERS.find(f => f.value === filter)?.label}" ko bhejna hai. Sure?`)) return;
+    if (!subject.trim() || !html.trim()) { toast.error("Subject and HTML body are required"); return; }
+    if (!confirm(`Send this email to "${RECIPIENT_FILTERS.find(f => f.value === filter)?.label}"? Are you sure?`)) return;
 
     setSending(true);
     setResult(null);
@@ -67,7 +67,7 @@ export function EmailBulkSendTab({ signatures, drafts }: Props) {
           ))}
         </div>
         <p className="text-xs text-[var(--cream-muted)] flex items-center gap-1">
-          💡 Template mein <code className="rounded bg-gray-100 px-1 font-mono">{"{{name}}"}</code> aur <code className="rounded bg-gray-100 px-1 font-mono">{"{{email}}"}</code> use karo — personalize hoga automatically.
+          💡 Use <code className="rounded bg-gray-100 px-1 font-mono">{"{{name}}"}</code> and <code className="rounded bg-gray-100 px-1 font-mono">{"{{email}}"}</code> in your template — they will be auto-personalised.
         </p>
       </div>
 

@@ -10,7 +10,7 @@ export async function POST() {
     const session = await auth();
     const userId = (session?.user as { id?: string })?.id;
     if (!userId) {
-      return NextResponse.json({ error: "Login karo pehle." }, { status: 401 });
+      return NextResponse.json({ error: "Please log in first." }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -28,14 +28,14 @@ export async function POST() {
 
     const rl = rateLimit(`email_verify_otp:${userId}`, 3, 600);
     if (!rl.success) {
-      return NextResponse.json({ error: "Bahut zyada requests. 10 minute baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many requests. Please try again in 10 minutes." }, { status: 429 });
     }
 
     const code = await createOtp(user.email, "verify");
     const sent = await sendOtpEmail(user.email, code, "verify", user.name ?? undefined);
 
     if (!sent) {
-      return NextResponse.json({ error: "OTP nahi bheja ja saka. Dobara try karo." }, { status: 500 });
+      return NextResponse.json({ error: "Could not send OTP. Please try again." }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

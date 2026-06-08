@@ -24,9 +24,9 @@ type ReferralData = {
 const PAGE_SIZE = 10;
 
 const HOW_STEPS = [
-  { icon: Link2,    label: "Apna Code Lo",    desc: "Unique referral code aur link generate karo" },
-  { icon: Share2,   label: "Dosto Ko Share Karo", desc: "Link unhe bhejo jo seriously padhna chahte hain" },
-  { icon: Gift,     label: "Rewards Kamao",   desc: "Jab wo join karein toh reward milega" },
+  { icon: Link2,    label: "Get Your Code",    desc: "Generate your unique referral code and link" },
+  { icon: Share2,   label: "Share with Friends", desc: "Send the link to those who want to study seriously" },
+  { icon: Gift,     label: "Earn Rewards",   desc: "Get a reward when they join" },
 ];
 
 function StatusBadge({ active }: { active: boolean }) {
@@ -67,31 +67,31 @@ export default function ReferPage() {
           referralCode: json.referralCode ?? prev.referralCode,
           referralLink: json.referralLink ?? prev.referralLink,
         } : null);
-        toast.success("Referral link ready! Share karo dosto ke saath.");
+        toast.success("Referral link ready! Share it with your friends.");
       } else {
-        toast.error(json.error || "Link generate nahi ho saka");
+        toast.error(json.error || "Could not generate link");
       }
-    } catch { toast.error("Kuch gadbad ho gayi. Try karo."); }
+    } catch { toast.error("Something went wrong. Please try again."); }
     finally { setGenerating(false); }
   }
 
   function copyLink() {
     if (!data?.referralLink) return;
     navigator.clipboard.writeText(data.referralLink)
-      .then(() => toast.success("Link copy ho gaya!"))
-      .catch(() => toast.error("Copy fail ho gaya"));
+      .then(() => toast.success("Link copied!"))
+      .catch(() => toast.error("Copy failed"));
   }
 
   function copyCode() {
     if (!data?.referralCode) return;
     navigator.clipboard.writeText(data.referralCode)
-      .then(() => toast.success("Code copy ho gaya!"))
-      .catch(() => toast.error("Copy fail ho gaya"));
+      .then(() => toast.success("Code copied!"))
+      .catch(() => toast.error("Copy failed"));
   }
 
   function shareOnWhatsApp() {
     if (!data?.referralLink) return;
-    const text = `Hey! Yeh amazing online study library join karo — I use it for my exam prep. Use my referral link: ${data.referralLink}`;
+    const text = `Hey! Join this amazing online study library — I use it for my exam prep. Use my referral link: ${data.referralLink}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   }
 
@@ -108,8 +108,8 @@ export default function ReferPage() {
           <Gift className="w-5 h-5 text-emerald-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-[var(--foreground)]">Mera Referral</h1>
-          <p className="text-xs text-[var(--muted-text)]">Dosto ko invite karo aur rewards kamao</p>
+          <h1 className="text-lg font-bold text-[var(--foreground)]">My Referrals</h1>
+          <p className="text-xs text-[var(--muted-text)]">Invite friends and earn rewards</p>
         </div>
       </div>
 
@@ -149,7 +149,7 @@ export default function ReferPage() {
       <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] overflow-hidden">
         <div className="px-6 py-4 border-b border-[var(--border)] flex items-center gap-2">
           <UserPlus className="w-4 h-4 text-[var(--accent)]" />
-          <h2 className="text-sm font-bold text-[var(--foreground)]">Mera Referral Code</h2>
+          <h2 className="text-sm font-bold text-[var(--foreground)]">My Referral Code</h2>
         </div>
 
         <div className="px-6 py-6">
@@ -164,9 +164,9 @@ export default function ReferPage() {
                 <Link2 className="w-7 h-7 text-[var(--accent)]" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[var(--foreground)] mb-1">Apna referral link generate karo</p>
+                <p className="text-sm font-semibold text-[var(--foreground)] mb-1">Generate your referral link</p>
                 <p className="text-xs text-[var(--muted-text)] max-w-sm mx-auto leading-relaxed">
-                  Ek baar generate karo — phir har dost ko share karo aur unka data yahan track hoga.
+                  Generate once — then share with every friend and track their data here.
                 </p>
               </div>
               <button
@@ -176,7 +176,7 @@ export default function ReferPage() {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-bold transition-all shadow-[var(--shadow-brand)] disabled:opacity-60"
               >
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                {generating ? "Generate ho raha hai…" : "Generate Referral Link"}
+                {generating ? "Generating…" : "Generate Referral Link"}
               </button>
             </div>
           ) : (
@@ -216,11 +216,11 @@ export default function ReferPage() {
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                 </svg>
-                WhatsApp pe Share Karo
+                Share on WhatsApp
               </button>
 
               <p className="text-xs text-[var(--muted-text)] text-center">
-                Jitne log is link se register karenge, unka data neeche table mein dikh jayega.
+                Everyone who registers through this link will appear in the table below.
               </p>
             </div>
           )}
@@ -241,8 +241,8 @@ export default function ReferPage() {
           {users.length === 0 ? (
             <div className="px-6 py-12 text-center">
               <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-[var(--foreground)]">Abhi koi referral nahi</p>
-              <p className="text-xs text-[var(--muted-text)] mt-1">Upar wala link share karo — jab koi sign up kare, yahan dikhega.</p>
+              <p className="text-sm font-semibold text-[var(--foreground)]">No referrals yet</p>
+              <p className="text-xs text-[var(--muted-text)] mt-1">Share the link above — when someone signs up, it will appear here.</p>
             </div>
           ) : (
             <>

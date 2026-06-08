@@ -67,10 +67,10 @@ export default async function TrialExpiredPage() {
         {/* Heading */}
         <div className="space-y-2">
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-            Aapka Free Trial Khatam Ho Gaya
+            Your Free Trial Has Ended
           </h1>
           <p className="text-sm text-gray-500 leading-relaxed">
-            Aapne apna free trial pura kar liya! Padhai jaari rakhne ke liye ek plan select karein.
+            You've used your free trial. Choose a plan to keep studying.
           </p>
         </div>
 
@@ -78,16 +78,16 @@ export default async function TrialExpiredPage() {
         {startDate && endDate && (
           <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm space-y-2">
             <div className="flex items-center justify-between text-gray-600">
-              <span>Trial shuru hua</span>
+              <span>Trial started</span>
               <span className="font-semibold text-gray-900">{fmtDate(startDate)}</span>
             </div>
             <div className="flex items-center justify-between text-gray-600">
-              <span>Trial khatam hua</span>
+              <span>Trial ended</span>
               <span className="font-semibold text-gray-900">{fmtDate(endDate)}</span>
             </div>
             {daysUsed !== null && (
               <div className="flex items-center justify-between text-gray-600">
-                <span>Kul study days</span>
+                <span>Total study days</span>
                 <span className="font-semibold text-gray-900">{Math.min(daysUsed, 30)}</span>
               </div>
             )}
@@ -100,17 +100,17 @@ export default async function TrialExpiredPage() {
             href="/checkout"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white hover:bg-indigo-700 transition shadow-lg"
           >
-            Plan Kharido — Padhai Jaari Rakho 🚀
+            Get a Plan — Keep Studying 🚀
           </Link>
           <p className="text-xs text-gray-400">
-            Monthly aur yearly options available — shuru karo aaj se!
+            Monthly and yearly plans available — start today!
           </p>
         </div>
 
         {/* Support + Logout */}
         <div className="space-y-1">
           <p className="text-xs text-gray-400">
-            Koi samasya?{" "}
+            Need help?{" "}
             <a href="mailto:support@cyberlib.in" className="text-indigo-500 hover:underline">
               support@cyberlib.in
             </a>

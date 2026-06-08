@@ -59,7 +59,7 @@ const PROVIDERS: ProviderConfig[] = [
     placeholder: "AIza...",
     docsUrl: "https://console.cloud.google.com/apis/credentials",
     docsLabel: "Get YouTube key",
-    hint: "Meet Addon music player mein search feature ke liye — YouTube Data API v3",
+    hint: "Required for the search feature in the Meet Add-on music player — YouTube Data API v3",
   },
 ];
 
@@ -147,7 +147,7 @@ export default function AiSettingsPage() {
 
   async function handleSaveGemini() {
     const value = geminiKey.trim();
-    if (!value) { toast.error("API key enter karo"); return; }
+    if (!value) { toast.error("Please enter an API key"); return; }
     setGeminiSaving(true);
     try {
       const res = await fetch("/api/admin/settings", {
@@ -169,7 +169,7 @@ export default function AiSettingsPage() {
   }
 
   async function handleRemoveGemini() {
-    if (!confirm("Gemini API key remove kar doge? Google models band ho jaayenge.")) return;
+    if (!confirm("Remove the Gemini API key? Google models will become unavailable.")) return;
     setGeminiSaving(true);
     try {
       await fetch("/api/admin/settings", {
@@ -252,9 +252,9 @@ export default function AiSettingsPage() {
           AI API Keys
         </h1>
         <p className="mt-1 text-sm text-[var(--cream-muted)]">
-          StudyMate ke liye AI provider keys configure karo. Keys encrypted होके DB mein store hoti hain.
+          Configure AI provider keys for StudyMate. Keys are stored encrypted in the database.
           <br />
-          <span className="text-xs">Env variable set hai to wo hamesha override karega.</span>
+          <span className="text-xs">An env variable, if set, will always override the database value.</span>
         </p>
       </div>
 
@@ -279,17 +279,17 @@ export default function AiSettingsPage() {
               ) : configured ? (
                 <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <span className="text-sm font-semibold text-emerald-700">Configured — Gemini active hai</span>
+                  <span className="text-sm font-semibold text-emerald-700">Configured — Gemini is active</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                   <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span className="text-sm font-semibold text-amber-700">Not configured — Gemini models unavailable hain</span>
+                  <span className="text-sm font-semibold text-amber-700">Not configured — Gemini models unavailable</span>
                 </div>
               )}
               <p className="text-xs text-gray-500">
                 Gemini 2.5 Flash, 2.0 Flash, 1.5 Pro, 2.5 Pro — Google AI Studio via API key.
-                <br />aistudio.google.com/apikey pe jaao → <strong>Create API key</strong> → yahan paste karo.
+                <br />Go to aistudio.google.com/apikey → <strong>Create API key</strong> → paste it here.
               </p>
 
               {/* API Key */}
@@ -298,7 +298,7 @@ export default function AiSettingsPage() {
                   type={geminiShowKey ? "text" : "password"}
                   value={geminiKey}
                   onChange={e => setGeminiKey(e.target.value)}
-                  placeholder={configured ? "••••••••••••••••••••• (change karne ke liye type karo)" : "AIza..."}
+                  placeholder={configured ? "••••••••••••••••••••• (type to change)" : "AIza..."}
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 text-sm font-mono text-gray-900 outline-none focus:border-blue-400 focus:bg-white transition"
                   onKeyDown={e => { if (e.key === "Enter" && geminiKey.trim()) handleSaveGemini(); }}
                 />
@@ -381,12 +381,12 @@ export default function AiSettingsPage() {
               ) : configured ? (
                 <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
                   <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <span className="text-sm font-semibold text-emerald-700">Configured — key active hai</span>
+                  <span className="text-sm font-semibold text-emerald-700">Configured — key is active</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                   <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span className="text-sm font-semibold text-amber-700">Not configured — is provider ke models unavailable hain</span>
+                  <span className="text-sm font-semibold text-amber-700">Not configured — this provider&apos;s models are unavailable</span>
                 </div>
               )}
 
@@ -400,7 +400,7 @@ export default function AiSettingsPage() {
                     type={isShown ? "text" : "password"}
                     value={val}
                     onChange={e => setValues(v => ({ ...v, [p.id]: e.target.value }))}
-                    placeholder={configured ? "••••••••••••••••••••• (change karne ke liye type karo)" : p.placeholder}
+                    placeholder={configured ? "••••••••••••••••••••• (type to change)" : p.placeholder}
                     className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 text-sm font-mono text-gray-900 outline-none focus:border-[var(--accent)] focus:bg-white transition"
                     onKeyDown={e => { if (e.key === "Enter" && val.trim()) handleSave(p.id); }}
                   />
@@ -460,7 +460,7 @@ export default function AiSettingsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (!confirm("Yeh API key remove kar doge? Is provider ke models band ho jaayenge.")) return;
+                    if (!confirm("Remove this API key? This provider's models will become unavailable.")) return;
                     setValues(v => ({ ...v, [p.id]: "" }));
                     handleSave(p.id);
                   }}
@@ -497,19 +497,19 @@ export default function AiSettingsPage() {
           ) : (
             <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
               <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-              <span className="text-sm font-semibold text-amber-700">No cookies — YouTube bot-detection se music fail ho sakta hai</span>
+              <span className="text-sm font-semibold text-amber-700">No cookies — music may fail due to YouTube bot-detection</span>
             </div>
           )}
           <p className="text-xs text-gray-500">
-            Meet Add-on music player YouTube se audio stream karta hai. YouTube ka bot-detection server requests block karta hai.
-            Fix: Chrome mein YouTube kholo → F12 → Application → Cookies → https://www.youtube.com →
-            saare cookies copy karo (naam=value; format mein) aur yahan paste karo.
+            The Meet Add-on music player streams audio from YouTube. YouTube&apos;s bot-detection can block server requests.
+            Fix: Open YouTube in Chrome → F12 → Application → Cookies → https://www.youtube.com →
+            copy all cookies (name=value; format) and paste them here.
           </p>
           <textarea
             rows={4}
             value={ytCookies}
             onChange={e => setYtCookies(e.target.value)}
-            placeholder={ytCookiesSaved ? "Naye cookies paste karo (purane replace honge)" : "VISITOR_INFO1_LIVE=xxx; YSC=yyy; CONSENT=YES+...; ..."}
+            placeholder={ytCookiesSaved ? "Paste new cookies (will replace existing ones)" : "VISITOR_INFO1_LIVE=xxx; YSC=yyy; CONSENT=YES+...; ..."}
             className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-xs font-mono text-gray-900 outline-none focus:border-red-400 focus:bg-white transition resize-none"
           />
           <div className="flex items-center justify-between">
@@ -525,7 +525,7 @@ export default function AiSettingsPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!confirm("YouTube cookies remove kar doge? Music player fail ho sakta hai.")) return;
+                  if (!confirm("Remove YouTube cookies? The music player may fail.")) return;
                   setYtCookies("");
                   handleSaveYtCookies();
                 }}
@@ -541,10 +541,10 @@ export default function AiSettingsPage() {
       {/* Info note */}
       <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 text-xs text-gray-500 space-y-1">
         <p className="font-semibold text-gray-700">Important notes:</p>
-        <p>• Env variable (`.env`) mein set key hamesha DB key ko override karti hai.</p>
-        <p>• Keys AES-256 encrypted hoti hain DB mein — <code className="font-mono bg-white px-1 rounded">ENCRYPTION_KEY</code> `.env` mein required hai.</p>
-        <p>• Key save karne ke baad StudyMate turant use karna shuru kar deta hai — server restart ki zarurat nahi.</p>
-        <p>• Koi bhi provider configure na ho to StudyMate kaam nahi karega. Vertex AI (Gemini) recommended hai (sabse sasta).</p>
+        <p>• A key set in an env variable (`.env`) always overrides the database value.</p>
+        <p>• Keys are AES-256 encrypted in the database — <code className="font-mono bg-white px-1 rounded">ENCRYPTION_KEY</code> in `.env` is required.</p>
+        <p>• After saving a key, StudyMate starts using it immediately — no server restart needed.</p>
+        <p>• If no provider is configured, StudyMate will not work. Vertex AI (Gemini) is recommended (most cost-effective).</p>
       </div>
     </div>
   );

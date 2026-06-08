@@ -4,15 +4,15 @@ import { Shield, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Rules & Guidelines | Let's Study",
-  description: "Let's Study ke rules padho — mic muted, camera on, zero distraction. Ye rules isiliye hain taaki sabka experience best rahe.",
+  description: "Read Let's Study rules — mic muted, camera on, zero distraction. These rules exist to keep everyone's experience the best it can be.",
 };
 
 const RULES = [
   {
     emoji: "🔇",
     number: "01",
-    title: "Mic Hamesha Muted Rakho",
-    desc: "Room join karte hi mic mute kar lo. Ek ki awaaz bhi 40 logon ka focus toda sakti hai. Host ke kehne pe hi unmute karo.",
+    title: "Always Keep Your Mic Muted",
+    desc: "Mute your mic as soon as you join the room. Even one person's audio can break the focus of 40 students. Unmute only when the host asks.",
     gradient: "linear-gradient(145deg, #818CF8, #4F46E5)",
     glow: "rgba(99,102,241,0.40)",
     pale: "#EEF2FF",
@@ -22,8 +22,8 @@ const RULES = [
   {
     emoji: "📷",
     number: "02",
-    title: "Camera On Rakho (Zaruri Hai)",
-    desc: "Camera on hone se body doubling ka asli magic hota hai — neend nahi aati, phone haath mein nahi jaata. Sirf camera on karo aur padhai shuru!",
+    title: "Keep Camera On (Required)",
+    desc: "Camera on is where the real magic of body doubling happens — no drowsiness, no phone in hand. Just turn it on and start studying!",
     gradient: "linear-gradient(145deg, #34D399, #059669)",
     glow: "rgba(5,150,105,0.40)",
     pale: "#ECFDF5",
@@ -33,8 +33,8 @@ const RULES = [
   {
     emoji: "🎯",
     number: "03",
-    title: "Pehle Plan, Phir Join Karo",
-    desc: "Room join karne se pehle decide karo — 'aaj kya padhna hai'. Ek clear goal hoga toh session waste nahi hoga. Timer bajne tak baithna hai!",
+    title: "Plan First, Then Join",
+    desc: "Decide before joining — 'what am I studying today?' A clear goal means no wasted session. Commit to staying until the timer ends!",
     gradient: "linear-gradient(145deg, #A78BFA, #7C3AED)",
     glow: "rgba(124,58,237,0.40)",
     pale: "#F5F3FF",
@@ -44,8 +44,8 @@ const RULES = [
   {
     emoji: "💬",
     number: "04",
-    title: "Chat Sirf Admin Ke Liye",
-    desc: "Chat mein personal baatein mat karo. Ye sirf admin announcements ke liye reserved hai. Dost se baad mein baat karna — pehle padhai!",
+    title: "Chat is for Admin Only",
+    desc: "Do not use the chat for personal conversations. It is reserved for admin announcements only. Talk to friends later — study first!",
     gradient: "linear-gradient(145deg, #22D3EE, #0891B2)",
     glow: "rgba(8,145,178,0.40)",
     pale: "#ECFEFF",
@@ -55,8 +55,8 @@ const RULES = [
   {
     emoji: "🚫",
     number: "05",
-    title: "Promotion Bilkul Nahi",
-    desc: "Koi bhi service, product, ya social media link share mat karo — screen pe, chat mein, kahin bhi nahi. Ye study space hai, marketplace nahi.",
+    title: "No Promotions Allowed",
+    desc: "Do not share any service, product, or social media link — not on screen, not in chat, nowhere. This is a study space, not a marketplace.",
     gradient: "linear-gradient(145deg, #FCD34D, #D97706)",
     glow: "rgba(217,119,6,0.40)",
     pale: "#FFFBEB",
@@ -66,8 +66,8 @@ const RULES = [
   {
     emoji: "⏱️",
     number: "06",
-    title: "Pomodoro Follow Karo",
-    desc: "50 minute padho, 10 minute break lo. Break mein stretch karo, paani piyo. Timer ke beech mein room chhod ke mat jao — commitment honor karo.",
+    title: "Follow the Pomodoro",
+    desc: "Study 50 minutes, then take a 10-minute break. Stretch, hydrate. Do not leave the room mid-session — honour your commitment.",
     gradient: "linear-gradient(145deg, #F87171, #DC2626)",
     glow: "rgba(220,38,38,0.40)",
     pale: "#FFF1F2",
@@ -77,11 +77,11 @@ const RULES = [
 ];
 
 const DO_DONT = [
-  { do: "Mic mute karo", dont: "Background awaaz aane do" },
-  { do: "Camera on rakho", dont: "Camera off karke soyo 😴" },
-  { do: "Task pehle decide karo", dont: "Bina plan ke join karo" },
-  { do: "Breaks mein rest karo", dont: "Beech session mein chale jao" },
-  { do: "Pomodoro follow karo", dont: "Apna time waste karo" },
+  { do: "Mute your mic", dont: "Let background noise in" },
+  { do: "Keep camera on", dont: "Turn off camera and sleep 😴" },
+  { do: "Decide your task first", dont: "Join without a plan" },
+  { do: "Rest during breaks", dont: "Leave mid-session" },
+  { do: "Follow the Pomodoro", dont: "Waste your time" },
 ];
 
 export default function RulesPage() {
@@ -112,12 +112,12 @@ export default function RulesPage() {
             Simple Rules,{" "}
             <span className="bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
-              Bada Fark
+              Big Impact
             </span>
           </h1>
 
           <p className="mt-4 text-lg leading-relaxed" style={{ color: "var(--body-text)" }}>
-            Ye rules isiliye hain taaki sabka experience best rahe. Ek ka distract hona 40 logon ko affect karta hai — isliye discipline must hai.
+            These rules exist so everyone has the best experience. One distraction affects 40 students — discipline is non-negotiable.
           </p>
 
           {/* Rule count badge */}
@@ -129,10 +129,10 @@ export default function RulesPage() {
             </div>
             <div className="text-left">
               <p className="text-sm font-extrabold" style={{ color: "var(--foreground)" }}>
-                Sirf {RULES.length} Simple Rules
+                Just {RULES.length} Simple Rules
               </p>
               <p className="text-xs font-semibold" style={{ color: "var(--muted-text)" }}>
-                Follow karo — aur padhai enjoy karo
+                Follow them and enjoy your studies
               </p>
             </div>
           </div>
@@ -195,12 +195,12 @@ export default function RulesPage() {
             <div className="flex items-center gap-2 border-r px-6 py-4"
               style={{ borderColor: "var(--border)", background: "#ECFDF5" }}>
               <span className="text-lg">✅</span>
-              <p className="font-extrabold text-sm text-emerald-700">Yeh Karo</p>
+              <p className="font-extrabold text-sm text-emerald-700">Do This</p>
             </div>
             <div className="flex items-center gap-2 px-6 py-4"
               style={{ background: "#FFF1F2" }}>
               <span className="text-lg">❌</span>
-              <p className="font-extrabold text-sm text-red-700">Yeh Mat Karo</p>
+              <p className="font-extrabold text-sm text-red-700">Don't Do This</p>
             </div>
           </div>
 
@@ -233,7 +233,7 @@ export default function RulesPage() {
             <div>
               <h3 className="font-extrabold mb-1 text-red-800">Zero Tolerance Policy</h3>
               <p className="text-sm leading-relaxed text-red-700">
-                Harassment, disruption ya repeated rule-breaking pe student ko immediately remove kiya jaayega. Hum sab ke liye safe aur focused environment maintain karte hain — koi compromise nahi.
+                Harassment, disruption, or repeated rule-breaking will result in immediate removal. We maintain a safe, focused environment for everyone — no exceptions.
               </p>
             </div>
           </div>
@@ -246,17 +246,17 @@ export default function RulesPage() {
             style={{ background: "linear-gradient(135deg, #EEF2FF, #FFFFFF, #F5F3FF)" }}>
             <div>
               <p className="font-extrabold" style={{ color: "var(--foreground)" }}>
-                Rules samajh gaye? Ab join karo! 🚀
+                Got it? Now join the session! 🚀
               </p>
               <p className="text-sm mt-1" style={{ color: "var(--muted-text)" }}>
-                Live study sessions roz available hain — free mein.
+                Live study sessions available daily — for free.
               </p>
             </div>
             <Link href="/study-room"
               className="shrink-0 group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-6 py-3 text-sm font-extrabold text-white transition-all hover:scale-105"
               style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 6px 20px rgba(99,102,241,0.35)" }}>
               <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-              Study Room Join Karo
+              Join Study Room
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -267,7 +267,7 @@ export default function RulesPage() {
           <Link href="/"
             className="inline-flex items-center gap-1.5 text-sm font-bold transition-colors hover:text-[var(--accent)]"
             style={{ color: "var(--muted-text)" }}>
-            ← Home Pe Wapas Jao
+            ← Back to Home
           </Link>
         </div>
       </div>

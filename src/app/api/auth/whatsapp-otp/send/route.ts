@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const phoneRl = rateLimit(`wa-otp:${phoneNumber}`, 3, 600);
     if (!phoneRl.success) {
       return NextResponse.json(
-        { error: "Bahut zyada OTP requests. Thodi der baad try karo." },
+        { error: "Too many OTP requests. Please try again later." },
         { status: 429 }
       );
     }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const ipRl = rateLimit(`wa-otp-ip:${ip}`, 10, 600);
     if (!ipRl.success) {
       return NextResponse.json(
-        { error: "Is device se bahut zyada requests aa rahe hain. Baad mein try karo." },
+        { error: "Too many requests from this device. Please try again later." },
         { status: 429 }
       );
     }
@@ -54,13 +54,13 @@ export async function POST(request: Request) {
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Yeh email pehle se registered hai. Login karo ya dusri email use karo." },
+        { error: "This email is already registered. Please log in or use a different email." },
         { status: 409 }
       );
     }
     if (existingProfile) {
       return NextResponse.json(
-        { error: "Yeh mobile number pehle se registered hai. Login karo ya dusra number use karo." },
+        { error: "This mobile number is already registered. Please log in or use a different number." },
         { status: 409 }
       );
     }
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
     if (!wamid && process.env.NODE_ENV === "production") {
       return NextResponse.json(
-        { error: "OTP deliver nahi hua. Number check karo ya baad mein try karo." },
+        { error: "OTP could not be delivered. Please check the number or try again later." },
         { status: 502 }
       );
     }

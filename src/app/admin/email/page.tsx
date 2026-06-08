@@ -55,7 +55,7 @@ export default function EmailDashboardPage() {
         <h1 className="mt-2 text-2xl font-bold text-[var(--cream)] flex items-center gap-2">
           <Mail className="h-7 w-7 text-[var(--accent)]" /> Email Dashboard
         </h1>
-        <p className="mt-1 text-sm text-[var(--cream-muted)]">Resend API se email bhejo — delivery, open, click sab track hoga webhook se.</p>
+        <p className="mt-1 text-sm text-[var(--cream-muted)]">Send emails via Resend API — delivery, opens, and clicks are all tracked via webhook.</p>
       </div>
 
       <div className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm">

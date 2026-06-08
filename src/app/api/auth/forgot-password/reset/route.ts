@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const rl = rateLimit(`pwd_reset_ip:${ip}`, 10, 900); // 10 per 15 min per IP
     if (!rl.success) {
-      return NextResponse.json({ error: "Too many attempts. Thodi der baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many attempts. Please try again later." }, { status: 429 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const pwdParsed = passwordSchema.safeParse(password);
     if (!pwdParsed.success) {
       return NextResponse.json(
-        { error: pwdParsed.error.issues[0]?.message ?? "Password requirements poore nahi hue" },
+        { error: pwdParsed.error.issues[0]?.message ?? "Password does not meet requirements" },
         { status: 400 }
       );
     }

@@ -290,17 +290,30 @@ export default function MeetAddonMainStagePage() {
         if (t <= 1) { setIsRunning(false); setCompletedSessions(s => s + 1); return 0; }
         return t - 1;
       }), 1000);
-      // Record focus session start (standalone — no slot)
-      if (timerModeRef.current === "focus" && !resolvedSlotRef.current) {
+      // Standalone Focus: open a presence session so dashboard detects active study
+      if (timerModeRef.current === "focus" && !resolvedSlotRef.current && tokenRef.current) {
         if (!focusSessionStartRef.current) focusSessionStartRef.current = Date.now();
+        fetch("/api/meet-addon/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+          body: JSON.stringify({ event: "join", roomKey: "local-room" }),
+        }).catch(() => {});
       }
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      // Save focus session to DB when timer stops (standalone only)
       const startedAt = focusSessionStartRef.current;
       if (startedAt && timerModeRef.current === "focus" && !resolvedSlotRef.current) {
         focusSessionStartRef.current = null;
         const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        // End presence session so dashboard hoursToday is updated
+        if (tokenRef.current) {
+          fetch("/api/meet-addon/presence", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+            body: JSON.stringify({ event: "end", roomKey: "local-room" }),
+          }).catch(() => {});
+        }
+        // Save Pomodoro record for coin awards (25+ min = coins)
         if (elapsed >= 60 && tokenRef.current) {
           const planned = timerDurationRef.current;
           fetch("/api/meet-addon/pomodoro-session", {
@@ -325,6 +338,22 @@ export default function MeetAddonMainStagePage() {
     if (!isRunning || timerMode !== "focus" || resolvedSlot) return;
     const tick = setInterval(() => setFocusLiveSeconds(s => s + 1), 1000);
     return () => clearInterval(tick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, timerMode, resolvedSlot?.slotId]);
+
+  // Heartbeat ping every 30s while Focus timer runs standalone — keeps presence session alive
+  // so dashboard stats route uses lastHeartbeatAt for accurate hoursToday
+  useEffect(() => {
+    if (!isRunning || timerMode !== "focus" || resolvedSlot) return;
+    const id = setInterval(() => {
+      if (!tokenRef.current) return;
+      fetch("/api/meet-addon/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+        body: JSON.stringify({ event: "ping", roomKey: "local-room" }),
+      }).catch(() => {});
+    }, 30_000);
+    return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, timerMode, resolvedSlot?.slotId]);
 

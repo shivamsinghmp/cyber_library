@@ -146,12 +146,12 @@ export async function sendWelcomeMessage(opts: {
     } else {
       // Fallback plain-text welcome
       const text =
-        `Namaste ${name}! 🎓\n\n` +
-        `*Let's Study* mein aapka swagat hai!\n\n` +
+        `Hello ${name}! 🎓\n\n` +
+        `Welcome to *Let's Study*!\n\n` +
         `📌 Student ID: *${studentId}*\n` +
-        `🔗 Login karein: ${loginUrl}\n\n` +
-        `Apni padhai shuru karein aur apne target achieve karein! 💪\n\n` +
-        `_Band karne ke liye STOP likho._`;
+        `🔗 Log in here: ${loginUrl}\n\n` +
+        `Start studying and achieve your goals! 💪\n\n` +
+        `_Reply STOP to unsubscribe._`;
       await sendWhatsAppText(phone, text);
     }
   } catch (e) {

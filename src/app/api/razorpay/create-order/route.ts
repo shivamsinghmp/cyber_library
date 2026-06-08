@@ -45,13 +45,13 @@ export async function POST(request: Request) {
     const session = await auth();
     const userId = (session?.user as { id?: string })?.id;
     if (!userId) {
-      return NextResponse.json({ error: "Login karo pehle." }, { status: 401 });
+      return NextResponse.json({ error: "Please log in first." }, { status: 401 });
     }
 
     // 10 order attempts per user per hour
     const rl = rateLimit(`create_order_user:${userId}`, 10, 3600);
     if (!rl.success) {
-      return NextResponse.json({ error: "Too many order attempts. 1 ghante baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many order attempts. Please try again in 1 hour." }, { status: 429 });
     }
 
     // 1. Calculate base amount from strictly trusted database tables
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       if (packId.startsWith("COINS_CUSTOM_")) {
         const rupees = parseInt(packId.replace("COINS_CUSTOM_", ""), 10);
         if (!Number.isFinite(rupees) || rupees < 10 || rupees > 10000)
-          return NextResponse.json({ error: "Custom amount ₹10 se ₹10,000 ke beech hona chahiye." }, { status: 400 });
+          return NextResponse.json({ error: "Custom amount must be between ₹10 and ₹10,000." }, { status: 400 });
         computedAmountRupees = rupees;
       } else {
         const pack = COIN_PACKS[packId];
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
         const isUpgrade = activeSub.planType === "MONTHLY" && planType === "YEARLY";
         if (!isUpgrade) {
           return NextResponse.json(
-            { error: `Aapka ${activeSub.planType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai. Expiry ke baad renew karein.` },
+            { error: `Your ${activeSub.planType === "MONTHLY" ? "Monthly" : "Yearly"} subscription is already active. Please renew after it expires.` },
             { status: 400 }
           );
         }
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
         });
         if (cancelled.count === 0) {
           return NextResponse.json(
-            { error: "Subscription state just changed. Dobara try karo." },
+            { error: "Subscription state just changed. Please try again." },
             { status: 409 }
           );
         }

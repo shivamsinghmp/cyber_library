@@ -96,7 +96,7 @@ export default function AdminSlotsPage() {
 
   async function syncCalendar(slot: StudySlot) {
     if (!slot.calendarEventId) {
-      toast.error("Pehle Google Calendar Event generate karo (autoGenerateMeet).");
+      toast.error("Please generate a Google Calendar Event first (autoGenerateMeet).");
       return;
     }
     setSyncingSlotId(slot.id);
@@ -174,20 +174,20 @@ export default function AdminSlotsPage() {
           />
           {form.autoGenerateMeet ? (
             <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-xs text-emerald-800 space-y-1">
-              <p className="flex items-center gap-1.5 font-semibold"><Video className="h-3.5 w-3.5" /> Kya hoga:</p>
+              <p className="flex items-center gap-1.5 font-semibold"><Video className="h-3.5 w-3.5" /> What will happen:</p>
               <ul className="space-y-0.5 text-emerald-700 pl-5 list-disc">
-                <li>Google Calendar pe ek event create hoga</li>
-                <li>Us event ka Google Meet link automatically set hoga</li>
-                <li>Jab bhi koi student enroll karega → uska email Calendar invite pe add hoga</li>
-                <li>Calendar invite pe hone wale students ko Meet mein <strong>directly entry</strong> milegi (waiting room bypass)</li>
+                <li>A Google Calendar event will be created</li>
+                <li>Its Google Meet link will be automatically set</li>
+                <li>Whenever a student enrolls → their email will be added to the Calendar invite</li>
+                <li>Students on the Calendar invite will get <strong>direct entry</strong> to the Meet (waiting room bypass)</li>
               </ul>
             </div>
           ) : (
             <div className="space-y-3">
               <FormInput label="Google Meet Link (manual)" type="url" value={form.meetLink} onChange={(e) => setForm({ ...form, meetLink: e.target.value })} placeholder="https://meet.google.com/xxx-xxxx-xxx" />
               <div>
-                <FormInput label="Google Calendar Event ID (auto-admit ke liye)" value={form.calendarEventId} onChange={(e) => setForm({ ...form, calendarEventId: e.target.value })} placeholder="Optional — paste Calendar event ID" />
-                <p className="mt-0.5 text-[10px] text-[var(--cream-muted)]">Calendar Event ID set hoga to enrolled students ko auto-admit milega.</p>
+                <FormInput label="Google Calendar Event ID (for auto-admit)" value={form.calendarEventId} onChange={(e) => setForm({ ...form, calendarEventId: e.target.value })} placeholder="Optional — paste Calendar event ID" />
+                <p className="mt-0.5 text-[10px] text-[var(--cream-muted)]">Setting the Calendar Event ID will auto-admit enrolled students.</p>
               </div>
             </div>
           )}
@@ -263,7 +263,7 @@ export default function AdminSlotsPage() {
                                   type="button"
                                   onClick={() => syncCalendar(slot)}
                                   disabled={syncingSlotId === slot.id}
-                                  title="Sabhi enrolled students ko Google Meet auto-admit do"
+                                  title="Auto-admit all enrolled students to Google Meet"
                                   className="flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
                                 >
                                   <UserCheck className="h-3 w-3" />
@@ -386,7 +386,7 @@ function LiveSlotView() {
         <p className="px-5 py-4 text-sm text-gray-400">Loading live data…</p>
       ) : activeSlots.length === 0 ? (
         <p className="px-5 py-4 text-sm text-gray-400">
-          Abhi koi student Google Meet mein nahi hai.
+          No students are currently in Google Meet.
         </p>
       ) : (
         <div className="divide-y divide-gray-50">

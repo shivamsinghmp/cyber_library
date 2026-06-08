@@ -69,7 +69,7 @@ export function TemplatesTab() {
       const res  = await fetch("/api/admin/whatsapp/templates", { credentials: "include" });
       const data = await res.json();
       if (res.ok) setTemplates(Array.isArray(data) ? data : []);
-      else toast.error(data.error ?? "Templates load nahi hue");
+      else toast.error(data.error ?? "Failed to load templates");
     } catch { toast.error("Network error"); }
     finally { setLoading(false); }
   }, []);
@@ -84,10 +84,10 @@ export function TemplatesTab() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(data.message ?? `${data.synced} templates sync ho gaye`);
+        toast.success(data.message ?? `${data.synced} templates synced`);
         await fetchTemplates();
       } else {
-        toast.error(data.error ?? "Sync fail ho gaya");
+        toast.error(data.error ?? "Sync failed");
       }
     } catch { toast.error("Sync fail — network error"); }
     finally { setSyncing(false); }
@@ -107,9 +107,9 @@ export function TemplatesTab() {
         setTemplates(prev => prev.map(t => t.name === name ? { ...t, triggerEvent: triggerEvent || null, isActive } : t));
         toast.success(`${name} updated`);
       } else {
-        toast.error(data.error ?? "Save fail ho gaya");
+        toast.error(data.error ?? "Could not save");
       }
-    } catch { toast.error("Save fail — network error"); }
+    } catch { toast.error("Save failed — network error"); }
     finally { setSaving(null); }
   }
 
@@ -123,7 +123,7 @@ export function TemplatesTab() {
         <div>
           <h2 className="text-base font-bold text-gray-900">WhatsApp Template Manager</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Meta se templates sync karo, phir har template ke liye trigger event set karo.
+            Sync templates from Meta, then set a trigger event for each template.
           </p>
         </div>
         <button
@@ -150,7 +150,7 @@ export function TemplatesTab() {
         <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
           <p className="text-sm font-semibold text-gray-500">No templates yet</p>
           <p className="mt-1 text-xs text-gray-400">
-            &ldquo;Reload from Meta&rdquo; button dabao — Meta pe approved templates yahan aa jayenge.
+            Click &ldquo;Reload from Meta&rdquo; — your approved templates will appear here.
           </p>
         </div>
       ) : (
@@ -236,7 +236,7 @@ export function TemplatesTab() {
 
               {t.status !== "APPROVED" && (
                 <p className="mt-2 text-[10px] text-gray-400">
-                  ⚠️ Sirf APPROVED templates activate ho sakte hain
+                  ⚠️ Only APPROVED templates can be activated
                 </p>
               )}
             </div>

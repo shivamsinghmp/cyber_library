@@ -19,13 +19,13 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const rl = rateLimit(`forgot_mobile_ip:${ip}`, 5, 300); // 5 per 5 min per IP
     if (!rl.success) {
-      return NextResponse.json({ error: "Too many attempts. 5 minute baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many attempts. Please try again in 5 minutes." }, { status: 429 });
     }
 
     const body = await request.json().catch(() => ({}));
     const rawPhone = typeof body.phoneNumber === "string" ? body.phoneNumber.trim() : "";
     if (!rawPhone || rawPhone.length < 10) {
-      return NextResponse.json({ error: "Valid mobile number daalo." }, { status: 400 });
+      return NextResponse.json({ error: "Please enter a valid mobile number." }, { status: 400 });
     }
 
     const phoneNumber = formatPhone(rawPhone);
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, maskedEmail: maskEmail(email), resetEmail: email });
       }
       return NextResponse.json(
-        { error: "OTP deliver nahi hua. Number check karo ya baad mein try karo." },
+        { error: "OTP could not be delivered. Please check the number or try again later." },
         { status: 502 }
       );
     }
@@ -67,6 +67,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, maskedEmail: maskEmail(email), resetEmail: email });
   } catch (e) {
     console.error("POST /api/auth/forgot-password/request-otp-mobile:", e);
-    return NextResponse.json({ error: "Kuch gadbad ho gayi." }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong." }, { status: 500 });
   }
 }

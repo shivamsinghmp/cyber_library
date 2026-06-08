@@ -19,7 +19,7 @@ export default function StudyMateAIPage() {
               </span>
             </div>
             <p className="text-xs text-[var(--muted-text)]">
-              UPSC · JEE · NEET · GATE · CAT · SSC — doubt clear karo, plan banao, aur topper bano
+              UPSC · JEE · NEET · GATE · CAT · SSC — clear doubts, plan your study, and top the exam
             </p>
           </div>
         </div>

@@ -22,10 +22,10 @@ export default function DashboardError({
           <AlertTriangle className="w-7 h-7 text-red-500" />
         </div>
         <h2 className="text-[#0F2830] text-xl font-bold font-heading mb-2">
-          Dashboard load nahi hua
+          Dashboard failed to load
         </h2>
         <p className="text-[#0D9488] text-sm mb-6">
-          Thodi der mein dobara try karo. Agar problem bana rahe toh support se contact karo.
+          Please try again in a moment. If the problem persists, contact support.
         </p>
         <div className="flex items-center justify-center gap-3">
           <button

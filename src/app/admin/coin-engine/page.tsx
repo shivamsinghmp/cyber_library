@@ -245,7 +245,7 @@ export default function CoinEnginePage() {
 
   async function saveCheckinCoins(e: React.FormEvent) {
     e.preventDefault();
-    if (checkinInput < 1) { toast.error("Minimum 1 coin hona chahiye"); return; }
+    if (checkinInput < 1) { toast.error("Minimum 1 coin required"); return; }
     setSavingCheckin(true);
     try {
       const res  = await fetch("/api/admin/coin-engine", {
@@ -263,7 +263,7 @@ export default function CoinEnginePage() {
   // ── Manual award ─────────────────────────────────────────────────────────────
   async function handleAward(e: React.FormEvent) {
     e.preventDefault();
-    if (!awardUserId.trim() || !awardAmount || !awardReason.trim()) { toast.error("Sabhi fields fill karo"); return; }
+    if (!awardUserId.trim() || !awardAmount || !awardReason.trim()) { toast.error("Please fill all fields"); return; }
     setAwarding(true);
     try {
       const res  = await fetch("/api/admin/coin-engine/award", {
@@ -628,7 +628,7 @@ export default function CoinEnginePage() {
           ) : (
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              <input type="text" placeholder="Student ID, email, ya naam se search karo…"
+              <input type="text" placeholder="Search by student ID, email, or name…"
                 value={studentQuery} onChange={e => handleStudentQueryChange(e.target.value)}
                 onFocus={() => studentQuery.length >= 2 && setShowDropdown(true)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2.5 text-sm text-[var(--cream)] outline-none focus:border-[var(--accent)]" />

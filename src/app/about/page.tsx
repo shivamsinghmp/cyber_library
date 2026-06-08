@@ -59,10 +59,10 @@ export default function AboutPage() {
             What is Let's Study?
           </h1>
           <p className="text-lg text-[var(--body-text)] leading-relaxed max-w-2xl mx-auto">
-            A 24/7 online study hub built around{" "}
-            <strong className="text-[var(--foreground)]">body doubling</strong> — the science-backed
-            technique of working alongside others to stay on task. No social networking. No distractions.
-            Just pure, structured deep work.
+            A 24/7 study hub built on one idea:{" "}
+            <strong className="text-[var(--foreground)]">you work better when others are working around you.</strong>{" "}
+            No social features. No distractions.
+            Just structured, silent deep work.
           </p>
         </div>
       </section>
@@ -95,18 +95,13 @@ export default function AboutPage() {
             <h2 className="text-2xl font-black text-[var(--foreground)] mb-6">Why we started this</h2>
             <div className="space-y-4 text-[var(--body-text)] leading-relaxed">
               <p>
-                We were a few students and freelancers who couldn&apos;t focus alone. &ldquo;Just focus harder&rdquo;
-                didn&apos;t work. We tried studying together on video — cameras on, phones away — and it
-                changed everything. That quiet accountability became the missing piece.
+                &ldquo;Just focus harder&rdquo; doesn&apos;t work. We tried it.
               </p>
               <p>
-                We built Let's Study so anyone with an internet connection could get the same:
-                a calm, rule-based space where you show up, declare your task, and work alongside others
-                who are doing the same.
+                Then we studied together on video — cameras on, phones away. That quiet accountability changed everything. Let&apos;s Study is that feeling, built into a product.
               </p>
               <p>
-                Today it&apos;s a place for UPSC aspirants, JEE/NEET students, remote workers, and anyone
-                who wants a simple structure to finally sit down and do the work.
+                Today it&apos;s a calm, rule-based space for UPSC aspirants, JEE/NEET students, and anyone who wants to finally sit down and do the work — alongside others doing the same.
               </p>
             </div>
           </div>

@@ -86,7 +86,7 @@ export default function StorePage() {
           </motion.h1>
 
           <motion.p variants={fadeIn} className="mt-3 text-lg" style={{ color: "var(--body-text)" }}>
-            Toppers ke banaye notes, planners aur trackers — ek baar kharido, lifetime use karo.
+            Notes, planners and trackers made by top students — buy once, use forever.
           </motion.p>
 
           {/* Feature pills */}
@@ -115,7 +115,7 @@ export default function StorePage() {
                 style={{ color: "var(--muted-text)" }} />
               <input
                 type="text"
-                placeholder="Material dhundo…"
+                placeholder="Search materials…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full rounded-2xl border bg-white pl-11 pr-4 py-3 text-sm font-medium outline-none transition focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)]"
@@ -153,18 +153,18 @@ export default function StorePage() {
               <ShoppingBag className="h-8 w-8" style={{ color: "var(--accent)" }} />
             </div>
             <h3 className="text-lg font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-              {search ? "Kuch nahi mila" : "Abhi Koi Product Nahi"}
+              {search ? "Nothing found" : "No Products Yet"}
             </h3>
             <p className="text-sm" style={{ color: "var(--muted-text)" }}>
               {search
-                ? `"${search}" se koi match nahi hua. Kuch aur try karo.`
-                : "Jaldi nayi cheezein add hongi — thodi der mein wapas aao!"}
+                ? `No match for "${search}". Try something else.`
+                : "New items will be added soon — check back shortly!"}
             </p>
             {search && (
               <button onClick={() => setSearch("")}
                 className="mt-5 rounded-full px-6 py-2 text-sm font-bold text-white"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}>
-                Sab Dikhaao
+                Show All
               </button>
             )}
           </motion.div>
@@ -174,7 +174,7 @@ export default function StorePage() {
           <>
             {search && (
               <p className="mb-5 text-sm font-semibold" style={{ color: "var(--muted-text)" }}>
-                {filtered.length} result{filtered.length !== 1 ? "s" : ""} mila "{search}" ke liye
+                {filtered.length} result{filtered.length !== 1 ? "s" : ""} for "{search}"
               </p>
             )}
 
@@ -279,7 +279,7 @@ export default function StorePage() {
                               background: accent.top,
                               boxShadow: `0 4px 12px ${accent.badgeText}40`,
                             }}>
-                            Dekho
+                            View
                             <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                           </span>
                         </div>
@@ -308,10 +308,10 @@ export default function StorePage() {
                 </div>
                 <div>
                   <p className="font-extrabold" style={{ color: "var(--foreground)" }}>
-                    Pehle free study session try karo!
+                    Try a free study session first!
                   </p>
                   <p className="text-sm" style={{ color: "var(--muted-text)" }}>
-                    Study rooms bilkul free hain — abhi join karo aur focus karo.
+                    Study rooms are completely free — join now and get focused.
                   </p>
                 </div>
               </div>
@@ -319,7 +319,7 @@ export default function StorePage() {
                 className="shrink-0 group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-6 py-3 text-sm font-extrabold text-white transition-all hover:scale-105"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 6px 20px rgba(99,102,241,0.35)" }}>
                 <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                Study Room Join Karo →
+                Join Study Room →
               </Link>
             </div>
           </motion.div>

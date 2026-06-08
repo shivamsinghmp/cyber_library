@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     });
     if (existingSub) {
       return NextResponse.json(
-        { error: "Aapka subscription already active hai." },
+        { error: "Your subscription is already active." },
         { status: 409 }
       );
     }

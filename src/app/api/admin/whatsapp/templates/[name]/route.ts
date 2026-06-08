@@ -33,10 +33,10 @@ export async function PUT(
 
     const existing = await prisma.whatsAppTemplate.findUnique({ where: { name } });
     if (!existing) {
-      return NextResponse.json({ error: "Template nahi mila" }, { status: 404 });
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
     if (existing.status !== "APPROVED" && isActive === true) {
-      return NextResponse.json({ error: "Sirf APPROVED templates ko activate kar sakte hain" }, { status: 400 });
+      return NextResponse.json({ error: "Only APPROVED templates can be activated" }, { status: 400 });
     }
 
     const updated = await prisma.whatsAppTemplate.update({

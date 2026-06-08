@@ -195,7 +195,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
           onStateChange: (e) => onStateChangeRef.current(e),
           onError: () => {
             setIsBuffering(false); setIsPlaying(false); onPlayingChange?.(false);
-            setStreamError("Video unavailable — dobara try karo");
+            setStreamError("Video unavailable — please try again");
           },
         },
       });
@@ -272,7 +272,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
       const data = await res.json() as { results?: SearchResult[]; error?: string };
       if (!res.ok) { setSearchErr(data.error ?? "Search failed"); setResults([]); }
       else         { setResults(data.results ?? []); }
-    } catch { setSearchErr("Network error. Dobara try karo."); }
+    } catch { setSearchErr("Network error. Please try again."); }
     finally  { setSearching(false); }
   };
 
@@ -369,7 +369,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                     <p className="text-[10px] text-orange-300 leading-snug">{streamError}</p>
                     <button onClick={() => loadVideo(currentVideoRef.current)}
                       className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-orange-400 hover:text-orange-300 transition-colors">
-                      ↺ Dobara try karo
+                      ↺ Try again
                     </button>
                   </div>
                 )}
@@ -476,7 +476,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                   </form>
                   {searchErr && <p className="px-3 pb-2 text-[10px] text-red-400">{searchErr}</p>}
                   {results.length === 0 && !searching && !searchErr && (
-                    <p className="px-3 pb-3 text-[10px] text-white/15 text-center">Koi bhi music search karo</p>
+                    <p className="px-3 pb-3 text-[10px] text-white/15 text-center">Search for any music</p>
                   )}
                   <div className="divide-y divide-white/[0.04]">
                     {results.map(r => (
@@ -508,7 +508,7 @@ export function SpotifyPlayer({ isOpen, onClose, onOpen, onPlayingChange }: Prop
                     ? (
                       <div className="py-8 text-center text-white/15 text-xs px-4">
                         <ListMusic className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                        Search mein + se songs add karo
+                        Add songs from search using the + button
                       </div>
                     ) : (
                       <>

@@ -67,8 +67,8 @@ function OverviewTab({ onSelect }: { onSelect: (id: string) => void }) {
   if (rows.length === 0) return (
     <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-16 text-center">
       <Users className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-      <p className="text-sm font-semibold text-gray-500">Koi referral data nahi</p>
-      <p className="mt-1 text-xs text-gray-400">Students apna referral link generate karenge tab yahan dikhega.</p>
+      <p className="text-sm font-semibold text-gray-500">No referral data</p>
+      <p className="mt-1 text-xs text-gray-400">This will appear once students generate their referral links.</p>
     </div>
   );
 
@@ -194,7 +194,7 @@ function SearchTab({ onSelect }: { onSelect: (id: string) => void }) {
 
       {!loading && searched && results.length === 0 && (
         <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-10 text-center">
-          <p className="text-sm font-semibold text-gray-500">Koi result nahi mila</p>
+          <p className="text-sm font-semibold text-gray-500">No results found</p>
           <p className="mt-1 text-xs text-gray-400">Try a different name, email, or student ID.</p>
         </div>
       )}

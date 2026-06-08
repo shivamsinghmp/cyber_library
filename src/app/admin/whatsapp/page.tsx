@@ -244,7 +244,7 @@ export default function AdminWhatsAppPage() {
               onSubmit={(e) => {
                 e.preventDefault();
                 const raw = newChatNumber.trim();
-                if (!raw || raw.length < 10) { toast.error("Valid number daalo (with country code, e.g. +919876543210)"); return; }
+                if (!raw || raw.length < 10) { toast.error("Please enter a valid number with country code (e.g. +919876543210)"); return; }
                 const formatted = raw.startsWith("+") ? raw : `+91${raw.replace(/^0+/, "")}`;
                 handleSelectPhone(formatted);
                 setMessages([]);
@@ -261,11 +261,11 @@ export default function AdminWhatsAppPage() {
                   type="tel"
                   value={newChatNumber}
                   onChange={(e) => setNewChatNumber(e.target.value)}
-                  placeholder="+919876543210 ya 9876543210"
+                  placeholder="+919876543210 or 9876543210"
                   autoFocus
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[var(--accent)]"
                 />
-                <p className="mt-1 text-[10px] text-gray-400">Country code ke saath likhna better hai. +91 automatically add ho jaayega agar nahi diya.</p>
+                <p className="mt-1 text-[10px] text-gray-400">Including the country code is recommended. +91 will be added automatically if omitted.</p>
               </div>
               <div className="flex gap-3">
                 <button

@@ -8,7 +8,7 @@ async function sumStudyHoursForRange(
   rangeStart: Date,
   rangeEnd: Date
 ): Promise<number> {
-  const [studySessions, meetPresence, pomodoro] = await Promise.all([
+  const [studySessions, meetPresence] = await Promise.all([
     prisma.studySession.findMany({
       where: { userId, startedAt: { gte: rangeStart, lte: rangeEnd } },
       select: { startedAt: true, durationMinutes: true },
@@ -16,10 +16,6 @@ async function sumStudyHoursForRange(
     prisma.meetPresenceSession.findMany({
       where: { userId, startedAt: { gte: rangeStart, lte: rangeEnd } },
       select: { startedAt: true, endedAt: true, lastHeartbeatAt: true },
-    }),
-    prisma.pomodoroTimerSession.findMany({
-      where: { userId, startedAt: { gte: rangeStart, lte: rangeEnd } },
-      select: { startedAt: true, completedSeconds: true },
     }),
   ]);
 
@@ -39,11 +35,7 @@ async function sumStudyHoursForRange(
       const b = Math.min(ended.getTime(), dayEnd.getTime());
       if (b > a) dailyMeetSecs += (b - a) / 1000;
     }
-    let dailyPomodoroSecs = 0;
-    for (const p of pomodoro) {
-      if (isSameDay(new Date(p.startedAt), day)) dailyPomodoroSecs += p.completedSeconds ?? 0;
-    }
-    total += dailyMinutes / 60 + dailyMeetSecs / 3600 + dailyPomodoroSecs / 3600;
+    total += dailyMinutes / 60 + dailyMeetSecs / 3600;
   }
   return Number(total.toFixed(2));
 }
@@ -111,7 +103,7 @@ export async function GET(req: NextRequest) {
     endDate = endOfDay(endDate);
 
     // 1. All data fetched in parallel
-    const [studySessions, meetPresence, tasks, pomodoroSessions] = await Promise.all([
+    const [studySessions, meetPresence, tasks] = await Promise.all([
       prisma.studySession.findMany({
         where: { userId, startedAt: { gte: startDate, lte: endDate } },
         select: { startedAt: true, durationMinutes: true },
@@ -123,10 +115,6 @@ export async function GET(req: NextRequest) {
       prisma.dailyTask.findMany({
         where: { userId, taskDate: { gte: startDate, lte: endDate } },
         select: { completedAt: true },
-      }),
-      prisma.pomodoroTimerSession.findMany({
-        where: { userId, startedAt: { gte: startDate, lte: endDate } },
-        select: { startedAt: true, completedSeconds: true },
       }),
     ]);
 
@@ -150,13 +138,7 @@ export async function GET(req: NextRequest) {
         if (b > a) dailyMeetSecs += (b - a) / 1000;
       }
 
-      // Pomodoro focus sessions
-      let dailyPomodoroSecs = 0;
-      for (const p of pomodoroSessions) {
-        if (isSameDay(new Date(p.startedAt), day)) dailyPomodoroSecs += p.completedSeconds ?? 0;
-      }
-
-      const totalHours = (dailyMinutes / 60) + (dailyMeetSecs / 3600) + (dailyPomodoroSecs / 3600);
+      const totalHours = (dailyMinutes / 60) + (dailyMeetSecs / 3600);
       
       return {
         date: format(day, "MMM dd"),

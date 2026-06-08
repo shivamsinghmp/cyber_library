@@ -38,8 +38,8 @@ export function SignupTriggerSection({ templates, onRefresh }: Props) {
         body:    JSON.stringify({ templateName: name }),
       });
       const data = await res.json();
-      if (res.ok) { toast.success(`✅ ${name} signup trigger ban gaya`); onRefresh(); }
-      else         toast.error(data.error ?? "Save fail ho gaya");
+      if (res.ok) { toast.success(`✅ ${name} is now the signup trigger`); onRefresh(); }
+      else         toast.error(data.error ?? "Could not save");
     } catch { toast.error("Network error"); }
     finally { setSaving(false); }
   }
@@ -49,8 +49,8 @@ export function SignupTriggerSection({ templates, onRefresh }: Props) {
     try {
       const res = await fetch("/api/admin/whatsapp/signup-trigger", { method: "DELETE" });
       const data = await res.json();
-      if (res.ok) { toast.success("Signup trigger hata diya"); onRefresh(); }
-      else         toast.error(data.error ?? "Clear fail");
+      if (res.ok) { toast.success("Signup trigger removed"); onRefresh(); }
+      else         toast.error(data.error ?? "Could not clear");
     } catch { toast.error("Network error"); }
     finally { setSaving(false); }
   }
@@ -67,7 +67,7 @@ export function SignupTriggerSection({ templates, onRefresh }: Props) {
         </div>
         <div>
           <h3 className="text-sm font-bold text-gray-900">Signup Trigger Template</h3>
-          <p className="text-xs text-gray-500">Naya account bante hi yeh template automatically WhatsApp pe jaata hai</p>
+          <p className="text-xs text-gray-500">This template is automatically sent on WhatsApp when a new account is created</p>
         </div>
       </div>
 
@@ -93,7 +93,7 @@ export function SignupTriggerSection({ templates, onRefresh }: Props) {
             </div>
             {current.variableCount > 0 && (
               <p className="text-[10px] text-emerald-600 font-medium">
-                {current.variableCount} variable{current.variableCount > 1 ? "s" : ""} — name, student ID, login URL se auto-fill honge
+                {current.variableCount} variable{current.variableCount > 1 ? "s" : ""} — auto-filled with name, student ID, and login URL
               </p>
             )}
           </div>
@@ -101,7 +101,7 @@ export function SignupTriggerSection({ templates, onRefresh }: Props) {
           <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <Bell className="h-4 w-4 text-amber-500 shrink-0" />
             <p className="text-xs font-semibold text-amber-700">
-              Koi template select nahi hai — signup pe plain-text fallback jayega
+              No template selected — a plain-text fallback will be sent on signup
             </p>
           </div>
         )}
@@ -114,7 +114,7 @@ export function SignupTriggerSection({ templates, onRefresh }: Props) {
 
           {approved.length === 0 ? (
             <p className="rounded-xl border border-dashed border-gray-200 py-6 text-center text-xs text-gray-400">
-              Koi APPROVED template nahi hai — pehle Meta se sync karo
+              No APPROVED templates yet — sync from Meta first
             </p>
           ) : (
             approved.map(t => {

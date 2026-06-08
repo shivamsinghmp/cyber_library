@@ -27,7 +27,7 @@ export function EmailSignaturesTab({ signatures, onRefresh }: Props) {
   function cancel() { setCreating(false); setEditing(null); }
 
   async function handleSave() {
-    if (!form.name.trim() || !form.html.trim()) { toast.error("Name aur HTML chahiye"); return; }
+    if (!form.name.trim() || !form.html.trim()) { toast.error("Name and HTML are required"); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/admin/email/signatures", {
@@ -66,7 +66,7 @@ export function EmailSignaturesTab({ signatures, onRefresh }: Props) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--cream-muted)]">Signatures automatically attach to OTP/verify emails. Bulk send mein manually select kar sakte hain.</p>
+        <p className="text-sm text-[var(--cream-muted)]">Signatures are automatically attached to OTP/verify emails. You can manually select one in bulk send.</p>
         <button onClick={openCreate} className="flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--ink)] hover:opacity-90">
           <Plus className="h-4 w-4" /> New Signature
         </button>
@@ -104,7 +104,7 @@ export function EmailSignaturesTab({ signatures, onRefresh }: Props) {
 
       {signatures.length === 0 && !creating ? (
         <div className="rounded-2xl border border-[var(--border)] bg-white py-14 text-center text-sm text-[var(--cream-muted)]">
-          Koi signature nahi hai. "New Signature" se banao.
+          No signatures yet. Create one with &quot;New Signature&quot;.
         </div>
       ) : (
         <div className="space-y-3">

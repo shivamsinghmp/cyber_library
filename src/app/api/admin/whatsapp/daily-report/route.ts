@@ -8,9 +8,9 @@ const TEMPLATE_KEY = "WA_DAILY_REPORT_TEMPLATE";
 
 const DEFAULT_TEMPLATE = `🎓 *Let's Study — Daily Report*
 
-Namaste *{{name}}*! 👋
+Hello *{{name}}*! 👋
 
-Aaj ki tumhari performance dekhi? Kaafi acha kiya! 💪
+Here's your performance for today — great work! 💪
 
 📚 *Study Time:* {{studyHours}} hrs ({{studyMins}} min)
 ✅ *Tasks Done:* {{tasksCompleted}} / {{totalTasks}}
@@ -20,7 +20,7 @@ Aaj ki tumhari performance dekhi? Kaafi acha kiya! 💪
 💬 *Quote of the Day:*
 _{{quote}}_
 
-Consistency hi success ka raasta hai. Kal aur behtar karo! 🚀
+Consistency is the road to success. Do even better tomorrow! 🚀
 
 — Let's Study Team`;
 

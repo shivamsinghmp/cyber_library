@@ -15,84 +15,84 @@ const stagger = {
 
 /* ── data ── */
 const PROBLEMS = [
-  { emoji: "📱", problem: "Phone baar baar haath mein aa jaata hai", fix: "Camera on hone se phone automatically side pe chala jaata hai" },
-  { emoji: "😴", problem: "Akele padhte waqt neend aati hai",        fix: "40+ logon ke saath session mein neend ke liye jagah hi nahi" },
-  { emoji: "🏠", problem: "Ghar pe concentrate nahi hota",           fix: "Virtual library environment brain ko focus mode mein le jaata hai" },
-  { emoji: "📅", problem: "Roz ka schedule nahi banta",              fix: "Fixed slots se automatic discipline aa jaati hai" },
-  { emoji: "😔", problem: "Motivation aata jaata rehta hai",          fix: "Streak aur leaderboard roz aane ki wajah ban jaate hain" },
-  { emoji: "😰", problem: "Exam pressure se burnout ho jaata hai",    fix: "Pomodoro breaks ensure karte hain ki dimag fresh rahe" },
-  { emoji: "📊", problem: "Pata nahi chalta ki progress ho rahi hai ya nahi", fix: "Roz WhatsApp pe daily progress update aata hai — streak, hours, aur next target sab clear" },
+  { emoji: "📱", problem: "Phone keeps finding its way into your hand", fix: "Camera on automatically pushes the phone aside" },
+  { emoji: "😴", problem: "Studying alone makes you drowsy",        fix: "No room for sleep when 40+ students are in session with you" },
+  { emoji: "🏠", problem: "Can't concentrate at home",           fix: "Virtual library environment puts your brain into focus mode" },
+  { emoji: "📅", problem: "Daily schedule never sticks",              fix: "Fixed slots bring automatic discipline" },
+  { emoji: "😔", problem: "Motivation keeps coming and going",          fix: "Streak and leaderboard become your reason to show up daily" },
+  { emoji: "😰", problem: "Exam pressure leads to burnout",    fix: "Pomodoro breaks ensure your mind stays fresh" },
+  { emoji: "📊", problem: "Hard to tell if you're actually progressing", fix: "Daily WhatsApp update — streak, hours, and next target, all clear" },
 ];
 
 const FEATURES = [
   {
     icon: "🖥️",
     title: "Live Google Meet Sessions",
-    desc: "Real students, real cameras, real accountability. Yeh Netflix watch karne jaisa nahi — yahan sab actually padh rahe hote hain.",
+    desc: "Real students, real cameras, real accountability. This isn't Netflix — everyone here is actually studying.",
     gradient: "linear-gradient(145deg, #818CF8, #4F46E5)",
     glow: "rgba(99,102,241,0.40)",
   },
   {
     icon: "⏱️",
     title: "Pomodoro Timer System",
-    desc: "50 minute deep work, 10 minute break. Science-backed technique jo toppers use karte hain. Brain tired nahi hota, padhai yaad rehti hai.",
+    desc: "50 minutes deep work, 10 minutes break. A science-backed technique used by top students. Your brain stays fresh and knowledge sticks.",
     gradient: "linear-gradient(145deg, #A78BFA, #7C3AED)",
     glow: "rgba(124,58,237,0.40)",
   },
   {
     icon: "🏆",
     title: "Leaderboard & Streaks",
-    desc: "Roz aao, streak banao. Top pe aao toh sabko pata chalega. Competition healthy hota hai — aur study time badhata hai.",
+    desc: "Show up daily, build your streak. Reach the top and everyone will know. Healthy competition drives more study time.",
     gradient: "linear-gradient(145deg, #FCD34D, #D97706)",
     glow: "rgba(217,119,6,0.40)",
   },
   {
     icon: "🎵",
     title: "Lo-Fi Music Background",
-    desc: "Distraction-free lo-fi music sessions mein chalti hai. Brain ko signal milta hai — 'ab padhai ka time hai'.",
+    desc: "Distraction-free lo-fi music plays during sessions. It signals your brain — 'it's study time now'.",
     gradient: "linear-gradient(145deg, #34D399, #059669)",
     glow: "rgba(5,150,105,0.40)",
   },
   {
     icon: "📚",
     title: "Premium Study Material",
-    desc: "Toppers ke banaye notes, planners aur trackers directly download karo. Ek jagah sab kuch milega.",
+    desc: "Download notes, planners and trackers made by top students. Everything in one place.",
     gradient: "linear-gradient(145deg, #60A5FA, #2563EB)",
     glow: "rgba(37,99,235,0.40)",
   },
   {
     icon: "🔒",
     title: "Zero Distraction Zone",
-    desc: "No social media, no chatting, no BS. Sirf padhai. Yahan aake time waste karna literally impossible hai.",
+    desc: "No social media, no chatting, no distractions. Just studying. Wasting time here is literally impossible.",
     gradient: "linear-gradient(145deg, #F87171, #DC2626)",
     glow: "rgba(220,38,38,0.40)",
   },
   {
     icon: "💬",
     title: "WhatsApp Daily Progress Update",
-    desc: "Roz WhatsApp pe aata hai — aaj kitna padha, streak kaisi hai, aur kal ke liye motivation. Consistency kabhi nahi tooti.",
+    desc: "Sent to WhatsApp daily — how much you studied, your streak, and motivation for tomorrow. Consistency never breaks.",
     gradient: "linear-gradient(145deg, #4ADE80, #16A34A)",
     glow: "rgba(22,163,74,0.40)",
   },
 ];
 
 const AI_FEATURES = [
-  { emoji: "🗓️", title: "Study Plan",     desc: "Exam date + syllabus daalo — AI perfect timetable banata hai ek second mein",          bg: "#EEF2FF", border: "#C7D2FE", iconBg: "#6366F1" },
-  { emoji: "⚡",  title: "Shortcuts",       desc: "Har question ke 3 methods — slow, fast, fastest. Exam mein time bachao.",               bg: "#FFFBEB", border: "#FDE68A", iconBg: "#D97706" },
-  { emoji: "📸",  title: "Photo Solve",     desc: "Handwritten ya printed question — photo upload karo, AI step-by-step solve karega",      bg: "#F5F3FF", border: "#DDD6FE", iconBg: "#7C3AED" },
-  { emoji: "🎯",  title: "80/20 Focus",     desc: "Top 20% topics jo 80% marks denge — faltu cheezein padhna bilkul band karo",            bg: "#FEF2F2", border: "#FECACA", iconBg: "#DC2626" },
-  { emoji: "🧠",  title: "Doubt Clear",     desc: "Step-by-step reasoning ke saath explain karega — tab tak samjhayega jab tak clear na ho", bg: "#ECFDF5", border: "#A7F3D0", iconBg: "#059669" },
-  { emoji: "📈",  title: "Weak Topic Fix",  desc: "AI diagnose karega kahan aur kyun galti hoti hai — root cause fix karega",              bg: "#ECFEFF", border: "#A5F3FC", iconBg: "#0891B2" },
-  { emoji: "⏱️",  title: "Speed Training",  desc: "Standard vs shortcut method side by side — speed double karo exam mein",               bg: "#FFF7ED", border: "#FED7AA", iconBg: "#EA580C" },
-  { emoji: "💆",  title: "Stress Support",  desc: "Frustrated feel ho? Bas batao — AI friend mode mein aa jaayega, judge nahi karega",     bg: "#FDF2F8", border: "#FBCFE8", iconBg: "#DB2777" },
+  { emoji: "🗓️", title: "Study Plan",     desc: "Enter exam date + syllabus — AI builds your perfect timetable in a second",          bg: "#EEF2FF", border: "#C7D2FE", iconBg: "#6366F1" },
+  { emoji: "⚡",  title: "Shortcuts",       desc: "3 methods per question — slow, fast, fastest. Save time in the exam.",               bg: "#FFFBEB", border: "#FDE68A", iconBg: "#D97706" },
+  { emoji: "📸",  title: "Photo Solve",     desc: "Handwritten or printed question — upload a photo, AI solves it step-by-step",      bg: "#F5F3FF", border: "#DDD6FE", iconBg: "#7C3AED" },
+  { emoji: "🎯",  title: "80/20 Focus",     desc: "Top 20% topics that give 80% marks — stop wasting time on the rest",            bg: "#FEF2F2", border: "#FECACA", iconBg: "#DC2626" },
+  { emoji: "🧠",  title: "Doubt Clear",     desc: "Explains with step-by-step reasoning — keeps going until you fully understand", bg: "#ECFDF5", border: "#A7F3D0", iconBg: "#059669" },
+  { emoji: "📈",  title: "Weak Topic Fix",  desc: "AI diagnoses where and why you go wrong — fixes the root cause",              bg: "#ECFEFF", border: "#A5F3FC", iconBg: "#0891B2" },
+  { emoji: "⏱️",  title: "Speed Training",  desc: "Standard vs shortcut method side by side — double your exam speed",               bg: "#FFF7ED", border: "#FED7AA", iconBg: "#EA580C" },
+  { emoji: "💆",  title: "Stress Support",  desc: "Feeling frustrated? Just say so — AI switches to friend mode, no judgement",     bg: "#FDF2F8", border: "#FBCFE8", iconBg: "#DB2777" },
 ];
 
 const MOCK_FLOW = [
   {
     step: "01",
     emoji: "📝",
-    title: "Mock Test Do",
-    desc: "PYQ-based real exam pattern ke questions — exactly waise jaise exam mein aate hain. Time limit ke saath, koi hint nahi.",
+    title: "Take a Mock Test",
+    desc: "PYQ-based questions matching the real exam pattern — exactly as they appear. Timed, no hints.",
     bg: "linear-gradient(135deg, #EEF2FF, #E0E7FF)",
     border: "#C7D2FE",
     accent: "#6366F1",
@@ -100,8 +100,8 @@ const MOCK_FLOW = [
   {
     step: "02",
     emoji: "❌",
-    title: "Galat Jawab? Koi Baat Nahi",
-    desc: "Jab bhi koi question galat hoga — AI turant detect karega. Ek bhi galti chhootegi nahi. Yahi se asli learning shuru hoti hai.",
+    title: "Wrong Answer? No Problem",
+    desc: "Whenever you get a question wrong — AI detects it instantly. Not a single mistake goes unnoticed. That's where real learning starts.",
     bg: "linear-gradient(135deg, #FEF2F2, #FEE2E2)",
     border: "#FECACA",
     accent: "#DC2626",
@@ -109,8 +109,8 @@ const MOCK_FLOW = [
   {
     step: "03",
     emoji: "🧠",
-    title: "AI Turant Solution Dega",
-    desc: "Wahi pe — reason kya tha, sahi approach kya hai, shortcut kya hai, aur is type ke question mein dobara galti kaise avoid kare.",
+    title: "AI Gives an Instant Solution",
+    desc: "Right there — what the reason was, the correct approach, the shortcut, and how to avoid the same mistake next time.",
     bg: "linear-gradient(135deg, #ECFDF5, #D1FAE5)",
     border: "#A7F3D0",
     accent: "#059669",
@@ -119,72 +119,72 @@ const MOCK_FLOW = [
 
 const PYQ_HIGHLIGHTS = [
   {
-    emoji: "📚", title: "10+ Saal Ki PYQ Bank",
-    desc: "UPSC, JEE, NEET, GATE, CAT, SSC — sab exams ke past year questions ek jagah. Exam-wise, topic-wise sorted.",
+    emoji: "📚", title: "10+ Years of PYQ Bank",
+    desc: "UPSC, JEE, NEET, GATE, CAT, SSC — past year questions from all exams in one place. Sorted by exam and topic.",
     bg: "#EEF2FF", border: "#C7D2FE", iconBg: "#6366F1",
   },
   {
     emoji: "🎯", title: "Smart Mock Tests",
-    desc: "Real exam pattern, actual marking scheme, aur time pressure. Ghar pe exam hall jaisa feel.",
+    desc: "Real exam pattern, actual marking scheme, and time pressure. Feel the exam hall from home.",
     bg: "#FFFBEB", border: "#FDE68A", iconBg: "#D97706",
   },
   {
     emoji: "⚡", title: "Instant AI Explanation",
-    desc: "Wrong answer pe rukna nahi — AI seedha wahi explain karega apni bhasha mein. Hindi ya English, jo chahiye.",
+    desc: "No stopping on a wrong answer — AI explains it right there in your language. Hindi or English, your choice.",
     bg: "#ECFDF5", border: "#A7F3D0", iconBg: "#059669",
   },
   {
     emoji: "📊", title: "Weak Topic Radar",
-    desc: "Kitne mock diye, kahan baar baar galti hoti hai — AI apna performance card banata hai aur next target batata hai.",
+    desc: "How many mocks you've taken, where you keep going wrong — AI builds your performance card and sets your next target.",
     bg: "#ECFEFF", border: "#A5F3FC", iconBg: "#0891B2",
   },
 ];
 
 const WHO_IS_IT_FOR = [
-  { emoji: "📖", title: "UPSC Aspirants",    desc: "Mains ke liye 8-10 ghante daily chahiye? Yahan possible hai." },
-  { emoji: "⚗️", title: "JEE / NEET Students", desc: "Conceptual clarity ke liye focused study environment zaroori hai." },
-  { emoji: "💼", title: "GATE / CAT Preppers", desc: "Working professionals jo weekends pe seriously padhna chahte hain." },
-  { emoji: "🎓", title: "College Students",   desc: "Exams se pehle last-minute nahi, roz thoda-thoda solid padhai." },
-  { emoji: "💻", title: "Self-Learners",      desc: "Coding, design, language — jo bhi seekh rahe ho, saath mein seekho." },
-  { emoji: "🌙", title: "Night Owls",         desc: "Raat ke slots bhi hain — jab duniya so rahi hoti hai, tum padh rahe ho." },
+  { emoji: "📖", title: "UPSC Aspirants",    desc: "Need 8-10 hours daily for Mains? That's possible here." },
+  { emoji: "⚗️", title: "JEE / NEET Students", desc: "Conceptual clarity needs a focused study environment." },
+  { emoji: "💼", title: "GATE / CAT Preppers", desc: "Working professionals who want to study seriously on weekends." },
+  { emoji: "🎓", title: "College Students",   desc: "No last-minute cramming before exams — consistent daily study." },
+  { emoji: "💻", title: "Self-Learners",      desc: "Coding, design, languages — learn whatever you want, together." },
+  { emoji: "🌙", title: "Night Owls",         desc: "Night slots available too — study while the world sleeps." },
 ];
 
 const COMPARISON = [
-  { point: "Focus environment",      us: "Structured virtual library",  others: "Ghar pe akela — distraction full" },
-  { point: "Accountability",         us: "Live cameras on, 40+ students",others: "Sirf tum aur phone" },
-  { point: "Study tracking",         us: "Coins, streaks, leaderboard",  others: "Khud yaad rakhna padta hai" },
-  { point: "Schedule",               us: "Fixed daily slots",            others: "Kabhi bhi, matlab kabhi nahi" },
-  { point: "Cost",                   us: "Free to start",                others: "Costly coaching centers" },
-  { point: "Community",              us: "India ke serious students",    others: "Akele struggle" },
-  { point: "Daily update",           us: "WhatsApp pe progress report",  others: "Khud track karo ya bhool jao" },
+  { point: "Focus environment",      us: "Structured virtual library",  others: "Alone at home — full of distractions" },
+  { point: "Accountability",         us: "Live cameras on, 40+ students",others: "Just you and your phone" },
+  { point: "Study tracking",         us: "Coins, streaks, leaderboard",  others: "Have to remember yourself" },
+  { point: "Schedule",               us: "Fixed daily slots",            others: "Any time means never" },
+  { point: "Cost",                   us: "Free to start",                others: "Expensive coaching centres" },
+  { point: "Community",              us: "India's serious students",    others: "Struggling alone" },
+  { point: "Daily update",           us: "WhatsApp progress report",  others: "Track it yourself or forget" },
 ];
 
 const TESTIMONIALS = [
   {
     name: "Priya S.",    role: "UPSC 2024 Aspirant",
-    quote: "Mains mein 6 ghante daily reading ho gayi — pehle 2 ghante bhi mushkil the. Let's Study ne literally meri preparation badal di.",
+    quote: "I'm now doing 6 hours of daily Mains reading — 2 hours used to be a struggle before. Let's Study has literally transformed my preparation.",
     initial: "P", color: "linear-gradient(135deg, #6366F1, #8B5CF6)",
   },
   {
     name: "Arjun K.",    role: "JEE Advanced Student",
-    quote: "Coaching se aake 4 ghante aur padh leta hoon yahan. Doston ke saath time waste nahi hota aur focus solid rehta hai.",
+    quote: "I study 4 more hours here after coaching. No time wasted with friends, and my focus stays solid.",
     initial: "A", color: "linear-gradient(135deg, #8B5CF6, #06B6D4)",
   },
   {
     name: "Sneha R.",    role: "NEET Aspirant",
-    quote: "Streak 45 din ki ho gayi. Ek bhi din miss nahi ki. Pehle kabhi itna consistent nahi thi padhai mein.",
+    quote: "My streak hit 45 days. Not a single day missed. I've never been this consistent with studying before.",
     initial: "S", color: "linear-gradient(135deg, #06B6D4, #10B981)",
   },
 ];
 
 const FAQ = [
-  { q: "Kya ye free hai?", a: "Haan! Basic study rooms bilkul free hain. Account banao aur aaj se hi join karo." },
-  { q: "Camera on karna zaroori hai?", a: "Highly recommended hai — camera on se focus 3x better hota hai. Par koi force nahi." },
-  { q: "Agar session beech mein break lena ho?", a: "Pomodoro break ke time pe aaram karo. Session ke beech bhi urgency ho toh chhod sakte ho." },
-  { q: "Kaunsi exams ke students yahan hain?", a: "UPSC, JEE, NEET, GATE, CAT, boards — sab tarah ke students yahan padhte hain." },
-  { q: "Internet slow ho toh?", a: "Google Meet basic internet pe bhi kaam karta hai. Camera off karke bhi join kar sakte ho." },
-  { q: "Kya mobile se join kar sakte hain?", a: "Haan, Google Meet mobile pe bhi chalta hai. Laptop nahi hai toh bhi chalega." },
-  { q: "WhatsApp update kaise milega?", a: "Join karne ke baad WhatsApp number save karo aur group mein add ho jao — roz raat ko progress update aata hai apne aap." },
+  { q: "Is it free?", a: "Yes! Basic study rooms are completely free. Create an account and join today." },
+  { q: "Is camera on required?", a: "Highly recommended — camera on makes focus 3x better. But no one forces you." },
+  { q: "What if I need a break mid-session?", a: "Rest during the Pomodoro break. If something urgent comes up, you can leave." },
+  { q: "Which exam students are here?", a: "UPSC, JEE, NEET, GATE, CAT, boards — students preparing for all kinds of exams study here." },
+  { q: "What if my internet is slow?", a: "Google Meet works on basic internet too. You can also join with camera off." },
+  { q: "Can I join from mobile?", a: "Yes, Google Meet works on mobile too. No laptop? No problem." },
+  { q: "How do I get the WhatsApp update?", a: "After joining, save our WhatsApp number and get added to the group — your progress update arrives automatically every night." },
 ];
 
 export default function WhyJoinPage() {
@@ -214,23 +214,23 @@ export default function WhyJoinPage() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: "var(--accent)" }} />
                   <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--accent)" }} />
                 </span>
-                5000+ Students Already Padh Rahe Hain
+                5000+ Students Already Studying
               </span>
             </motion.div>
 
             <motion.h1 variants={fadeIn} className="text-4xl font-extrabold tracking-tight sm:text-6xl leading-[1.08]"
               style={{ color: "var(--foreground)" }}>
-              Ghar Pe Focus Nahi Hota?{" "}
+              Can't Focus at Home?{" "}
               <span className="bg-clip-text text-transparent"
                 style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6, #06B6D4)", backgroundSize: "200% auto" }}>
-                Hum Samjhe.
+                We Understand.
               </span>
             </motion.h1>
 
             <motion.p variants={fadeIn} className="mx-auto max-w-2xl text-lg leading-relaxed"
               style={{ color: "var(--body-text)" }}>
-              Let's Study ek aisa jagah hai jahan real students roz aake padhte hain — cameras on, mics off, zero distractions.
-              Ek baar try karo, fark khud pata chalega.
+              Let's Study is a place where real students show up daily — cameras on, mics off, zero distractions.
+              Try it once and you'll feel the difference yourself.
             </motion.p>
 
             <motion.div variants={fadeIn} className="flex flex-wrap items-center justify-center gap-4">
@@ -239,7 +239,7 @@ export default function WhyJoinPage() {
                   className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-extrabold text-white transition-all hover:scale-105"
                   style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 24px rgba(99,102,241,0.40)" }}>
                   <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                  Abhi Padhai Shuru Karo →
+                  Start Studying Now →
                 </Link>
               ) : (
                 <>
@@ -247,12 +247,12 @@ export default function WhyJoinPage() {
                     className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-extrabold text-white transition-all hover:scale-105"
                     style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 24px rgba(99,102,241,0.40)" }}>
                     <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                    Free Mein Join Karo →
+                    Join for Free →
                   </Link>
                   <Link href="/login"
                     className="inline-flex items-center gap-2 rounded-full border-2 bg-white px-8 py-4 text-sm font-bold transition-all hover:scale-105"
                     style={{ borderColor: "var(--accent)", color: "var(--accent)" }}>
-                    Login Karo
+                    Log In
                   </Link>
                 </>
               )}
@@ -261,7 +261,7 @@ export default function WhyJoinPage() {
             {/* Trust badges */}
             <motion.div variants={fadeIn} className="flex flex-wrap items-center justify-center gap-6 pt-2">
               {[
-                { emoji: "✅", text: "Bilkul Free" },
+                { emoji: "✅", text: "Completely Free" },
                 { emoji: "⚡", text: "2 min signup" },
                 { emoji: "🔒", text: "Secure & Private" },
                 { emoji: "📱", text: "Mobile friendly" },
@@ -284,15 +284,15 @@ export default function WhyJoinPage() {
               <motion.div variants={fadeIn}>
                 <span className="inline-flex items-center rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
                   style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                  Problems Solve Hote Hain
+                  Problems Solved
                 </span>
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                Ye Sab Sound Familiar Karta Hai?
+                Does Any of This Sound Familiar?
               </motion.h2>
               <motion.p variants={fadeIn} className="mt-4 text-lg" style={{ color: "var(--body-text)" }}>
-                Ye problems sirf tumhare nahi hain — almost every student face karta hai. Aur Let's Study inhe fix karta hai.
+                These problems aren't just yours — almost every student faces them. And Let's Study fixes them.
               </motion.p>
             </div>
 
@@ -329,12 +329,12 @@ export default function WhyJoinPage() {
               <motion.div variants={fadeIn}>
                 <span className="inline-flex items-center rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
                   style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                  Kya Milega Tumhe
+                  What You Get
                 </span>
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                Ek Platform, Sab Kuch
+                One Platform, Everything Included
               </motion.h2>
             </div>
 
@@ -376,11 +376,11 @@ export default function WhyJoinPage() {
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                StudyMate AI — Tumhara Personal Topper Dost
+                StudyMate AI — Your Personal Topper Companion
               </motion.h2>
               <motion.p variants={fadeIn} className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: "var(--body-text)" }}>
-                UPSC, JEE, NEET, GATE, CAT, SSC — koi bhi exam ho. Doubt karo, photo upload karo, plan banao.
-                24/7 available, kabhi judge nahi karega.
+                UPSC, JEE, NEET, GATE, CAT, SSC — any exam. Ask doubts, upload photos, build a plan.
+                Available 24/7, never judgemental.
               </motion.p>
             </div>
 
@@ -405,7 +405,7 @@ export default function WhyJoinPage() {
                 className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-extrabold text-white transition-all hover:scale-105"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 24px rgba(99,102,241,0.40)" }}>
                 <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                ✨ StudyMate AI Try Karo — Free Hai →
+                ✨ Try StudyMate AI — It's Free →
               </Link>
             </motion.div>
 
@@ -423,7 +423,7 @@ export default function WhyJoinPage() {
               <motion.div variants={fadeIn}>
                 <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
                   style={{ borderColor: "#FDE68A", background: "#FFFBEB", color: "#D97706" }}>
-                  🏆 Rank Aane Ka Asli Formula
+                  🏆 The Real Formula for Ranking
                 </span>
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
@@ -431,9 +431,9 @@ export default function WhyJoinPage() {
                 AI Mock Test + PYQ Training
               </motion.h2>
               <motion.p variants={fadeIn} className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: "var(--body-text)" }}>
-                Sirf padhai karna kaafi nahi — sahi tarike se practice zaroori hai.
-                Galat jawab diya toh AI wahi pe rok ke samjhayega.{" "}
-                <span className="font-bold" style={{ color: "var(--accent)" }}>Isi se rank aata hai.</span>
+                Just studying isn't enough — practicing the right way matters.
+                Got an answer wrong? AI stops you right there and explains.{" "}
+                <span className="font-bold" style={{ color: "var(--accent)" }}>That's how you rank.</span>
               </motion.p>
             </div>
 
@@ -497,19 +497,19 @@ export default function WhyJoinPage() {
               <div className="p-6 grid sm:grid-cols-2 gap-6" style={{ background: "white" }}>
                 {/* Wrong answer */}
                 <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: "#FECACA", background: "#FEF2F2" }}>
-                  <p className="text-xs font-black text-red-600 uppercase tracking-wide">❌ Student Ka Jawab (Galat)</p>
-                  <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Q. Bharat mein pehli panch-varshiya yojana kab shuru hui?</p>
-                  <div className="inline-block rounded-lg px-3 py-1.5 text-sm font-bold bg-red-100 text-red-700">1952 (Galat)</div>
+                  <p className="text-xs font-black text-red-600 uppercase tracking-wide">❌ Student's Answer (Wrong)</p>
+                  <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Q. When did India's first Five-Year Plan begin?</p>
+                  <div className="inline-block rounded-lg px-3 py-1.5 text-sm font-bold bg-red-100 text-red-700">1952 (Wrong)</div>
                 </div>
                 {/* AI solution */}
                 <div className="rounded-xl border p-4 space-y-2" style={{ borderColor: "#A7F3D0", background: "#ECFDF5" }}>
-                  <p className="text-xs font-black text-emerald-600 uppercase tracking-wide">🧠 AI Ka Turant Jawab</p>
+                  <p className="text-xs font-black text-emerald-600 uppercase tracking-wide">🧠 AI's Instant Answer</p>
                   <p className="text-xs font-semibold text-emerald-800">
-                    Sahi jawab hai <span className="font-black">1951</span> — 1 April 1951 ko shuru hui thi.
-                    1952 galat isliye laga kyunki pehle elections bhi usi saal hue the — yeh common confusion hai.
+                    The correct answer is <span className="font-black">1951</span> — it began on 1 April 1951.
+                    1952 feels right because the first elections also happened that year — a very common confusion.
                   </p>
                   <p className="text-[11px] text-emerald-700 font-bold">
-                    💡 Trick: "Pehle plan, phir vote" — Plan 1951, Elections 1952.
+                    💡 Trick: "Plan first, then vote" — Plan 1951, Elections 1952.
                   </p>
                 </div>
               </div>
@@ -528,12 +528,12 @@ export default function WhyJoinPage() {
               <motion.div variants={fadeIn}>
                 <span className="inline-flex items-center rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
                   style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                  Ye Tumhare Liye Hai Agar…
+                  This Is for You If…
                 </span>
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                Kaun Join Karta Hai?
+                Who Joins?
               </motion.h2>
             </div>
 
@@ -565,7 +565,7 @@ export default function WhyJoinPage() {
             <div className="mb-14 text-center">
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                Let's Study vs Ghar Pe Akele Padhna
+                Let's Study vs Studying Alone at Home
               </motion.h2>
             </div>
 
@@ -582,7 +582,7 @@ export default function WhyJoinPage() {
                 }}>
                   ✨ Let's Study
                 </div>
-                <div className="p-4" style={{ color: "var(--muted-text)", background: "var(--page-bg)" }}>Ghar Pe Akele</div>
+                <div className="p-4" style={{ color: "var(--muted-text)", background: "var(--page-bg)" }}>Alone at Home</div>
               </div>
 
               {COMPARISON.map((row, i) => (
@@ -616,12 +616,12 @@ export default function WhyJoinPage() {
               <motion.div variants={fadeIn}>
                 <span className="inline-flex items-center rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
                   style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                  Unhi Ki Zubaani
+                  In Their Own Words
                 </span>
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                Jo Aaye, Woh Bole
+                What Our Students Say
               </motion.h2>
             </div>
 
@@ -666,7 +666,7 @@ export default function WhyJoinPage() {
             <div className="mb-14 text-center">
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
                 style={{ color: "var(--foreground)" }}>
-                Common Sawaal
+                Common Questions
               </motion.h2>
             </div>
 
@@ -711,11 +711,11 @@ export default function WhyJoinPage() {
                 <div className="relative z-10">
                   <p className="mb-4 text-4xl">🚀</p>
                   <h2 className="text-3xl font-extrabold tracking-tight sm:text-5xl mb-4" style={{ color: "var(--foreground)" }}>
-                    Kal Se Nahi — Aaj Se!
+                    Not Tomorrow — Today!
                   </h2>
                   <p className="mb-8 text-lg" style={{ color: "var(--body-text)" }}>
-                    Ek session try karo. Fark khud pata chalega. <br />
-                    <span className="font-bold" style={{ color: "var(--accent)" }}>Free hai, signup 30 second mein hoti hai.</span>
+                    Try one session. You'll feel the difference. <br />
+                    <span className="font-bold" style={{ color: "var(--accent)" }}>It's free, signup takes 30 seconds.</span>
                   </p>
 
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -724,7 +724,7 @@ export default function WhyJoinPage() {
                         className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-10 py-4 text-base font-extrabold text-white transition-all hover:scale-105"
                         style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 28px rgba(99,102,241,0.45)" }}>
                         <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                        Session Join Karo →
+                        Join Session →
                       </Link>
                     ) : (
                       <>
@@ -732,12 +732,12 @@ export default function WhyJoinPage() {
                           className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-10 py-4 text-base font-extrabold text-white transition-all hover:scale-105"
                           style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 8px 28px rgba(99,102,241,0.45)" }}>
                           <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                          Free Mein Join Karo →
+                          Join for Free →
                         </Link>
                         <Link href="/login"
                           className="inline-flex items-center rounded-full border-2 px-8 py-4 text-base font-bold transition-all hover:scale-105"
                           style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "white" }}>
-                          Pehle Se Account Hai? Login Karo
+                          Already have an account? Log In
                         </Link>
                       </>
                     )}

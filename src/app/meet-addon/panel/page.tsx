@@ -708,12 +708,12 @@ export default function MeetAddonPanelPage() {
               <div className="flex items-center justify-between gap-4 px-5 py-2.5 rounded-xl bg-amber-50 border border-amber-200 w-full max-w-md">
                 <span className="text-xs font-semibold text-amber-700">
                   ⚠️ Free trial —{" "}
-                  <strong>{planAccess.daysLeft} din bache hain.</strong>
+                  <strong>{planAccess.daysLeft} days left.</strong>
                 </span>
                 <a href="/pricing" target="_blank" rel="noopener noreferrer"
                   className="text-[10px] font-black uppercase tracking-wider text-white px-3 py-1.5 rounded-lg shrink-0"
                   style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}>
-                  Plan Lein →
+                  Get a Plan →
                 </a>
               </div>
             </motion.div>
@@ -1032,7 +1032,7 @@ export default function MeetAddonPanelPage() {
                   </div>
                   <div>
                     <p className="text-sm font-black text-[#0F172A]">StudyMate AI</p>
-                    <p className="text-[10px] text-[#94A3B8]">Doubt, plan, motivation — sab yahan</p>
+                    <p className="text-[10px] text-[#94A3B8]">Doubt, plan, motivation — all here</p>
                   </div>
                 </div>
                 <button
@@ -1040,19 +1040,19 @@ export default function MeetAddonPanelPage() {
                   className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all hover:opacity-90 shadow-[0_2px_10px_rgba(99,102,241,0.35)]"
                   style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)" }}
                 >
-                  Chat Kholo →
+                  Open Chat →
                 </button>
               </div>
 
               {/* Quick prompts */}
               <div className="px-5 py-4 flex flex-wrap gap-2">
                 {[
-                  { emoji: "📅", label: "Study Plan", prompt: "Aaj study plan bana do" },
-                  { emoji: "🎯", label: "Motivation", prompt: "Motivation chahiye" },
-                  { emoji: "⚡", label: "Shortcut Trick", prompt: "Shortcut trick batao" },
-                  { emoji: "📖", label: "Revision Plan", prompt: "Kal ka revision plan" },
-                  { emoji: "😰", label: "Stressed Hoon", prompt: "Bahut stressed hoon, help karo" },
-                  { emoji: "📊", label: "Weak Topic", prompt: "Mera weak topic fix karo" },
+                  { emoji: "📅", label: "Study Plan", prompt: "Create a study plan for today" },
+                  { emoji: "🎯", label: "Motivation", prompt: "I need some motivation" },
+                  { emoji: "⚡", label: "Shortcut Trick", prompt: "Share a shortcut trick" },
+                  { emoji: "📖", label: "Revision Plan", prompt: "Tomorrow's revision plan" },
+                  { emoji: "😰", label: "Feeling Stressed", prompt: "I'm very stressed, please help" },
+                  { emoji: "📊", label: "Weak Topic", prompt: "Help me fix my weak topic" },
                 ].map(({ emoji, label, prompt }) => (
                   <button
                     key={prompt}

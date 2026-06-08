@@ -54,7 +54,7 @@ function ResetModal({ userId, name, onClose, onDone }: {
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
-    if (reason.trim().length < 3) { toast.error("Reason min 3 chars hona chahiye"); return; }
+    if (reason.trim().length < 3) { toast.error("Reason must be at least 3 characters"); return; }
     setLoading(true);
     try {
       const res  = await fetch(`/api/admin/trial/reset/${userId}`, {
@@ -63,8 +63,8 @@ function ResetModal({ userId, name, onClose, onDone }: {
         body: JSON.stringify({ reason: reason.trim() }),
       });
       const data = await res.json();
-      if (res.ok) { toast.success(data.message ?? "Trial reset ho gaya"); onDone(); }
-      else toast.error(data.error ?? "Reset fail ho gaya");
+      if (res.ok) { toast.success(data.message ?? "Trial reset successfully"); onDone(); }
+      else toast.error(data.error ?? "Reset failed");
     } catch { toast.error("Network error"); }
     finally { setLoading(false); }
   }
@@ -79,7 +79,7 @@ function ResetModal({ userId, name, onClose, onDone }: {
           <button onClick={onClose}><X className="h-4 w-4 text-gray-400" /></button>
         </div>
         <p className="text-xs text-gray-500 mb-4">
-          <span className="font-semibold">{name}</span> ka trial reset ho jayega. Woh dobara free trial activate kar sakenge.
+          <span className="font-semibold">{name}</span>&apos;s trial will be reset. They will be able to activate the free trial again.
         </p>
         <form onSubmit={handleReset} className="space-y-4">
           <div>
@@ -182,7 +182,7 @@ export default function AdminTrialPage() {
 
   async function saveTrialDays(e: React.FormEvent) {
     e.preventDefault();
-    if (editDays < 1) { toast.error("Min 1 din"); return; }
+    if (editDays < 1) { toast.error("Minimum 1 day required"); return; }
     setSavingDays(true);
     try {
       const res  = await fetch("/api/admin/settings/trial-days", {
@@ -192,7 +192,7 @@ export default function AdminTrialPage() {
       });
       const data = await res.json();
       if (res.ok) { setTrialDays(data.trialDays ?? editDays); toast.success(`Trial duration: ${data.trialDays ?? editDays} days`); }
-      else toast.error(data.error ?? "Save fail ho gaya");
+      else toast.error(data.error ?? "Could not save");
     } catch { toast.error("Network error"); }
     finally { setSavingDays(false); }
   }
@@ -254,7 +254,7 @@ export default function AdminTrialPage() {
               <AlertTriangle className="h-4 w-4 text-amber-400" /> Expiring Soon (3 days)
             </h2>
             {stats.expiringSoon.length === 0 ? (
-              <p className="text-xs text-gray-400">Koi trial expiring nahi in 3 days.</p>
+              <p className="text-xs text-gray-400">No trials expiring in the next 3 days.</p>
             ) : (
               <div className="divide-y divide-gray-50">
                 {stats.expiringSoon.map(s => (
@@ -292,11 +292,11 @@ export default function AdminTrialPage() {
                     {savingDays ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Save
                   </button>
                 </div>
-                <p className="mt-1 text-[10px] text-gray-400">Currently: {trialDays} days. Naye users ke liye apply hoga.</p>
+                <p className="mt-1 text-[10px] text-gray-400">Currently: {trialDays} days. Will apply to new users only.</p>
               </div>
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
                 <p className="text-xs text-amber-700 font-medium">
-                  ⚠️ Trial duration change sirf naye trials ke liye apply hoga. Existing active trials unchanged rahenge.
+                  ⚠️ Trial duration change will only apply to new trials. Existing active trials will remain unchanged.
                 </p>
               </div>
             </form>

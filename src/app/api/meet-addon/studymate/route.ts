@@ -35,49 +35,49 @@ function buildSystemPrompt(profile: {
   currentStreak?: number;
 }) {
   const ctx = [
-    profile.name        && `Student naam: ${profile.name}`,
+    profile.name        && `Student name: ${profile.name}`,
     profile.targetExam  && `Target exam: ${profile.targetExam}`,
     profile.studyGoal   && `Study goal: ${profile.studyGoal}`,
     profile.currentStreak && `Current streak: ${profile.currentStreak} days 🔥`,
   ].filter(Boolean).join("\n");
 
-  return `You are StudyMate AI — Let's Study ka personal AI study buddy. Tum ek caring elder sibling ho jo genuinely student ki success chahta hai.
+  return `You are StudyMate AI — the personal AI study buddy for Let's Study. You are a caring, supportive guide who genuinely wants the student to succeed.
 
 STUDENT INFO:
-${ctx || "Profile incomplete hai"}
+${ctx || "Profile incomplete"}
 
 LANGUAGE — MANDATORY:
-ALWAYS respond in Hinglish (Hindi + English mix). Never reply in pure English.
-Example: "Yeh question mein friction force calculate karni hai. Pehle normal force nikaalo..."
-NOT: "Let's break down this physics problem step-by-step!"
+ALWAYS respond in plain English. Never mix in Hindi or Hinglish.
+Example: "In this question we need to calculate the friction force. First, let's find the normal force..."
+NOT: "Let's break down this physics problem step-by-step in Hinglish!"
 
 FORMATTING — STRICTLY FORBIDDEN:
 NEVER use: ** bold ** | ## headers | * bullets | _italic_ | markdown of any kind.
 Plain text only. Numbered steps (1. 2. 3.) are OK for solutions.
 WRONG: "**Statement 1 Analysis:**"
-RIGHT: "Statement 1 ke baare mein — "
+RIGHT: "About Statement 1 — "
 
 PERSONALITY:
 - Casual, warm, like a best friend
-- Naam se bulao jab pata ho
-- Kabhi robotic mat bano
+- Use the student's name when known
+- Never be robotic
 - Emojis occasionally (1-2 max)
 
 MOOD DETECTION:
-Agar student likhe "chhod deta hoon" / "nahi ho raha" / "thak gaya" / "frustrated":
-Pehle feeling acknowledge karo, phir ek chhota step do.
+If the student writes something like "I want to quit" / "it's not working" / "I'm tired" / "frustrated":
+First acknowledge the feeling, then give one small actionable step.
 
 80/20 RULE:
-Study plans mein batao — Top 20% topics → 80% marks.
+In study plans — share Top 20% topics → 80% marks.
 
 IMAGE QUESTIONS:
-Sawal Hinglish mein solve karo, plain text mein, numbered steps mein.
-MCQ hai toh elimination trick batao. Ant mein "Answer: (option)" likho.
+Solve the question in plain text, using numbered steps.
+For MCQs, explain the elimination trick. End with "Answer: (option)".
 
 RESPONSE FORMAT:
 - Plain text only, no markdown ever
 - 4-8 sentences for general advice
-- Har response ke end mein 1 actionable step`;
+- End every response with 1 actionable step`;
 }
 
 const bodySchema = z.object({
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: "coins_required",
-            message: `Aaj ke ${FREE_MESSAGES_PER_DAY} free messages khatam! Coins kamao study room mein 🪙`,
+            message: `You've used all ${FREE_MESSAGES_PER_DAY} free messages for today! Earn coins in the study room 🪙`,
             coinsNeeded: COINS_PER_10_MESSAGES,
             currentCoins: coins,
           },
@@ -181,15 +181,15 @@ export async function POST(request: NextRequest) {
       console.error("[meet-addon/studymate] Vertex AI error:", res!.status, errBody);
       if (res!.status === 429) {
         return NextResponse.json(
-          { error: "Abhi bahut log AI use kar rahe hain 🙏", retryable: true },
+          { error: "AI is very busy right now. Please try again shortly 🙏", retryable: true },
           { status: 502, headers: cors }
         );
       }
       let apiMsg = errBody.slice(0, 300);
       try { apiMsg = (JSON.parse(errBody) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
       let userMsg = `Vertex AI error (${res!.status}): ${apiMsg}`;
-      if (res!.status === 401 || res!.status === 403) userMsg = "Vertex AI auth failed. Service account permissions check karo.";
-      if (res!.status === 404) userMsg = "Vertex AI model available nahi hai. Location/project check karo.";
+      if (res!.status === 401 || res!.status === 403) userMsg = "Vertex AI auth failed. Please check service account permissions.";
+      if (res!.status === 404) userMsg = "Vertex AI model is not available. Please check location/project settings.";
       return NextResponse.json({ error: userMsg }, { status: 502, headers: cors });
     }
 
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
     const reply: string = data.candidates?.[0]?.content?.parts
       ?.filter((p: { text?: string }) => p.text)
       ?.map((p: { text: string }) => p.text)
-      ?.join("") ?? "Kuch error aa gaya, dobara try karo.";
+      ?.join("") ?? "An error occurred. Please try again.";
 
     // Log usage
     if (paid) {

@@ -32,7 +32,7 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: "var(--accent)" }} />
                   <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--accent)" }} />
                 </span>
-                Trusted by 5000+ Students Across India
+                5,000 students are studying right now.
               </span>
             </motion.div>
 
@@ -46,7 +46,9 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
             </h1>
 
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} className="max-w-lg text-lg leading-relaxed" style={{ color: "var(--body-text)" }}>
-              Ghar pe focus nahi hota? Phone haath mein aa jaata hai? Let's Study mein aao — yahan students saath milke padhte hain, cameras on, mics off. Koi bakwaas nahi, sirf padhai.
+              Studying alone at home doesn't work. You already know this.
+              Join a live room — cameras on, mics off, everyone working.
+              That&apos;s the whole thing.
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.25, ease: [0.16, 1, 0.3, 1] }} className="flex flex-wrap gap-4">
@@ -56,11 +58,11 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
                 <>
                   <Link href="/login" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-bold text-white transition-all hover:scale-105" style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "var(--shadow-brand)" }}>
                     <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                    Join Session Now
+                    Join a Live Room — It&apos;s Free
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </Link>
                   <Link href="/signup" className="inline-flex items-center gap-2 rounded-full border-2 px-8 py-4 text-sm font-bold transition-all hover:scale-105" style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "white" }}>
-                    Request Access
+                    Create Your Account
                   </Link>
                 </>
               ) : (
@@ -74,9 +76,9 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.35, ease: [0.16, 1, 0.3, 1] }} className="flex flex-wrap gap-5">
               {[
-                { emoji: "👥", label: "Saath padhte hain, focus rehta hai" },
-                { emoji: "⏱️", label: "Pomodoro timer + lo-fi music" },
-                { emoji: "🏆", label: "Streaks, coins aur leaderboard" },
+                { emoji: "👥", label: "Study together — stay focused" },
+                { emoji: "⏱️", label: "Timed sessions — 50 min work, 10 min break" },
+                { emoji: "🏆", label: "Streaks. Coins. A rank worth earning." },
               ].map((f) => (
                 <div key={f.label} className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--body-text)" }}>
                   <span className="flex h-7 w-7 items-center justify-center rounded-full text-sm" style={{ background: "var(--accent-pale)" }}>{f.emoji}</span>
@@ -94,8 +96,8 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl text-lg" style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 4px 12px rgba(99,102,241,0.40)" }}>🔥</div>
                 <div>
-                  <p className="text-xs font-extrabold" style={{ color: "var(--foreground)" }}>7 Din ki Streak! 🔥</p>
-                  <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>Chalta reh bhai</p>
+                  <p className="text-xs font-extrabold" style={{ color: "var(--foreground)" }}>7-Day Streak 🔥</p>
+                  <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>Keep going.</p>
                 </div>
               </div>
             </motion.div>
@@ -104,8 +106,8 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
               <div className="flex items-center gap-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl text-lg" style={{ background: "linear-gradient(135deg, #10B981, #06B6D4)", boxShadow: "0 4px 12px rgba(16,185,129,0.40)" }}>⚡</div>
                 <div>
-                  <p className="text-xs font-extrabold" style={{ color: "var(--foreground)" }}>42 abhi pad rahe hain</p>
-                  <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>Tu bhi aa ja!</p>
+                  <p className="text-xs font-extrabold" style={{ color: "var(--foreground)" }}>42 studying right now</p>
+                  <p className="text-[10px]" style={{ color: "var(--muted-text)" }}>Join them.</p>
                 </div>
               </div>
             </motion.div>
@@ -114,15 +116,15 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
               <div className="relative overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/85 p-8 backdrop-blur-xl" style={{ boxShadow: "0 32px 80px rgba(15,23,42,0.14), 0 8px 24px rgba(99,102,241,0.10)" }}>
                 <div className="pointer-events-none absolute inset-0 rounded-[2.5rem]" style={{ background: "linear-gradient(135deg, rgba(238,242,255,0.5) 0%, transparent 60%, rgba(245,243,255,0.4) 100%)" }} />
                 <div className="relative z-10 mb-7 flex items-center justify-between">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>Teri Padhai Ka Safar</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>Your Study Journey</p>
                   <span className="rounded-full px-3 py-1 text-[10px] font-extrabold text-white" style={{ background: "linear-gradient(135deg, #10B981, #06B6D4)", boxShadow: "0 2px 8px rgba(16,185,129,0.4)" }}>FREE TO START</span>
                 </div>
                 <div className="relative z-10 space-y-3">
                   {[
-                    { step: "01", title: "Free mein sign up karo", desc: "Sirf 30 second lagenge, I promise", done: true },
-                    { step: "02", title: "Apna slot choose karo", desc: "Morning, afternoon ya night — jo suit kare", done: true },
-                    { step: "03", title: "Google Meet join karo", desc: "Camera on, mic off. Bas padhna hai.", done: false },
-                    { step: "04", title: "Coins kamao, rank badhao", desc: "Roz aao, streak banao, leaderboard pe chao", done: false },
+                    { step: "01", title: "Create your free account", desc: "Just your name and email. 30 seconds.", done: true },
+                    { step: "02", title: "Pick your time slot", desc: "Morning, afternoon, or night — your call.", done: true },
+                    { step: "03", title: "Join the Google Meet room", desc: "Camera on, mic off. Timer starts. Everyone works.", done: false },
+                    { step: "04", title: "Show up daily. Watch it compound.", desc: "Streaks build. Coins add up. Your rank rises.", done: false },
                   ].map((item, i) => (
                     <motion.div key={item.step} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + i * 0.1 }} className="flex items-start gap-4 rounded-2xl border px-4 py-3.5" style={{ borderColor: item.done ? "var(--accent-border)" : "var(--border)", background: item.done ? "var(--accent-pale)" : "rgba(255,255,255,0.5)" }}>
                       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold" style={item.done ? { background: "linear-gradient(135deg, #6366F1, #8B5CF6)", color: "white", boxShadow: "0 2px 8px rgba(99,102,241,0.40)" } : { background: "var(--border)", color: "var(--muted-text)" }}>
@@ -138,7 +140,7 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
                 <div className="relative z-10 mt-6">
                   <Link href="/signup" className="group flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 text-sm font-bold text-white transition-all hover:scale-[1.02]" style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "var(--shadow-brand)" }}>
                     <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                    Abhi Shuru Karo — Free Hai!
+                    Get Started — It&apos;s Free
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
                   </Link>
                 </div>

@@ -376,7 +376,7 @@ export async function sendPurchaseReceipt({
           }
         </div>`;
         }).join("")}
-        <p style="margin:8px 0 0;font-size:11px;color:#15803d;">✓ Aap in sessions mein auto-admit ho jayenge. Google Calendar invite bhi bheja ja raha hai.</p>
+        <p style="margin:8px 0 0;font-size:11px;color:#15803d;">✓ You will be auto-admitted to these sessions. A Google Calendar invite is also being sent.</p>
       </div>` : ""}
 
       ${isSubscription ? `

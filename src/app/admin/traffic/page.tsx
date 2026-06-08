@@ -162,7 +162,7 @@ function UtmGenerator() {
           UTM Link Generator
         </h2>
         <p className="mt-0.5 text-xs text-gray-400">
-          Ek click mein share-ready link banao — platform automatically track hoga bina manually likhne ke.
+          Generate a share-ready link in one click — the platform will track it automatically.
         </p>
       </div>
 
@@ -230,7 +230,7 @@ function UtmGenerator() {
       </div>
 
       <p className="mt-3 text-[11px] text-gray-400">
-        Is link ko copy karke WhatsApp / Telegram / Facebook pe share karo — jab koi click karega toh admin panel mein <strong>Campaign Sources</strong> mein dikhega.
+        Copy and share this link on WhatsApp / Telegram / Facebook — clicks will appear under <strong>Campaign Sources</strong> in the admin panel.
       </p>
     </div>
   );

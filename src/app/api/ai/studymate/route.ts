@@ -149,53 +149,51 @@ function buildSystemPrompt(
     profile.targetExam && `Target exam: ${profile.targetExam}`,
     profile.targetYear && `Target year: ${profile.targetYear}`,
     profile.studyGoal && `Study goal: ${profile.studyGoal}`,
-    profile.totalStudyHours && `Total padhai: ${profile.totalStudyHours} hours`,
+    profile.totalStudyHours && `Total study hours: ${profile.totalStudyHours} hours`,
     profile.currentStreak && `Current streak: ${profile.currentStreak} days 🔥`,
   ].filter(Boolean).join("\n");
 
-  return `You are StudyMate AI — Let's Study ka personal AI study buddy. Tum ek caring elder sibling ho jo genuinely student ki success chahta hai.
+  return `You are StudyMate AI — Let's Study's personal AI study buddy. You are a caring elder sibling who genuinely wants the student to succeed.
 
 STUDENT INFO (personalize every response using this):
-${ctx || "(profile abhi collect nahi hua — conversation se naturally pick karo)"}
+${ctx || "(profile not yet collected — pick up details naturally from the conversation)"}
 
 PROFILE COLLECTION — SILENT RULE:
-Kabhi bhi student se explicitly naam, exam, ya year mat puchho. Profile details conversation se automatically extract hoti hain.
-Agar student ne apna naam, exam, ya year khud mention kiya ho toh use use karo — warna bina puchhe seedha help karo.
+Never explicitly ask the student for their name, exam, or year. Profile details are extracted automatically from the conversation.
+If the student has mentioned their name, exam, or year themselves, use that — otherwise help them directly without asking.
 
 LANGUAGE — MANDATORY:
-ALWAYS respond in Hinglish (Hindi + English mix). Never reply in pure English.
-Example: "Yeh question mein friction force calculate karni hai. Pehle normal force nikaalo..."
-NOT: "Let's break down this physics problem step-by-step!"
+ALWAYS respond in plain English. Never mix in Hindi or Hinglish.
 
 FORMATTING — STRICTLY FORBIDDEN:
 NEVER use: ** bold ** | ## headers | * bullets | _italic_ | --- dividers | markdown of any kind.
 Write plain conversational text only. No structured formatting whatsoever.
 WRONG: "**Statement 1 Analysis:**"
-RIGHT: "Statement 1 ke baare mein baat karte hain —"
+RIGHT: "Let's talk about Statement 1 —"
 
 PERSONALITY:
 - Casual, warm, like a best friend / elder sibling
-- Naam se bulao jab pata ho
-- Kabhi robotic mat bano
+- Use the student's name when known
+- Never be robotic
 - Emojis occasionally (1-2 max per reply)
 
 MOOD DETECTION:
-Agar student likhe "chhod deta hoon" / "nahi ho raha" / "thak gaya" / "frustrated" / "stressed":
-Pehle feeling acknowledge karo, phir ek chhota step do.
+If the student writes something like "I want to quit" / "it's not working" / "I'm exhausted" / "frustrated" / "stressed":
+First acknowledge the feeling, then give one small actionable step.
 
-IMAGE QUESTIONS (jab photo milti hai):
-Sawal seedha solve karo — Hinglish mein, plain text mein, step by step numbers use karo (1. 2. 3.).
-Shortcut ya elimination trick zaroor batao agar MCQ hai.
-Ant mein ek line: "Answer: (option)" clearly likho.
+IMAGE QUESTIONS (when a photo is provided):
+Solve the question directly — in plain text, using numbered steps (1. 2. 3.).
+Share a shortcut or elimination trick if it's an MCQ.
+End with one clear line: "Answer: (option)".
 
 80/20 RULE:
-Study plans mein batao — Top 20% topics → 80% marks.
+In study plans — share Top 20% topics → 80% marks.
 
 RESPONSE FORMAT:
 - Plain text only, no markdown ever
 - Problem solving: numbered steps (1. 2. 3.) are OK, but no ** or ##
 - General advice: 4-8 sentences max
-- Har response ke end mein 1 actionable step`;
+- End every response with 1 actionable step`;
 }
 
 // ─── Profile Extraction (fire-and-forget after student's first reply) ─────────
@@ -394,7 +392,7 @@ function buildGeminiContents(messages: Msg[], imageBase64?: string, mediaType?: 
     if (imageBase64 && i === messages.length - 1 && m.role === "user") {
       return { role, parts: [
         { inlineData: { mimeType: mediaType ?? "image/jpeg", data: imageBase64 } },
-        { text: m.content || "Yeh question solve karo aur shortcut bhi batao" },
+        { text: m.content || "Please solve this question and share any shortcuts" },
       ]};
     }
     return { role, parts: [{ text: m.content }] };
@@ -425,9 +423,9 @@ async function* streamGoogle(
     const body = await res.text();
     let apiMsg = body.slice(0, 300);
     try { apiMsg = (JSON.parse(body) as { error?: { message?: string } }).error?.message ?? apiMsg; } catch {}
-    if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
-    if (res.status === 401 || res.status === 403) throw new Error("Gemini API auth failed. API key check karo.");
-    if (res.status === 404) throw new Error(`Gemini model '${API_MODEL[model]}' not found. Admin se contact karo.`);
+    if (res.status === 429) throw new Error("AI quota limit reached. Please try again later.");
+    if (res.status === 401 || res.status === 403) throw new Error("Gemini API auth failed. Please check the API key.");
+    if (res.status === 404) throw new Error(`Gemini model '${API_MODEL[model]}' not found. Please contact admin.`);
     throw new Error(`Gemini API error (${res.status}): ${apiMsg}`);
   }
 
@@ -480,8 +478,8 @@ async function* streamAnthropic(
   if (!res.ok) {
     const body = await res.text();
     console.error(`Anthropic ${model} error:`, res.status, body);
-    if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
-    throw new Error("AI service unavailable. Thodi der baad try karo.");
+    if (res.status === 429) throw new Error("AI quota limit reached. Please try again later.");
+    throw new Error("AI service unavailable. Please try again later.");
   }
 
   const reader = res.body!.getReader();
@@ -538,8 +536,8 @@ async function* streamOpenAI(
   if (!res.ok) {
     const body = await res.text();
     console.error(`OpenAI ${model} error:`, res.status, body);
-    if (res.status === 429) throw new Error("AI quota limit ho gayi. Thodi der baad try karo.");
-    throw new Error("AI service unavailable. Thodi der baad try karo.");
+    if (res.status === 429) throw new Error("AI quota limit reached. Please try again later.");
+    throw new Error("AI service unavailable. Please try again later.");
   }
 
   const reader = res.body!.getReader();
@@ -638,7 +636,7 @@ export async function POST(request: Request) {
         available.find(m => MODEL_PROVIDER[m] === "google");
       if (bestGoogle) { modelId = bestGoogle; }
       else return NextResponse.json(
-        { error: "Image upload ke liye Gemini API key configure karo." },
+        { error: "Please configure the Gemini API key to enable image uploads." },
         { status: 503 }
       );
     }
@@ -653,7 +651,7 @@ export async function POST(request: Request) {
         // Can't afford even the cheapest model
         return NextResponse.json({
           error: "coins_required",
-          message: "Coins khatam! Wallet top-up karo 🪙",
+          message: "Out of coins! Please top up your wallet 🪙",
           coinsNeeded: estimateCoins(messages, byRate[0]),
           currentCoins: coins,
         }, { status: 402 });
@@ -749,12 +747,12 @@ export async function POST(request: Request) {
         } catch (err) {
           const eMsg = (err as Error).message ?? "";
           const userMsg = eMsg.includes("quota") || eMsg.includes("limit")
-            ? "AI service temporarily busy. Thodi der baad try karo."
+            ? "AI service is temporarily busy. Please try again later."
             : eMsg.includes("auth") || eMsg.includes("key")
               ? "AI service configuration error. Contact support."
               : (err as Error).name === "AbortError"
-                ? "AI response timed out. Dobara try karo."
-                : "AI service error. Dobara try karo.";
+                ? "AI response timed out. Please try again."
+                : "AI service error. Please try again.";
           send(controller, { t: "err", msg: userMsg });
         } finally {
           controller.close();
@@ -772,14 +770,14 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     if ((e as Error).name === "AbortError") {
-      return NextResponse.json({ error: "AI response timed out. Dobara try karo." }, { status: 504 });
+      return NextResponse.json({ error: "AI response timed out. Please try again." }, { status: 504 });
     }
     const msg = (e as Error).message ?? "";
     // Log full error server-side; return only safe user-facing messages to the client.
     // Raw provider errors can leak API key details, internal URLs, or billing info.
     if (msg.includes("quota") || msg.includes("limit")) {
       console.warn("StudyMate quota error:", msg);
-      return NextResponse.json({ error: "AI service temporarily busy. Thodi der baad try karo.", retryable: true }, { status: 502 });
+      return NextResponse.json({ error: "AI service is temporarily busy. Please try again later.", retryable: true }, { status: 502 });
     }
     if (msg.includes("invalid") || msg.includes("key") || msg.includes("expired")) {
       console.error("StudyMate API key error:", msg);
@@ -787,10 +785,10 @@ export async function POST(request: Request) {
     }
     if (msg.includes("available") || msg.includes("model")) {
       console.error("StudyMate model error:", msg);
-      return NextResponse.json({ error: "Requested AI model is not available. Admin se contact karo.", retryable: false }, { status: 502 });
+      return NextResponse.json({ error: "Requested AI model is not available. Please contact admin.", retryable: false }, { status: 502 });
     }
     console.error("StudyMate POST error:", e);
-    return NextResponse.json({ error: "AI service error. Dobara try karo." }, { status: 500 });
+    return NextResponse.json({ error: "AI service error. Please try again." }, { status: 500 });
   }
 }
 

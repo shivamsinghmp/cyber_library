@@ -229,9 +229,9 @@ export default function AdminStudentsPage() {
         toast.success(`7-day trial granted to ${trialStudent.name || trialStudent.email}!`);
         setTrialStudent(null);
       } else {
-        toast.error(data?.error ?? "Trial grant nahi hua.");
+        toast.error(data?.error ?? "Could not grant trial.");
       }
-    } catch { toast.error("Trial grant nahi hua."); }
+    } catch { toast.error("Could not grant trial."); }
     finally { setTrialSaving(false); }
   }
 
@@ -518,7 +518,7 @@ export default function AdminStudentsPage() {
           {activityLoading ? (
             <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-violet-500" /></div>
           ) : activityEvents.length === 0 ? (
-            <p className="py-8 text-center text-sm text-[var(--cream-muted)]">Abhi koi activity nahi hai.</p>
+            <p className="py-8 text-center text-sm text-[var(--cream-muted)]">No activity yet.</p>
           ) : (
             <div className="relative">
               <div className="absolute left-[7px] top-0 bottom-0 w-px bg-gray-100" />
@@ -599,7 +599,7 @@ function StudentModulesPanel({ userId }: { userId: string }) {
       if (!res.ok) throw new Error();
       toast.success("Saved!");
     } catch {
-      toast.error("Save nahi hua.");
+      toast.error("Could not save.");
       load();
     } finally { setSaving(false); }
   }
@@ -625,7 +625,7 @@ function StudentModulesPanel({ userId }: { userId: string }) {
                 <div key={m.id} className={`flex items-center justify-between px-4 py-3 ${m.globallyDisabled ? "bg-gray-50/60 opacity-60" : "bg-white"}`}>
                   <div>
                     <p className={`text-sm font-medium ${!m.accessible ? "text-gray-400 line-through" : "text-gray-900"}`}>{m.label}</p>
-                    {m.globallyDisabled && <p className="text-[10px] text-red-400 mt-0.5">Globally disabled — admin panel se enable karo</p>}
+                    {m.globallyDisabled && <p className="text-[10px] text-red-400 mt-0.5">Globally disabled — enable from admin panel</p>}
                   </div>
                   <button
                     onClick={() => !m.globallyDisabled && toggle(m.id, m.studentDisabled)}

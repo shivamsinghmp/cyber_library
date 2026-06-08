@@ -10,8 +10,8 @@ type Method = "email" | "mobile";
 
 const STEPS = [
   { key: "request", label: "Contact",        num: 1 },
-  { key: "reset",   label: "Naya Password",  num: 2 },
-  { key: "done",    label: "Ho Gaya!",       num: 3 },
+  { key: "reset",   label: "New Password",  num: 2 },
+  { key: "done",    label: "Done!",       num: 3 },
 ] as const;
 
 export default function ForgotPasswordPage() {
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
     setError(null); setMessage(null);
 
     if (method === "email") {
-      if (!email) { setError("Email daalo pehle."); return; }
+      if (!email) { setError("Please enter your email."); return; }
       setSubmitting(true);
       try {
         const res  = await fetch("/api/auth/forgot-password/request-otp", {
@@ -73,16 +73,16 @@ export default function ForgotPasswordPage() {
           body: JSON.stringify({ email }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { setError(data.error || "OTP nahi gaya. Dobara try karo."); return; }
+        if (!res.ok) { setError(data.error || "OTP could not be sent. Please try again."); return; }
         setResolvedEmail(email);
-        setMessage("OTP bhej diya! Email inbox check karo.");
+        setMessage("OTP sent! Please check your email inbox.");
         setStep("reset");
         startResendTimer();
-      } catch { setError("Kuch gadbad ho gayi. Dobara try karo."); }
+      } catch { setError("Something went wrong. Please try again."); }
       finally   { setSubmitting(false); }
 
     } else {
-      if (!phone || phone.length < 10) { setError("Valid mobile number daalo."); return; }
+      if (!phone || phone.length < 10) { setError("Please enter a valid mobile number."); return; }
       setSubmitting(true);
       try {
         const res  = await fetch("/api/auth/forgot-password/request-otp-mobile", {
@@ -90,18 +90,18 @@ export default function ForgotPasswordPage() {
           body: JSON.stringify({ phoneNumber: formatPhone(phone) }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { setError(data.error || "OTP nahi gaya. Dobara try karo."); return; }
+        if (!res.ok) { setError(data.error || "OTP could not be sent. Please try again."); return; }
         // maskedEmail for display; resetEmail is the actual email used in reset API
         setResolvedEmail(data.maskedEmail || "");
         setActualResetEmail(data.resetEmail || "");
         setMessage(
           data.maskedEmail
-            ? `OTP bheja gaya SMS/WhatsApp pe! (Email: ${data.maskedEmail})`
-            : "Agar ye number registered hai toh OTP aa jaayega."
+            ? `OTP sent via SMS/WhatsApp! (Email: ${data.maskedEmail})`
+            : "If this number is registered, you will receive an OTP."
         );
         setStep("reset");
         startResendTimer();
-      } catch { setError("Kuch gadbad ho gayi. Dobara try karo."); }
+      } catch { setError("Something went wrong. Please try again."); }
       finally   { setSubmitting(false); }
     }
   }
@@ -117,19 +117,19 @@ export default function ForgotPasswordPage() {
           body: JSON.stringify({ email }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { setError(data.error || "OTP nahi gaya. Dobara try karo."); return; }
-        setMessage("OTP dobara bhej diya! Email inbox check karo.");
+        if (!res.ok) { setError(data.error || "OTP could not be sent. Please try again."); return; }
+        setMessage("OTP resent! Please check your email inbox.");
       } else {
         const res  = await fetch("/api/auth/forgot-password/request-otp-mobile", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ phoneNumber: formatPhone(phone) }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { setError(data.error || "OTP nahi gaya. Dobara try karo."); return; }
-        setMessage("OTP dobara bheja gaya! WhatsApp check karo.");
+        if (!res.ok) { setError(data.error || "OTP could not be sent. Please try again."); return; }
+        setMessage("OTP resent! Please check WhatsApp.");
       }
       startResendTimer();
-    } catch { setError("Kuch gadbad ho gayi. Dobara try karo."); }
+    } catch { setError("Something went wrong. Please try again."); }
     finally   { setResendLoading(false); }
   }
 
@@ -137,16 +137,16 @@ export default function ForgotPasswordPage() {
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
     setError(null); setMessage(null);
-    if (!code || !password || !confirmPassword) { setError("Sab fields bharo."); return; }
-    if (password !== confirmPassword)           { setError("Dono passwords same nahi hain."); return; }
-    if (password.length < 8)                    { setError("Password kam se kam 8 characters hona chahiye."); return; }
+    if (!code || !password || !confirmPassword) { setError("Please fill in all fields."); return; }
+    if (password !== confirmPassword)           { setError("Passwords do not match."); return; }
+    if (password.length < 8)                    { setError("Password must be at least 8 characters."); return; }
 
     // For reset we always use the actual email key
     // Mobile flow: actualResetEmail holds the real email returned by OTP API
     // Email flow: user typed it directly
     const emailForReset = method === "email" ? email : actualResetEmail;
     if (!emailForReset) {
-      setError("Kuch gadbad ho gayi — pehle se shuru karo.");
+      setError("Something went wrong — please start over.");
       setStep("request");
       return;
     }
@@ -158,9 +158,9 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email: emailForReset, code, password }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setError(data.error || "Reset nahi hua. Code check karo aur dobara try karo."); return; }
+      if (!res.ok) { setError(data.error || "Reset failed. Please check the code and try again."); return; }
       setStep("done");
-    } catch { setError("Kuch gadbad ho gayi. Dobara try karo."); }
+    } catch { setError("Something went wrong. Please try again."); }
     finally   { setSubmitting(false); }
   }
 
@@ -184,7 +184,7 @@ export default function ForgotPasswordPage() {
           className="mb-6 inline-flex items-center gap-2 text-sm font-bold transition-colors hover:text-[var(--accent)]"
           style={{ color: "var(--muted-text)" }}>
           <ArrowLeft className="h-4 w-4" />
-          Login pe wapas jao
+          Back to Login
         </Link>
 
         {/* Step progress */}
@@ -255,10 +255,10 @@ export default function ForgotPasswordPage() {
                   </div>
 
                   <h1 className="text-xl font-extrabold mb-1" style={{ color: "var(--foreground)" }}>
-                    Password Bhool Gaye? 😅
+                    Forgot Your Password? 😅
                   </h1>
                   <p className="text-sm mb-5" style={{ color: "var(--muted-text)" }}>
-                    OTP kahan bhejna hai — pehle ye choose karo:
+                    Choose where to receive your OTP:
                   </p>
 
                   {/* Method toggle */}
@@ -303,7 +303,7 @@ export default function ForgotPasswordPage() {
                               className={`${inputCls} pl-10`} style={inputStyle} autoFocus />
                           </div>
                           <p className="text-[10px] font-semibold" style={{ color: "var(--muted-text)" }}>
-                            OTP tumhare email inbox mein aayega
+                            OTP will be sent to your email inbox
                           </p>
                         </motion.div>
                       ) : (
@@ -323,7 +323,7 @@ export default function ForgotPasswordPage() {
                               className={`${inputCls} pl-10`} style={inputStyle} autoFocus />
                           </div>
                           <p className="text-[10px] font-semibold" style={{ color: "var(--muted-text)" }}>
-                            OTP SMS ya WhatsApp pe aayega us number pe
+                            OTP will be sent via SMS or WhatsApp to this number
                           </p>
                         </motion.div>
                       )}
@@ -348,10 +348,10 @@ export default function ForgotPasswordPage() {
                       }}>
                       <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
                       {submitting
-                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Bhej raha hoon…</>
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
                         : method === "email"
-                          ? "Email pe OTP Bhejo 📨"
-                          : "Mobile pe OTP Bhejo 📱"
+                          ? "Send OTP to Email 📨"
+                          : "Send OTP to Mobile 📱"
                       }
                     </button>
                   </form>
@@ -376,7 +376,7 @@ export default function ForgotPasswordPage() {
                   </div>
 
                   <h1 className="text-xl font-extrabold mb-1" style={{ color: "var(--foreground)" }}>
-                    OTP Check Karo 🔐
+                    Verify OTP 🔐
                   </h1>
 
                   {/* Show where OTP was sent */}
@@ -388,7 +388,7 @@ export default function ForgotPasswordPage() {
                     }
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-wider" style={{ color: "var(--accent)" }}>
-                        OTP bheja gaya {method === "email" ? "Email pe" : "Mobile pe"}
+                        OTP sent to {method === "email" ? "Email" : "Mobile"}
                       </p>
                       <p className="text-sm font-bold mt-0.5" style={{ color: "var(--foreground)" }}>
                         {method === "email" ? email : (resolvedEmail || formatPhone(phone))}
@@ -419,17 +419,17 @@ export default function ForgotPasswordPage() {
                         style={inputStyle} autoFocus />
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-semibold" style={{ color: "var(--muted-text)" }}>
-                          Code 10 minute mein expire ho jaayega ⏱
+                          Code expires in 10 minutes ⏱
                         </p>
                         {resendTimer > 0 ? (
                           <p className="text-[10px] font-bold tabular-nums" style={{ color: "var(--muted-text)" }}>
-                            {Math.floor(resendTimer / 60)}:{String(resendTimer % 60).padStart(2, "0")} mein resend
+                            Resend in {Math.floor(resendTimer / 60)}:{String(resendTimer % 60).padStart(2, "0")}
                           </p>
                         ) : (
                           <button type="button" onClick={handleResend} disabled={resendLoading}
                             className="text-[11px] font-extrabold transition-colors hover:opacity-75 disabled:opacity-50"
                             style={{ color: "var(--accent)" }}>
-                            {resendLoading ? "Bhej raha…" : "OTP Dobara Bhejo"}
+                            {resendLoading ? "Sending…" : "Resend OTP"}
                           </button>
                         )}
                       </div>
@@ -439,7 +439,7 @@ export default function ForgotPasswordPage() {
                     <div className="space-y-1.5">
                       <label className="block text-[11px] font-extrabold uppercase tracking-widest"
                         style={{ color: "var(--foreground)" }}>
-                        Naya Password
+                        New Password
                       </label>
                       <div className="relative">
                         <Lock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4"
@@ -460,7 +460,7 @@ export default function ForgotPasswordPage() {
                     <div className="space-y-1.5">
                       <label className="block text-[11px] font-extrabold uppercase tracking-widest"
                         style={{ color: "var(--foreground)" }}>
-                        Password Dobara Daalo
+                        Confirm Password
                       </label>
                       <div className="relative">
                         <Lock className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4"
@@ -492,8 +492,8 @@ export default function ForgotPasswordPage() {
                       }}>
                       <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
                       {submitting
-                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Update ho raha hai…</>
-                        : "Password Update Karo 🔒"
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Updating…</>
+                        : "Update Password 🔒"
                       }
                     </button>
 
@@ -501,7 +501,7 @@ export default function ForgotPasswordPage() {
                       onClick={() => { setStep("request"); setError(null); setMessage(null); setCode(""); }}
                       className="w-full text-center text-xs font-bold transition-colors hover:text-[var(--accent)]"
                       style={{ color: "var(--muted-text)" }}>
-                      ← Method badalna hai? Wapas jao
+                      ← Change method? Go back
                     </button>
                   </form>
                 </motion.div>
@@ -532,15 +532,15 @@ export default function ForgotPasswordPage() {
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                     className="text-2xl font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-                    Password Update Ho Gaya!
+                    Password Updated!
                   </motion.h1>
 
                   <motion.p
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                     className="text-sm mb-8 leading-relaxed" style={{ color: "var(--muted-text)" }}>
-                    Tera naya password set ho gaya. <br />
-                    Ab login karke padhai shuru karo! 📚
+                    Your new password has been set. <br />
+                    Log in now and get back to studying! 📚
                   </motion.p>
 
                   <motion.div
@@ -553,7 +553,7 @@ export default function ForgotPasswordPage() {
                         boxShadow: "0 6px 20px rgba(99,102,241,0.40)",
                       }}>
                       <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                      Login Karo →
+                      Log In →
                     </Link>
                   </motion.div>
                 </motion.div>
@@ -565,9 +565,9 @@ export default function ForgotPasswordPage() {
 
         {step !== "done" && (
           <p className="mt-5 text-center text-sm" style={{ color: "var(--muted-text)" }}>
-            Password yaad aa gaya?{" "}
+            Remember your password?{" "}
             <Link href="/login" className="font-extrabold hover:underline" style={{ color: "var(--accent)" }}>
-              Login Karo
+              Log In
             </Link>
           </p>
         )}

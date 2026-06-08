@@ -55,14 +55,14 @@ export async function checkMeetAddonAccess(userId: string): Promise<PlanAccess> 
       state: expiredSub.planType === "TRIAL" ? "trial_expired" : "expired",
       message:
         expiredSub.planType === "TRIAL"
-          ? "Free trial khatam ho gaya. Paid plan lein."
-          : "Aapka plan expire ho gaya. Renew karein.",
+          ? "Your free trial has ended. Please get a paid plan."
+          : "Your plan has expired. Please renew.",
     };
   }
 
   return {
     allowed: false,
     state: "no_plan",
-    message: "Yeh feature sirf subscribers ke liye hai.",
+    message: "This feature is only available to subscribers.",
   };
 }

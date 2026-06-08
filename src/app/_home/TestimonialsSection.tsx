@@ -8,19 +8,19 @@ const TESTIMONIALS = [
   {
     name: "Aman",
     role: "UPSC Aspirant",
-    quote: "Ghar pe padhna impossible tha — phone, family, distractions. Yahan aake pehli baar 3 ghante continuous pada. Game changer hai seriously.",
+    quote: "Studying at home was impossible — phone, family, distractions. Here I focused for 3 hours straight for the first time. Genuinely a game changer.",
     initial: "A",
   },
   {
     name: "Khushi",
     role: "JEE Student",
-    quote: "Roz evening slot join karti hoon. Camera on hone se neend nahi aati aur baaki students ko dekhke motivation milta hai. Mere marks improve hue hain.",
+    quote: "I join the evening slot every day. Camera on keeps me from falling asleep and seeing others study keeps me motivated. My scores have improved.",
     initial: "K",
   },
   {
     name: "Rohan",
     role: "NEET Aspirant",
-    quote: "Pehle sochta tha 1 ghanta bhi focus nahi kar sakta. Ab daily 4-5 ghante ho jaate hain bina kisi problem ke. Yahi chahiye tha mujhe.",
+    quote: "I used to think I couldn't focus for even an hour. Now I do 4-5 hours daily without any problem. This is exactly what I needed.",
     initial: "R",
   },
 ];
@@ -43,11 +43,11 @@ export function TestimonialsSection() {
           <div className="mb-12 text-center">
             <motion.div variants={fadeIn}>
               <span className="mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest" style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                Unhi Ki Zubaani
+                In Their Own Words
               </span>
             </motion.div>
             <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: "var(--foreground)" }}>
-              Jo Aaye, Woh Bole
+              What Our Students Say
             </motion.h2>
           </div>
 

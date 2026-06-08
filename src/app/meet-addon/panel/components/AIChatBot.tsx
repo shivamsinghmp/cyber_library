@@ -26,10 +26,10 @@ function getToken(): string {
 function genId() { return Math.random().toString(36).slice(2, 9); }
 
 const QUICK_PROMPTS = [
-  "Aaj study plan bana do",
-  "Motivation chahiye",
-  "Shortcut trick batao",
-  "Kal ka revision plan",
+  "Create a study plan for today",
+  "I need some motivation",
+  "Share a shortcut trick",
+  "Tomorrow's revision plan",
 ];
 
 const MODEL_EMOJI: Record<string, string> = {
@@ -168,7 +168,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
               break outer;
             } else if (ev.t === "err") {
               setMessages(prev => prev.map(m => m.id === streamMsgId
-                ? { ...m, content: (ev.msg as string) ?? "AI service error. Dobara try karo.", isStreaming: false }
+                ? { ...m, content: (ev.msg as string) ?? "AI service error. Please try again.", isStreaming: false }
                 : m));
               break outer;
             }
@@ -203,7 +203,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Response parse error" }));
         if (data.error === "coins_required") {
-          setCoinsError({ message: data.message ?? "Coins khatam!", coinsNeeded: data.coinsNeeded ?? 1, currentCoins: data.currentCoins ?? 0 });
+          setCoinsError({ message: data.message ?? "Out of coins!", coinsNeeded: data.coinsNeeded ?? 1, currentCoins: data.currentCoins ?? 0 });
           if (data.currentCoins != null) setTotalCoins(data.currentCoins);
           setLoading(false); return;
         }
@@ -220,12 +220,12 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
           setLoading(false); return;
         }
         const errMsg = res.status === 401
-          ? "Session expire ho gayi. Panel se logout karke dobara login karo."
+          ? "Session expired. Please log out of the panel and log in again."
           : res.status === 503 || data.error === "AI not configured"
-            ? "StudyMate AI abhi available nahi hai. Admin se contact karo."
+            ? "StudyMate AI is not available right now. Please contact the admin."
             : res.status === 504 || data.error?.includes("timed out")
-              ? "AI timeout ho gayi. Thodi der baad try karo."
-              : data.error || `Error ${res.status}. Dobara try karo.`;
+              ? "AI timed out. Please try again in a moment."
+              : data.error || `Error ${res.status}. Please try again.`;
         setMessages(prev => [...prev, { id: genId(), role: "assistant", content: errMsg }]);
         setLoading(false); return;
       }
@@ -236,7 +236,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
       await consumeStream(res, streamMsgId);
 
     } catch {
-      setMessages(prev => [...prev, { id: genId(), role: "assistant", content: "Network error. Internet connection check karo." }]);
+      setMessages(prev => [...prev, { id: genId(), role: "assistant", content: "Network error. Please check your internet connection." }]);
       setLoading(false);
     }
   }, [consumeStream]);
@@ -257,7 +257,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
     setQualityWarning(null);
     setInput("");
 
-    const content = trimmed || (imageBase64 ? "📸 Yeh question solve karo" : "");
+    const content = trimmed || (imageBase64 ? "📸 Please solve this question" : "");
     const capturedImage = imageBase64;
     const capturedMime  = imageMediaType;
     setImageBase64(null);
@@ -346,8 +346,8 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                   <Bot className="w-7 h-7 text-[#8B5CF6]" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-bold text-white/80">Kuch bhi poochho!</p>
-                  <p className="text-[10px] text-white/30 mt-1">Study plan, doubt, motivation — sab chalega</p>
+                  <p className="text-sm font-bold text-white/80">Ask me anything!</p>
+                  <p className="text-[10px] text-white/30 mt-1">Study plan, doubt, motivation — anything goes</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5 justify-center w-full px-2">
                   {QUICK_PROMPTS.map((q) => (
@@ -448,11 +448,11 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                 <div className="flex items-start gap-2">
                   <span className="text-base mt-0.5">🪙</span>
                   <div>
-                    <p className="text-xs font-bold text-amber-300">Coins Khatam!</p>
+                    <p className="text-xs font-bold text-amber-300">Out of Coins!</p>
                     <p className="text-[10px] text-amber-400/70 mt-0.5 leading-relaxed">{coinsError.message}</p>
                     <div className="flex items-center gap-3 mt-1.5 text-[10px]">
-                      <span className="text-amber-400">Chahiye: <b>{coinsError.coinsNeeded}🪙</b></span>
-                      <span className="text-amber-400/60">Paas: <b>{coinsError.currentCoins}🪙</b></span>
+                      <span className="text-amber-400">Need: <b>{coinsError.coinsNeeded}🪙</b></span>
+                      <span className="text-amber-400/60">Have: <b>{coinsError.currentCoins}🪙</b></span>
                     </div>
                   </div>
                 </div>
@@ -462,7 +462,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30 px-3 py-2 text-[10px] font-bold text-amber-300 hover:bg-amber-500/30 transition-colors"
                 >
-                  <ShoppingCart className="w-3 h-3" /> Coins Kharido
+                  <ShoppingCart className="w-3 h-3" /> Buy Coins
                 </a>
               </motion.div>
             )}
@@ -475,10 +475,10 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                 className="rounded-xl border border-violet-500/30 bg-violet-500/[0.08] p-3 flex flex-col gap-2.5"
               >
                 <div>
-                  <p className="text-xs font-bold text-violet-300">Premium model chahiye</p>
+                  <p className="text-xs font-bold text-violet-300">Premium model required</p>
                   <p className="text-[10px] text-violet-400/70 mt-0.5 leading-relaxed">
-                    {qualityWarning.preferredModel} ke liye <b>{qualityWarning.preferredModelCoins}🪙</b> chahiye,
-                    tumhare paas sirf <b>{qualityWarning.currentCoins}🪙</b> hain.
+                    {qualityWarning.preferredModel} needs <b>{qualityWarning.preferredModelCoins}🪙</b>,
+                    but you only have <b>{qualityWarning.currentCoins}🪙</b>.
                   </p>
                 </div>
                 <div className="flex gap-1.5">
@@ -488,7 +488,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                     rel="noopener noreferrer"
                     className="flex-1 flex items-center justify-center gap-1 rounded-lg bg-violet-500/20 border border-violet-500/30 px-2 py-2 text-[10px] font-bold text-violet-300 hover:bg-violet-500/30 transition-colors"
                   >
-                    <ShoppingCart className="w-2.5 h-2.5" /> Coins Kharido
+                    <ShoppingCart className="w-2.5 h-2.5" /> Buy Coins
                   </a>
                   <button
                     onClick={handleAcceptLowerQuality}
@@ -532,7 +532,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                 type="button"
                 onClick={() => imageInputRef.current?.click()}
                 disabled={loading}
-                title="Photo of question attach karo"
+                title="Attach a photo of your question"
                 className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-white/30 hover:text-violet-400 transition-colors disabled:opacity-30"
               >
                 <ImagePlus className="w-4 h-4" />
@@ -547,7 +547,7 @@ export function AIChatBot({ isOpen, onClose, initialPrompt, onPromptConsumed }: 
                   e.target.style.height = Math.min(e.target.scrollHeight, 80) + "px";
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Kuch bhi poochho... (Enter to send)"
+                placeholder="Ask anything... (Enter to send)"
                 disabled={loading}
                 className="flex-1 bg-transparent text-xs text-white placeholder:text-white/25 outline-none resize-none leading-relaxed disabled:opacity-50"
                 style={{ minHeight: "20px", maxHeight: "80px" }}

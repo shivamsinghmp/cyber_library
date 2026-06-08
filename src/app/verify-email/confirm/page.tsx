@@ -21,7 +21,7 @@ function ConfirmContent() {
   useEffect(() => {
     if (!token || !email) {
       setStatus("error");
-      setErrorMsg("Link incomplete hai. Signup se naya link lo.");
+      setErrorMsg("This link is incomplete. Please request a new link from signup.");
       return;
     }
 
@@ -34,7 +34,7 @@ function ConfirmContent() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setStatus("error");
-          setErrorMsg(data.error || "Link invalid ya expire ho gaya hai.");
+          setErrorMsg(data.error || "This link is invalid or has expired.");
           return;
         }
         if (data.alreadyVerified) {
@@ -46,7 +46,7 @@ function ConfirmContent() {
       })
       .catch(() => {
         setStatus("error");
-        setErrorMsg("Network error. Dobara try karo.");
+        setErrorMsg("Network error. Please try again.");
       });
   }, [token, email, router]);
 
@@ -78,10 +78,10 @@ function ConfirmContent() {
                 <Loader2 className="h-8 w-8 text-white animate-spin" />
               </div>
               <h1 className="text-xl font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-                Verify ho raha hai…
+                Verifying…
               </h1>
               <p className="text-sm" style={{ color: "var(--muted-text)" }}>
-                Ek second, link check kar rahe hain.
+                One moment, checking your link.
               </p>
             </>
           )}
@@ -92,15 +92,15 @@ function ConfirmContent() {
                 <CheckCircle className="h-8 w-8 text-emerald-600" />
               </div>
               <h1 className="text-xl font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-                Email verify ho gaya! 🎉
+                Email verified! 🎉
               </h1>
               <p className="text-sm mb-5" style={{ color: "var(--muted-text)" }}>
-                Tumhara account ready hai. 3 seconds mein login page pe bhej rahe hain…
+                Your account is ready. Redirecting to login in 3 seconds…
               </p>
               <Link href="/login?verified=1"
                 className="inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02]"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 6px 20px rgba(99,102,241,0.40)" }}>
-                Login Karo →
+                Log In →
               </Link>
             </>
           )}
@@ -111,15 +111,15 @@ function ConfirmContent() {
                 <CheckCircle className="h-8 w-8 text-blue-600" />
               </div>
               <h1 className="text-xl font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-                Pehle se verified hai!
+                Already Verified!
               </h1>
               <p className="text-sm mb-5" style={{ color: "var(--muted-text)" }}>
-                Yeh email already verify hai. Sidha login karo.
+                This email is already verified. Go ahead and log in.
               </p>
               <Link href="/login"
                 className="inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-extrabold text-white transition-all hover:scale-[1.02]"
                 style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "0 6px 20px rgba(99,102,241,0.40)" }}>
-                Login Karo →
+                Log In →
               </Link>
             </>
           )}
@@ -130,7 +130,7 @@ function ConfirmContent() {
                 <XCircle className="h-8 w-8 text-red-500" />
               </div>
               <h1 className="text-xl font-extrabold mb-2" style={{ color: "var(--foreground)" }}>
-                Link kaam nahi kiya
+                Link did not work
               </h1>
               <p className="text-sm mb-5" style={{ color: "var(--muted-text)" }}>
                 {errorMsg}
@@ -143,8 +143,8 @@ function ConfirmContent() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-bold transition-all hover:bg-gray-50 disabled:opacity-50 mb-3"
                   style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
                   {resending
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Bhej rahe hain…</>
-                    : <><RefreshCw className="h-4 w-4" /> Naya link maango</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                    : <><RefreshCw className="h-4 w-4" /> Request a new link</>
                   }
                 </button>
               )}
@@ -152,14 +152,14 @@ function ConfirmContent() {
               {resendDone && (
                 <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 mb-3">
                   <CheckCircle className="h-4 w-4 text-emerald-600" />
-                  <p className="text-sm font-semibold text-emerald-700">Naya link bhej diya! Inbox check karo.</p>
+                  <p className="text-sm font-semibold text-emerald-700">New link sent! Please check your inbox.</p>
                 </div>
               )}
 
               <Link href="/signup"
                 className="text-sm font-bold hover:underline"
                 style={{ color: "var(--accent)" }}>
-                Naya account banao
+                Create a new account
               </Link>
             </>
           )}

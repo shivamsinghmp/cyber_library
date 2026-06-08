@@ -16,13 +16,13 @@ export async function POST(request: Request) {
     // 10 attempts per IP per 15 minutes — brute-force protection for 6-digit OTP
     const ipRl = rateLimit(`verify_email_ip:${ip}`, 10, 900);
     if (!ipRl.success) {
-      return NextResponse.json({ error: "Too many attempts. 15 minute baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many attempts. Please try again in 15 minutes." }, { status: 429 });
     }
 
     const body = await request.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Email aur 6-digit OTP zaroori hai." }, { status: 400 });
+      return NextResponse.json({ error: "Email and 6-digit OTP are required." }, { status: 400 });
     }
 
     const { email, code } = parsed.data;
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     // 5 attempts per email per 15 minutes — prevents targeted OTP brute-force
     const emailRl = rateLimit(`verify_email_addr:${normalizedEmail}`, 5, 900);
     if (!emailRl.success) {
-      return NextResponse.json({ error: "Too many attempts for this email. 15 minute baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many attempts for this email. Please try again in 15 minutes." }, { status: 429 });
     }
 
     const user = await prisma.user.findUnique({
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "Account nahi mila." }, { status: 404 });
+      return NextResponse.json({ error: "Account not found." }, { status: 404 });
     }
 
     if (user.emailVerified) {
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
     const ok = await verifyOtp(normalizedEmail, "verify", code);
     if (!ok) {
-      return NextResponse.json({ error: "OTP galat hai ya expire ho gaya. Naya OTP mangao." }, { status: 400 });
+      return NextResponse.json({ error: "OTP is incorrect or has expired. Please request a new OTP." }, { status: 400 });
     }
 
     await prisma.user.update({

@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     });
     if (!user) {
       return NextResponse.json({
-        error: `Student nahi mila. Student ID (VL-...), email, ya internal ID check karo.`,
+        error: `Student not found. Please check the Student ID (VL-...), email, or internal ID.`,
         searched: search,
       }, { status: 404 });
     }

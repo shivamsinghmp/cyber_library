@@ -6,14 +6,14 @@ import toast from "react-hot-toast";
 import DOMPurify from "dompurify";
 
 const VARIABLES = [
-  { key: "{{name}}",           desc: "Student ka naam" },
-  { key: "{{studyHours}}",     desc: "Aaj ke study hours (e.g. 2.5)" },
-  { key: "{{studyMins}}",      desc: "Aaj ke study minutes" },
-  { key: "{{tasksCompleted}}", desc: "Aaj complete kiye gaye tasks" },
-  { key: "{{totalTasks}}",     desc: "Aaj ke total tasks" },
+  { key: "{{name}}",           desc: "Student's name" },
+  { key: "{{studyHours}}",     desc: "Today's study hours (e.g. 2.5)" },
+  { key: "{{studyMins}}",      desc: "Today's study minutes" },
+  { key: "{{tasksCompleted}}", desc: "Tasks completed today" },
+  { key: "{{totalTasks}}",     desc: "Total tasks for today" },
   { key: "{{streak}}",         desc: "Current streak (days)" },
   { key: "{{coins}}",          desc: "Total coin balance" },
-  { key: "{{coinsToday}}",     desc: "Aaj ke earned coins" },
+  { key: "{{coinsToday}}",     desc: "Coins earned today" },
   { key: "{{quote}}",          desc: "Random motivational quote" },
 ];
 
@@ -76,8 +76,8 @@ export function DailyReportTab() {
   }
 
   async function handleSend() {
-    if (!template.trim()) { toast.error("Template empty hai"); return; }
-    if (!confirm("Sabhi students ko Daily Report WhatsApp bhejoge? Sure?")) return;
+    if (!template.trim()) { toast.error("Template is empty"); return; }
+    if (!confirm("Send Daily Report WhatsApp to all students? Are you sure?")) return;
     setSending(true);
     setResult(null);
     try {
@@ -112,7 +112,7 @@ export function DailyReportTab() {
             Daily Report Template
           </h2>
           <p className="mt-1 text-sm text-[var(--cream-muted)]">
-            Har student ko personalized WhatsApp message jaayega — study hours, tasks, streak, coins aur motivational quote ke saath.
+            Each student will receive a personalized WhatsApp message — with study hours, tasks, streak, coins, and a motivational quote.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -160,12 +160,12 @@ export function DailyReportTab() {
             onChange={(e) => setTemplate(e.target.value)}
             rows={18}
             className="w-full rounded-2xl border border-[var(--border)] bg-gray-50 px-4 py-3 text-sm font-mono text-[var(--foreground)] outline-none focus:border-[var(--accent)] resize-y leading-relaxed"
-            placeholder="Template likhein… {{name}}, {{studyHours}} etc. use karein"
+            placeholder="Write your template… use {{name}}, {{studyHours}} etc."
           />
         </div>
       ) : (
         <div>
-          <p className="mb-1.5 text-xs font-semibold text-[var(--cream-muted)] uppercase tracking-wider">Preview (sample data ke saath)</p>
+          <p className="mb-1.5 text-xs font-semibold text-[var(--cream-muted)] uppercase tracking-wider">Preview (with sample data)</p>
           <div className="rounded-2xl border border-[var(--border)] bg-white p-4">
             {/* WhatsApp-style chat bubble */}
             <div className="flex justify-end">
@@ -179,7 +179,7 @@ export function DailyReportTab() {
             </div>
           </div>
           <p className="mt-2 text-[10px] text-[var(--cream-muted)] text-center">
-            Sample data se preview — actual message mein real stats honge
+            Preview uses sample data — the actual message will have real stats
           </p>
         </div>
       )}

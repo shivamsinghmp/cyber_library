@@ -104,7 +104,7 @@ export async function GET(request: Request) {
     let trialExpiredSent = 0;
     let trialWarningSent = 0;
 
-    // Mark expired + send "trial khatam" message
+    // Mark expired + send trial-ended message
     for (const sub of expiredTrials) {
       const phone = sub.user.profile?.whatsappNumber || sub.user.profile?.phone;
       const name  = sub.user.name ?? "Student";
@@ -123,18 +123,18 @@ export async function GET(request: Request) {
       if (!phone) continue;
 
       const msg =
-        `Namaste ${name}! 🙏\n\n` +
-        `*Let's Study* — Aapka *7-day free trial* aaj khatam ho gaya hai.\n\n` +
-        `Trial ke dauran humein umeed hai ki aapko hamare study rooms, AI assistant, aur baaki features pasand aaye.\n\n` +
-        `🚀 *Abhi subscribe karo aur apni padhai jaari rakho:*\n` +
+        `Hello ${name}! 🙏\n\n` +
+        `*Let's Study* — Your *7-day free trial* ended today.\n\n` +
+        `We hope you enjoyed our study rooms, AI assistant, and other features during the trial.\n\n` +
+        `🚀 *Subscribe now and continue your studies:*\n` +
         `https://cyberlib.in/pricing\n\n` +
-        `Koi bhi sawal ho to humse seedha baat karo. Best of luck! 💪`;
+        `Feel free to reach out if you have any questions. Best of luck! 💪`;
 
       const ok = await sendWhatsAppText(phone, msg);
       if (ok) trialExpiredSent++;
     }
 
-    // Send "kal trial khatam hoga" warning
+    // Send "trial expires tomorrow" warning
     for (const sub of expiringTrials) {
       const phone = sub.user.profile?.whatsappNumber || sub.user.profile?.phone;
       const name  = sub.user.name ?? "Student";
@@ -142,16 +142,16 @@ export async function GET(request: Request) {
       if (!phone) continue;
 
       const msg =
-        `Namaste ${name}! ⏰\n\n` +
-        `*Let's Study* — Aapka *free trial kal khatam ho raha hai!*\n\n` +
-        `Features jo band ho jaayenge:\n` +
+        `Hello ${name}! ⏰\n\n` +
+        `*Let's Study* — Your *free trial ends tomorrow!*\n\n` +
+        `Features that will become unavailable:\n` +
         `• Study Room Access\n` +
         `• AI Study Assistant\n` +
         `• Live Video Sessions\n` +
         `• Daily Slots Booking\n\n` +
-        `✅ *Aaj hi subscribe karo aur access bana rakho:*\n` +
+        `✅ *Subscribe today and keep your access:*\n` +
         `https://cyberlib.in/pricing\n\n` +
-        `Padhai mat rokna! 📚`;
+        `Don't stop studying! 📚`;
 
       const ok = await sendWhatsAppText(phone, msg);
       if (ok) trialWarningSent++;
@@ -221,11 +221,11 @@ export async function GET(request: Request) {
       } else {
         // Fallback plain text
         const msg =
-          `Namaste ${name}! ⏰\n\n` +
-          `*Let's Study* — Aapki subscription *${daysLeft} din* mein expire hogi!\n\n` +
-          `Access band hone se pehle renew karein:\n` +
+          `Hello ${name}! ⏰\n\n` +
+          `*Let's Study* — Your subscription expires in *${daysLeft} days*!\n\n` +
+          `Renew before you lose access:\n` +
           `https://cyberlib.in/pricing\n\n` +
-          `Padhai jaari rakho! 📚`;
+          `Keep studying! 📚`;
         sent = await sendWhatsAppText(phone, msg);
       }
 

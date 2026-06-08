@@ -56,7 +56,7 @@ export async function GET() {
 
     const now = new Date();
 
-    const [profile, studyStreak, sessionsToday, allSessions, meetPresenceRows, activeMeetSession, firstSub, user, pomodoroRows] = await Promise.all([
+    const [profile, studyStreak, sessionsToday, allSessions, meetPresenceRows, activeMeetSession, firstSub, user] = await Promise.all([
       prisma.profile.findUnique({
         where: { userId },
         select: {
@@ -100,10 +100,6 @@ export async function GET() {
         where: { id: userId },
         select: { createdAt: true },
       }),
-      prisma.pomodoroTimerSession.findMany({
-        where: { userId, startedAt: { gte: new Date(now.getFullYear() - 2, 0, 1) } },
-        select: { startedAt: true, completedSeconds: true },
-      }),
     ]);
 
     const minutesByDate: Record<string, number> = {};
@@ -116,10 +112,6 @@ export async function GET() {
       const endT = m.endedAt ?? m.lastHeartbeatAt ?? now;
       const durationMins = Math.max(0, (endT.getTime() - m.startedAt.getTime()) / 60000);
       minutesByDate[key] = (minutesByDate[key] ?? 0) + durationMins;
-    }
-    for (const p of pomodoroRows) {
-      const key = new Date(p.startedAt).toISOString().slice(0, 10);
-      minutesByDate[key] = (minutesByDate[key] ?? 0) + (p.completedSeconds ?? 0) / 60;
     }
     const totalAttendance = Object.values(minutesByDate).filter((m) => m >= 10).length;
 
@@ -140,18 +132,14 @@ export async function GET() {
 
     const studyHoursToday = sessionsToday.reduce((sum: number, s: { durationMinutes: number | null }) => sum + (s.durationMinutes ?? 0), 0) / 60;
     const meetHoursToday = meetSecondsToday / 3600;
-    const pomodoroSecondsToday = pomodoroRows
-      .filter(p => new Date(p.startedAt) >= localTodayStart && new Date(p.startedAt) < localTodayEnd)
-      .reduce((s, p) => s + (p.completedSeconds ?? 0), 0);
-    const hoursToday = studyHoursToday + meetHoursToday + (pomodoroSecondsToday / 3600);
+    const hoursToday = studyHoursToday + meetHoursToday;
 
     // Sum durationMinutes directly from session records (accurate: profile.totalStudyHours
     // is an Int column so fractional-hour increments were being truncated to 0)
     let totalStudyMinutes = 0;
     for (const s of allSessions) totalStudyMinutes += s.durationMinutes ?? 0;
     const meetHoursTotal = meetSecondsTotal / 3600;
-    const pomodoroSecondsTotal = pomodoroRows.reduce((s, p) => s + (p.completedSeconds ?? 0), 0);
-    const totalStudyHours = (totalStudyMinutes / 60) + meetHoursTotal + (pomodoroSecondsTotal / 3600);
+    const totalStudyHours = (totalStudyMinutes / 60) + meetHoursTotal;
     const targetYear = profile?.targetYear ? parseInt(profile.targetYear, 10) : null;
     const endOfTarget =
       targetYear != null && !Number.isNaN(targetYear)

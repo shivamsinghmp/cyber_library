@@ -47,7 +47,7 @@ export default function PricingPage() {
     if (subLoading) return;
     if (hasActiveSub && !isTrial) {
       toast.success(
-        `Aapka ${activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription already active hai!`
+        `Your ${activePlanType === "MONTHLY" ? "Monthly" : "Yearly"} subscription is already active!`
       );
       router.replace("/dashboard");
     }
@@ -94,13 +94,13 @@ export default function PricingPage() {
       const res = await fetch("/api/trial/activate", { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Trial activate nahi hua.");
+        toast.error(json.error || "Trial could not be activated.");
         return;
       }
-      toast.success("7-day free trial start ho gaya! Enjoy karo.");
+      toast.success("7-day free trial started! Enjoy.");
       router.push("/dashboard");
     } catch {
-      toast.error("Kuch galat hua. Dobara try karo.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setTrialLoading(false);
     }
@@ -170,7 +170,7 @@ export default function PricingPage() {
           >
             <Clock className="h-3.5 w-3.5 text-red-400" />
             <span className="text-xs font-semibold text-red-300">
-              Aapka free trial khatam ho gaya — subscribe karo
+              Your free trial has ended — subscribe to continue
             </span>
           </motion.div>
         )}
@@ -184,7 +184,7 @@ export default function PricingPage() {
           >
             <Star className="h-3.5 w-3.5 text-amber-400" />
             <span className="text-xs font-semibold text-amber-300">
-              7-Day Free Trial active hai
+              7-Day Free Trial is active
             </span>
           </motion.div>
         )}
@@ -366,6 +366,7 @@ export default function PricingPage() {
                   <Zap className="mr-0.5 inline h-3 w-3" />
                   Billed {data.currency}{data.yearly.offerPrice.toLocaleString("en-IN")}/yr · save {yearlySaving}%
                 </p>
+
               )}
               {billing === "monthly" && tier.originalPrice > tier.offerPrice && (
                 <p className="mt-1 text-xs text-emerald-400">First month offer price</p>
@@ -419,7 +420,7 @@ export default function PricingPage() {
           </div>
           <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
             <Users className="h-4 w-4 text-blue-500" />
-            <span>500+ active students</span>
+            <span>5,000+ students enrolled</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
             <Zap className="h-4 w-4 text-amber-500" />

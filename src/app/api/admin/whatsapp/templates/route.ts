@@ -32,7 +32,7 @@ export async function POST() {
 
     if (!wabaId || !token) {
       return NextResponse.json(
-        { error: "WHATSAPP_BUSINESS_ACCOUNT_ID aur WHATSAPP_ACCESS_TOKEN configure karo" },
+        { error: "Please configure WHATSAPP_BUSINESS_ACCOUNT_ID and WHATSAPP_ACCESS_TOKEN" },
         { status: 400 }
       );
     }
@@ -48,7 +48,7 @@ export async function POST() {
     if (!res.ok) {
       const err = await res.text();
       console.error("Meta template sync failed:", err);
-      return NextResponse.json({ error: "Meta API error. Token ya WABA ID check karo." }, { status: 502 });
+      return NextResponse.json({ error: "Meta API error. Please check your token or WABA ID." }, { status: 502 });
     }
 
     const { data: metaTemplates } = await res.json() as {
@@ -98,7 +98,7 @@ export async function POST() {
       synced++;
     }
 
-    return NextResponse.json({ ok: true, synced, message: `${synced} templates Meta se sync ho gaye` });
+    return NextResponse.json({ ok: true, synced, message: `${synced} templates synced from Meta` });
   } catch (e) {
     console.error("POST /api/admin/whatsapp/templates:", e);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

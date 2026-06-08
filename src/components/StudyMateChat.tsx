@@ -52,12 +52,12 @@ const MODEL_META: Record<ModelId, { label: string; emoji: string; color: string;
 
 // ─── Quick prompts ────────────────────────────────────────────────────────────
 const QUICK_PROMPTS = [
-  { label: "📅 Study plan",     prompt: "Mera target exam aur date batata hoon — personalized plan banao" },
-  { label: "⚡ Shortcut batao", prompt: "Mere exam ke liye sabse useful shortcuts aur tricks kaunsi hain?" },
-  { label: "🎯 80/20 topics",   prompt: "Mere exam mein kaunse 20% topics se 80% marks aate hain?" },
-  { label: "😰 Stressed hoon",  prompt: "Bahut stressed hoon exam ki wajah se, help karo" },
-  { label: "📸 Photo se solve", prompt: "Main question ki photo upload karna chahta hoon" },
-  { label: "📊 Weak topic fix", prompt: "Mera ek subject bahut weak hai, kahan se aur kaise start karun?" },
+  { label: "📅 Study plan",     prompt: "I'll share my target exam and date — create a personalized plan for me" },
+  { label: "⚡ Quick tips",     prompt: "What are the most useful shortcuts and tricks for my exam?" },
+  { label: "🎯 80/20 topics",   prompt: "Which 20% topics in my exam give 80% of the marks?" },
+  { label: "😰 Feeling stressed", prompt: "I'm very stressed about my exam, please help" },
+  { label: "📸 Solve from photo", prompt: "I want to upload a photo of my question" },
+  { label: "📊 Weak topic fix", prompt: "One of my subjects is very weak — where and how do I start?" },
 ];
 
 function genId() { return Math.random().toString(36).slice(2, 9); }
@@ -115,15 +115,15 @@ export default function StudyMateChat() {
           let greeting: string;
           if (!d.profileComplete) {
             // Onboarding: AI will ask for details — just show a warm welcome
-            greeting = "Namaste! 👋 Main hoon StudyMate AI — Let's Study ka tumhara personal study buddy!\n\nPehle tumse thoda jaanna chahta hoon taaki main tumhari padhai mein sahi help kar sakoon. Batao...";
+            greeting = "Hello! 👋 I'm StudyMate AI — your personal study buddy at Let's Study!\n\nFirst, I'd like to learn a bit about you so I can help you better. Tell me...";
           } else {
             const name = d.studentName ? ` ${d.studentName.split(" ")[0]}` : "";
             const examStr = d.targetExam ? ` ${d.targetExam}` : "";
             const examLine = examStr
-              ? ` Main tumhara personal ${examStr} buddy hoon!`
-              : " Main tumhara AI study buddy hoon — JEE, NEET, UPSC, GATE, CAT, SSC — kisi bhi exam ke liye!";
-            const streakStr = d.currentStreak > 1 ? `\n\n🔥 ${d.currentStreak} din ki streak chal rahi hai — wah!` : "";
-            greeting = `Namaste${name}! 👋${examLine}\n\nBatao aaj kya padhna hai? Study plan chahiye, koi doubt hai, ya bas motivation chahiye — main hoon yahan! 📚✨${streakStr}`;
+              ? ` I'm your personal ${examStr} buddy!`
+              : " I'm your AI study buddy — JEE, NEET, UPSC, GATE, CAT, SSC — ready for any exam!";
+            const streakStr = d.currentStreak > 1 ? `\n\n🔥 You're on a ${d.currentStreak}-day streak — amazing!` : "";
+            greeting = `Hello${name}! 👋${examLine}\n\nWhat would you like to study today? Need a study plan, have a doubt, or just need some motivation — I'm here! 📚✨${streakStr}`;
           }
           setMessages([{ id: genId(), role: "assistant", content: greeting, timestamp: new Date() }]);
         }
@@ -132,7 +132,7 @@ export default function StudyMateChat() {
         setMessages([{
           id: genId(),
           role: "assistant",
-          content: "Namaste! 👋 Main StudyMate AI hoon. Kaunsi class ho aur kab exam hai? Batao toh study plan banate hain! 📚",
+          content: "Hello! 👋 I'm StudyMate AI. What class are you in and when is your exam? Tell me and we'll build a study plan! 📚",
           timestamp: new Date(),
         }]);
       })
@@ -177,7 +177,7 @@ export default function StudyMateChat() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { setError("Image 10MB se chhoti honi chahiye"); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("Image must be smaller than 10MB"); return; }
     setImageFile(file);
     compressImage(file)
       .then((compressed) => setImagePreview(compressed))
@@ -245,7 +245,7 @@ export default function StudyMateChat() {
               break outer;
             } else if (ev.t === "err") {
               setMessages(prev => prev.map(m => m.id === streamMsgId
-                ? { ...m, content: (ev.msg as string) ?? "AI service error. Dobara try karo.", isStreaming: false }
+                ? { ...m, content: (ev.msg as string) ?? "AI service error. Please try again.", isStreaming: false }
                 : m));
               break outer;
             }
@@ -281,7 +281,7 @@ export default function StudyMateChat() {
 
     const userMsg: Message = {
       id: genId(), role: "user",
-      content: trimmed || "Yeh question dekho:",
+      content: trimmed || "Please look at this question:",
       timestamp: new Date(), hasImage: !!imageFile,
     };
     setMessages(prev => [...prev, userMsg]);
@@ -300,16 +300,16 @@ export default function StudyMateChat() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Response parse error" }));
         if (data.error === "coins_required") {
-          setCoinsError({ message: data.message ?? "Coins khatam!", coinsNeeded: data.coinsNeeded ?? 1, currentCoins: data.currentCoins ?? 0 });
+          setCoinsError({ message: data.message ?? "Out of coins!", coinsNeeded: data.coinsNeeded ?? 1, currentCoins: data.currentCoins ?? 0 });
           setIsLoading(false); return;
         }
         if (data.error === "quality_warning") {
           setQualityWarning({ preferredModel: data.preferredModel, preferredModelCoins: data.preferredModelCoins, fallbackModel: data.fallbackModel, fallbackModelCoins: data.fallbackModelCoins, currentCoins: data.currentCoins });
           setIsLoading(false); return;
         }
-        const errMsg = res.status === 401 || res.status === 403 ? "Session expire ho gayi. Page refresh karo."
-          : res.status === 503 ? "StudyMate AI setup nahi hai. Admin se configure karwao."
-          : data.error || `Server error (${res.status}). Dobara try karo.`;
+        const errMsg = res.status === 401 || res.status === 403 ? "Session expired. Please refresh the page."
+          : res.status === 503 ? "StudyMate AI is not set up. Please ask an admin to configure it."
+          : data.error || `Server error (${res.status}). Please try again.`;
         setMessages(prev => [...prev, { id: genId(), role: "assistant", content: errMsg, timestamp: new Date() }]);
         setIsLoading(false); return;
       }
@@ -321,7 +321,7 @@ export default function StudyMateChat() {
       await consumeStream(res, streamMsgId);
 
     } catch {
-      setMessages(prev => [...prev, { id: genId(), role: "assistant", content: "Network error. Internet connection check karo.", timestamp: new Date() }]);
+      setMessages(prev => [...prev, { id: genId(), role: "assistant", content: "Network error. Please check your internet connection.", timestamp: new Date() }]);
       setIsLoading(false);
     }
   }, [isLoading, messages, imageFile, imagePreview, consumeStream]);
@@ -351,14 +351,14 @@ export default function StudyMateChat() {
         const data = await res.json().catch(() => ({}));
         if (data.error === "coins_required")
           setCoinsError({ message: data.message, coinsNeeded: data.coinsNeeded, currentCoins: data.currentCoins });
-        else setError(data.error ?? "Network error. Dobara try karo.");
+        else setError(data.error ?? "Network error. Please try again.");
         setIsLoading(false); return;
       }
       const streamMsgId = genId();
       setMessages(prev => [...prev, { id: streamMsgId, role: "assistant", content: "", timestamp: new Date(), isStreaming: true }]);
       await consumeStream(res, streamMsgId);
     } catch {
-      setError("Network error. Dobara try karo.");
+      setError("Network error. Please try again.");
       setIsLoading(false);
     }
   };
@@ -394,7 +394,7 @@ export default function StudyMateChat() {
         <div className="flex-1 min-w-0">
           <p className="text-[#1A1447] font-semibold text-sm font-heading">StudyMate AI</p>
           <p className="text-[#6367FF] text-[11px]">
-            {stats.targetExam ? `${stats.targetExam} buddy` : "Har exam ka buddy"}
+            {stats.targetExam ? `${stats.targetExam} buddy` : "Your study buddy"}
             {stats.currentStreak > 0 && ` • 🔥 ${stats.currentStreak} day streak`}
           </p>
         </div>
@@ -502,14 +502,14 @@ export default function StudyMateChat() {
                 🪙
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-amber-900">Coins Khatam!</p>
+                <p className="text-sm font-bold text-amber-900">Out of Coins!</p>
                 <p className="text-xs text-amber-700 mt-0.5">{coinsError.message}</p>
                 <div className="mt-2 flex items-center gap-3 text-xs">
                   <span className="font-semibold text-amber-800">
-                    Chahiye: <strong>{coinsError.coinsNeeded} 🪙</strong>
+                    Need: <strong>{coinsError.coinsNeeded} 🪙</strong>
                   </span>
                   <span className="text-amber-600">
-                    Paas mein: <strong>{coinsError.currentCoins} 🪙</strong>
+                    Have: <strong>{coinsError.currentCoins} 🪙</strong>
                   </span>
                   <span className="text-red-600 font-bold">
                     Shortfall: {coinsError.coinsNeeded - coinsError.currentCoins} 🪙
@@ -523,7 +523,7 @@ export default function StudyMateChat() {
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-500 px-4 py-2.5 text-sm font-bold text-amber-900 transition-colors shadow-sm"
               >
                 <ShoppingCart className="h-4 w-4" />
-                Coins Kharido
+                Buy Coins
               </Link>
               <Link
                 href="/dashboard/wallet"
@@ -534,7 +534,7 @@ export default function StudyMateChat() {
               </Link>
             </div>
             <p className="text-[10px] text-amber-600/70 text-center">
-              Coins top-up ke baad wapas aao aur message dobara bhejo 🚀
+              Top up your coins and come back to resend your message 🚀
             </p>
           </div>
         )}
@@ -548,14 +548,14 @@ export default function StudyMateChat() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-violet-900">
-                  Yeh question {MODEL_META[qualityWarning.preferredModel].label} maangta hai
+                  This question needs {MODEL_META[qualityWarning.preferredModel].label}
                 </p>
                 <p className="text-xs text-violet-700 mt-0.5">
-                  Best quality ke liye <strong>{qualityWarning.preferredModelCoins} coins</strong> chahiye,
-                  {" "}tumhare paas sirf <strong>{qualityWarning.currentCoins} coins</strong> hain.
+                  Best quality requires <strong>{qualityWarning.preferredModelCoins} coins</strong>,
+                  {" "}but you only have <strong>{qualityWarning.currentCoins} coins</strong>.
                 </p>
                 <p className="text-[10px] text-violet-500 mt-1">
-                  Quality mein compromise mat karo — coins buy karo aur premium answer pao.
+                  Don't compromise on quality — buy coins and get a premium answer.
                 </p>
               </div>
             </div>
@@ -565,7 +565,7 @@ export default function StudyMateChat() {
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition-colors shadow-sm"
               >
                 <ShoppingCart className="h-4 w-4" />
-                Coins Kharido
+                Buy Coins
               </Link>
               <button
                 onClick={handleAcceptLowerQuality}
@@ -573,7 +573,7 @@ export default function StudyMateChat() {
                 className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-xs font-semibold text-violet-600 hover:bg-violet-50 transition-colors disabled:opacity-50"
               >
                 <span>{MODEL_META[qualityWarning.fallbackModel].emoji}</span>
-                {MODEL_META[qualityWarning.fallbackModel].label} se lo
+                Use {MODEL_META[qualityWarning.fallbackModel].label} instead
                 <span className="text-[10px] text-violet-400">({qualityWarning.fallbackModelCoins}🪙)</span>
               </button>
             </div>
@@ -615,7 +615,7 @@ export default function StudyMateChat() {
               <X className="w-3 h-3" />
             </button>
           </div>
-          <p className="text-[10px] text-[#6367FF]/60 mt-1">Image active — follow-up messages mein bhi rahegi. Hatane ke liye X dabao.</p>
+          <p className="text-[10px] text-[#6367FF]/60 mt-1">Image attached — it will stay for follow-up messages. Press X to remove.</p>
         </div>
       )}
 
@@ -625,7 +625,7 @@ export default function StudyMateChat() {
         <button
           onClick={() => fileRef.current?.click()}
           disabled={isLoading}
-          title="Question ki photo upload karo"
+          title="Upload a photo of your question"
           className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl bg-white border border-[#C9BEFF] hover:border-[#6367FF] text-[#6367FF] transition-all disabled:opacity-40"
         >
           <Paperclip className="w-4 h-4" />
@@ -638,7 +638,7 @@ export default function StudyMateChat() {
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           disabled={isLoading}
-          placeholder="Sawaal puchho ya photo upload karo... (Enter to send)"
+          placeholder="Ask a question or upload a photo... (Enter to send)"
           className="flex-1 bg-white border border-[#C9BEFF] focus:border-[#6367FF] focus:ring-2 focus:ring-[#6367FF]/20 rounded-xl px-3 py-2 text-sm text-[#1A1447] placeholder-[#6367FF]/40 resize-none outline-none transition-colors min-h-[36px] max-h-[120px] disabled:bg-gray-50 disabled:text-gray-400"
         />
 

@@ -13,25 +13,25 @@ const MESSAGES: Record<string, {
 }> = {
   expired: {
     icon: "⚠️",
-    title: "Plan Expire Ho Gaya",
-    body: "Aapka subscription expire ho gaya hai. Meet Add-on use karne ke liye plan renew karein.",
-    cta: "Renew Karein →",
+    title: "Plan Expired",
+    body: "Your subscription has expired. Please renew your plan to continue using Meet Add-on.",
+    cta: "Renew Plan →",
     ctaHref: "/pricing",
     color: "#FEF2F2", border: "#FECACA", textClr: "#991B1B",
   },
   trial_expired: {
     icon: "🔒",
-    title: "Free Trial Khatam Ho Gaya",
-    body: "Aapka free trial khatam ho gaya. Meet Add-on continue use karne ke liye paid plan lein.",
-    cta: "Plan Lein →",
+    title: "Free Trial Ended",
+    body: "Your free trial has ended. Get a paid plan to continue using Meet Add-on.",
+    cta: "Get a Plan →",
     ctaHref: "/pricing",
     color: "#FFFBEB", border: "#FDE68A", textClr: "#92400E",
   },
   no_plan: {
     icon: "🔒",
     title: "Plan Required",
-    body: "Meet Add-on sirf subscribers ke liye available hai. Trial start karein ya plan lein.",
-    cta: "Trial / Plan Lein →",
+    body: "Meet Add-on is only available to subscribers. Start a trial or get a plan.",
+    cta: "Trial / Get Plan →",
     ctaHref: "/pricing",
     color: "#EEF2FF", border: "#C7D2FE", textClr: "#3730A3",
   },
@@ -98,7 +98,7 @@ export function PlanLockedScreen({ state, onBack }: Props) {
         </div>
 
         <p className="text-center text-[11px] font-semibold" style={{ color: "#94A3B8" }}>
-          Koi samasya?{" "}
+          Need help?{" "}
           <a href="mailto:support@cyberlib.in" className="underline" style={{ color: "#6366F1" }}>
             support@cyberlib.in
           </a>

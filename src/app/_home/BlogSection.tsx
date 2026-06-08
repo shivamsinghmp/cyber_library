@@ -31,7 +31,7 @@ export function BlogSection({ blogs }: { blogs: Blog[] }) {
             <div>
               <motion.div variants={fadeIn}>
                 <span className="mb-3 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest" style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                  Padhai ke Tips
+                  Study Tips
                 </span>
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ color: "var(--foreground)" }}>

@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const rl = rateLimit(`forgot_otp_ip:${ip}`, 5, 300); // 5 per 5 min per IP
     if (!rl.success) {
-      return NextResponse.json({ error: "Too many attempts. 5 minute baad try karo." }, { status: 429 });
+      return NextResponse.json({ error: "Too many attempts. Please try again in 5 minutes." }, { status: 429 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       const sent = await sendOtpEmail(email, code, "reset");
       if (!sent) {
         return NextResponse.json(
-          { error: "OTP email nahi gaya. Thodi der mein dobara try karo." },
+          { error: "Could not send OTP email. Please try again later." },
           { status: 500 }
         );
       }

@@ -136,7 +136,7 @@ export default function LeaderboardPage() {
         <div className="bg-white rounded-2xl border border-[var(--border)] shadow-[var(--shadow-sm)] px-6 py-16 text-center">
           <Trophy className="w-10 h-10 text-amber-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-[var(--foreground)]">No data yet for this period</p>
-          <p className="text-xs text-[var(--muted-text)] mt-1">Study sessions shuru karo aur leaderboard pe aa jao!</p>
+          <p className="text-xs text-[var(--muted-text)] mt-1">Start study sessions and get on the leaderboard!</p>
         </div>
       ) : (
         <div className="space-y-5">

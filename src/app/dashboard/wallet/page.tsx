@@ -139,7 +139,7 @@ export default function WalletPage() {
     try {
       const res = await fetch("/api/user/wallet/checkin", { method: "POST", credentials: "include" });
       const json = await res.json();
-      if (json.alreadyCheckedIn) { toast("Aaj already check-in kar chuke ho!"); return; }
+      if (json.alreadyCheckedIn) { toast("You have already checked in today!"); return; }
       if (!res.ok) { toast.error(json.error || "Check-in failed"); return; }
       toast.success(`+${json.coins} coins! ${json.bonusCoins > 0 ? `+${json.bonusCoins} streak bonus!` : ""} 🎉`);
       setCheckin({ checkedInToday: true, checkinCoins: json.coins, streak: json.streak });
@@ -228,7 +228,7 @@ export default function WalletPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-[var(--foreground)]">
-              {checkin.checkedInToday ? "Aaj Check-in Ho Gaya!" : "Daily Check-in Bonus"}
+              {checkin.checkedInToday ? "Checked In Today!" : "Daily Check-in Bonus"}
             </p>
             <p className="text-sm text-[var(--cream-muted)]">
               {checkin.checkedInToday

@@ -27,7 +27,7 @@ export default function StudentModulesPage() {
       const data = await res.json();
       setModules(data.modules);
     } catch {
-      toast.error("Modules load nahi hue.");
+      toast.error("Failed to load modules.");
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export default function StudentModulesPage() {
       if (!res.ok) throw new Error();
       toast.success("Saved!");
     } catch {
-      toast.error("Save nahi hua. Dobara try karo.");
+      toast.error("Could not save. Please try again.");
       fetchModules(); // revert
     } finally {
       setSaving(false);
@@ -70,9 +70,9 @@ export default function StudentModulesPage() {
         body: JSON.stringify({ disabled: [] }),
       });
       if (!res.ok) throw new Error();
-      toast.success("Saare modules enable ho gaye!");
+      toast.success("All modules enabled!");
     } catch {
-      toast.error("Failed. Dobara try karo.");
+      toast.error("Failed. Please try again.");
       fetchModules();
     } finally {
       setSaving(false);
@@ -96,7 +96,7 @@ export default function StudentModulesPage() {
             <h1 className="text-xl font-extrabold text-gray-900">Student Modules</h1>
           </div>
           <p className="text-sm text-gray-500">
-            Enable ya disable karo student sidebar ke features. Changes instantly apply hote hain.
+            Enable or disable features in the student sidebar. Changes apply instantly.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -106,7 +106,7 @@ export default function StudentModulesPage() {
               onClick={enableAll}
               disabled={saving}
               className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition disabled:opacity-50">
-              Saare Enable Karo
+              Enable All
             </button>
           )}
         </div>

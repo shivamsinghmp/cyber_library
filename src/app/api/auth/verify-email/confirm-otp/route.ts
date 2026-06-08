@@ -5,7 +5,7 @@ import { verifyOtp } from "@/lib/otp";
 import { z } from "zod";
 
 const bodySchema = z.object({
-  code: z.string().length(6, "OTP 6 digits ka hona chahiye"),
+  code: z.string().length(6, "OTP must be 6 digits"),
 });
 
 export async function POST(request: Request) {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const session = await auth();
     const userId = (session?.user as { id?: string })?.id;
     if (!userId) {
-      return NextResponse.json({ error: "Login karo pehle." }, { status: 401 });
+      return NextResponse.json({ error: "Please log in first." }, { status: 401 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
     const ok = await verifyOtp(user.email, "verify", parsed.data.code);
     if (!ok) {
-      return NextResponse.json({ error: "OTP galat hai ya expire ho gaya. Naya OTP mangao." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid or expired OTP. Please request a new one." }, { status: 400 });
     }
 
     await prisma.user.update({

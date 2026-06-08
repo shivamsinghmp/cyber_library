@@ -13,14 +13,14 @@ import { signIn } from "next-auth/react";
 import { passwordSchema, passwordStrength } from "@/lib/password-schema";
 
 const schema = z.object({
-  name:            z.string().min(1, "Naam daalna zaroori hai"),
-  email:           z.string().email("Valid email chahiye"),
-  whatsappNumber:  z.string().min(10, "Valid mobile number chahiye (e.g. +919876543210)"),
+  name:            z.string().min(1, "Name is required"),
+  email:           z.string().email("Please enter a valid email"),
+  whatsappNumber:  z.string().min(10, "Please enter a valid mobile number (e.g. +919876543210)"),
   password:        passwordSchema,
-  confirmPassword: z.string().min(1, "Password dobara daalo"),
-  goal:            z.string().min(1, "Apna exam goal choose karo"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+  goal:            z.string().min(1, "Please select your exam goal"),
 }).refine(d => d.password === d.confirmPassword, {
-  message: "Dono passwords match nahi kar rahe",
+  message: "Passwords do not match",
   path: ["confirmPassword"],
 });
 
@@ -91,7 +91,7 @@ function SignupContent() {
 
   async function handleSendOtp() {
     const raw = getValues("whatsappNumber");
-    if (!raw || raw.length < 10) { setOtpError("Pehle valid mobile number daalo."); return; }
+    if (!raw || raw.length < 10) { setOtpError("Please enter a valid mobile number first."); return; }
     const phoneNumber = formatNumber(raw);
     const emailVal = getValues("email").trim().toLowerCase();
     setSendingOtp(true); setOtpError(null);
@@ -101,15 +101,15 @@ function SignupContent() {
         body: JSON.stringify({ phoneNumber, ...(emailVal ? { email: emailVal } : {}) }),
       });
       const json = await res.json();
-      if (!res.ok) { setOtpError(json.error || "OTP nahi gaya. Dobara try karo."); return; }
+      if (!res.ok) { setOtpError(json.error || "OTP could not be sent. Please try again."); return; }
       setOtpSent(true); setOtpVerified(false); setOtpValue(""); setResendCooldown(180);
-      toast.success("OTP bhej diya gaya!");
-    } catch { setOtpError("Kuch gadbad ho gayi. Try karo."); }
+      toast.success("OTP sent successfully!");
+    } catch { setOtpError("Something went wrong. Please try again."); }
     finally { setSendingOtp(false); }
   }
 
   async function handleVerifyOtp() {
-    if (otpValue.length !== 6) { setOtpError("6-digit OTP daalo."); return; }
+    if (otpValue.length !== 6) { setOtpError("Please enter the 6-digit OTP."); return; }
     const phoneNumber = formatNumber(getValues("whatsappNumber"));
     setVerifyingOtp(true); setOtpError(null);
     try {
@@ -118,15 +118,15 @@ function SignupContent() {
         body: JSON.stringify({ phoneNumber, otp: otpValue }),
       });
       const json = await res.json();
-      if (!res.ok) { setOtpError(json.error || "OTP galat hai. Dobara check karo."); return; }
+      if (!res.ok) { setOtpError(json.error || "Incorrect OTP. Please check and try again."); return; }
       setOtpVerified(true); setOtpError(null);
-      toast.success("Mobile number verify ho gaya! ✅");
-    } catch { setOtpError("Kuch gadbad ho gayi. Try karo."); }
+      toast.success("Mobile number verified! ✅");
+    } catch { setOtpError("Something went wrong. Please try again."); }
     finally { setVerifyingOtp(false); }
   }
 
   async function onSubmit(data: FormData) {
-    if (!otpVerified) { setSubmitError("Pehle mobile number verify karo."); return; }
+    if (!otpVerified) { setSubmitError("Please verify your mobile number first."); return; }
     setSubmitError(null);
     try {
       const res  = await fetch("/api/auth/signup", {
@@ -143,10 +143,10 @@ function SignupContent() {
             const k = Object.keys(json.error)[0];
             setSubmitError(Array.isArray(json.error[k]) ? json.error[k][0] : String(json.error[k]));
           } else setSubmitError(String(json.error));
-        } else setSubmitError("Signup fail ho gaya.");
+        } else setSubmitError("Signup failed.");
         return;
       }
-      toast.success("Account ban gaya! 🎉 Dashboard pe welcome hai.");
+      toast.success("Account created! 🎉 Welcome to your dashboard.");
       const result = await signIn("credentials", {
         email: data.email,
         password: data.password,
@@ -157,7 +157,7 @@ function SignupContent() {
       } else {
         router.push("/login");
       }
-    } catch { setSubmitError("Kuch gadbad ho gayi. Dobara try karo."); }
+    } catch { setSubmitError("Something went wrong. Please try again."); }
   }
 
   const inputCls = "w-full rounded-xl border pl-10 py-2.5 text-sm font-medium outline-none transition focus:ring-2 bg-white";
@@ -195,21 +195,21 @@ function SignupContent() {
         <div className="relative z-10 space-y-7">
           <div>
             <h2 className="text-3xl font-extrabold text-white leading-tight mb-3">
-              Padhai seriously<br />
-              <span style={{ color: "#BAE6FD" }}>leni hai? Sahi jagah aa gaye.</span>
+              Serious about studying?<br />
+              <span style={{ color: "#BAE6FD" }}>You're in the right place.</span>
             </h2>
             <p className="text-sm text-white/70 leading-relaxed">
-              Free account banao aur aaj se hi study sessions join karna shuru karo. Koi payment nahi, koi credit card nahi.
+              Create a free account and start joining study sessions today. No payment, no credit card required.
             </p>
           </div>
 
           {/* Benefits */}
           <div className="space-y-3">
-            {[
-              { emoji: "✅", text: "Bilkul Free hai", sub: "Koi hidden charges nahi" },
-              { emoji: "⚡", text: "Sirf 2 minute mein ready", sub: "Quick signup, instant access" },
-              { emoji: "🎯", text: "Apna goal set karo", sub: "UPSC, JEE, NEET, GATE, CAT" },
-              { emoji: "📱", text: "Mobile number se secure", sub: "OTP verification hogi" },
+            [
+              { emoji: "✅", text: "Completely Free", sub: "No hidden charges" },
+              { emoji: "⚡", text: "Ready in 2 minutes", sub: "Quick signup, instant access" },
+              { emoji: "🎯", text: "Set your goal", sub: "UPSC, JEE, NEET, GATE, CAT" },
+              { emoji: "📱", text: "Secured by mobile number", sub: "OTP verification" },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3 rounded-2xl px-4 py-3"
                 style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -225,7 +225,7 @@ function SignupContent() {
 
         <div className="relative z-10">
           <p className="text-xs text-white/40 italic">
-            "Pehle din se hi fark feel hoga — try karo."
+            "You'll feel the difference from day one — give it a try."
           </p>
         </div>
       </div>
@@ -251,10 +251,10 @@ function SignupContent() {
           {/* Heading */}
           <div className="mb-6">
             <h1 className="text-2xl font-extrabold" style={{ color: "var(--foreground)" }}>
-              Account Banao — Free Hai! 🚀
+              Create Your Free Account 🚀
             </h1>
             <p className="mt-1 text-sm" style={{ color: "var(--muted-text)" }}>
-              2 minute mein done — aur aaj se padhai shuru
+              Done in 2 minutes — start studying today
             </p>
           </div>
 
@@ -263,7 +263,7 @@ function SignupContent() {
             <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
               <Tag className="h-4 w-4 shrink-0 text-emerald-600" />
               <div>
-                <p className="text-xs font-bold text-emerald-700">Referral Code Apply Ho Gaya! 🎉</p>
+                <p className="text-xs font-bold text-emerald-700">Referral Code Applied! 🎉</p>
                 <p className="text-[11px] text-emerald-600 font-mono">{refCode}</p>
               </div>
             </div>
@@ -276,7 +276,7 @@ function SignupContent() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
               {/* Name */}
-              <Field label="Tera Naam" error={errors.name?.message}>
+              <Field label="Your Name" error={errors.name?.message}>
                 <div className="relative">
                   <User className={ICON} style={{ color: "var(--muted-text)" }} />
                   <input {...register("name")} type="text" placeholder="Aman Singh" className={inputCls} style={inputStyle} />
@@ -287,7 +287,7 @@ function SignupContent() {
               <Field label="Email Address" error={errors.email?.message}>
                 <div className="relative">
                   <Mail className={ICON} style={{ color: "var(--muted-text)" }} />
-                  <input {...register("email")} type="email" placeholder="tumhari@email.com" className={inputCls} style={inputStyle} />
+                  <input {...register("email")} type="email" placeholder="your@email.com" className={inputCls} style={inputStyle} />
                 </div>
               </Field>
 
@@ -314,7 +314,7 @@ function SignupContent() {
 
               {/* OTP Input */}
               {otpSent && !otpVerified && (
-                <Field label="OTP Daalo (6 digit)" error={otpError || undefined}>
+                <Field label="Enter OTP (6 digits)" error={otpError || undefined}>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <ShieldCheck className={ICON} style={{ color: "var(--muted-text)" }} />
@@ -337,7 +337,7 @@ function SignupContent() {
               {otpVerified && (
                 <div className="flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
                   <span className="text-lg">✅</span>
-                  <p className="text-sm font-semibold text-emerald-700">Mobile verify ho gaya!</p>
+                  <p className="text-sm font-semibold text-emerald-700">Mobile number verified!</p>
                 </div>
               )}
 
@@ -346,7 +346,7 @@ function SignupContent() {
                 <div className="relative">
                   <Lock className={ICON} style={{ color: "var(--muted-text)" }} />
                   <input {...register("password")} type={showPassword ? "text" : "password"}
-                    placeholder="Strong password daalo" className={`${inputCls} pr-10`} style={inputStyle} />
+                    placeholder="Create a strong password" className={`${inputCls} pr-10`} style={inputStyle} />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors hover:text-[var(--accent)]"
                     style={{ color: "var(--muted-text)" }}>
@@ -355,12 +355,12 @@ function SignupContent() {
                 </div>
                 <PasswordStrengthBar password={watch("password") ?? ""} />
                 <p className="mt-1 text-[10px]" style={{ color: "var(--muted-text)" }}>
-                  Chahiye: 8+ chars · 1 uppercase (A–Z) · 1 number · 1 special char (!@#$%)
+                  Required: 8+ chars · 1 uppercase (A–Z) · 1 number · 1 special char (!@#$%)
                 </p>
               </Field>
 
               {/* Confirm Password */}
-              <Field label="Password Dobara Daalo" error={errors.confirmPassword?.message}>
+              <Field label="Confirm Password" error={errors.confirmPassword?.message}>
                 <div className="relative">
                   <Lock className={ICON} style={{ color: "var(--muted-text)" }} />
                   <input {...register("confirmPassword")} type={showConfirmPassword ? "text" : "password"}
@@ -374,13 +374,13 @@ function SignupContent() {
               </Field>
 
               {/* Goal */}
-              <Field label="Tera Exam Goal" error={errors.goal?.message}>
+              <Field label="Your Exam Goal" error={errors.goal?.message}>
                 <div className="relative">
                   <Target className={ICON} style={{ color: "var(--muted-text)" }} />
                   <select {...register("goal")}
                     className="w-full appearance-none rounded-xl border bg-white pl-10 pr-8 py-2.5 text-sm font-medium outline-none transition focus:ring-2 cursor-pointer"
                     style={inputStyle}>
-                    <option value="">Exam choose karo…</option>
+                    <option value="">Select your exam…</option>
                     {GOAL_OPTIONS.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                   <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--muted-text)]">▾</span>
@@ -401,10 +401,10 @@ function SignupContent() {
                 />
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                    📲 WhatsApp updates chahiye
+                    📲 Receive WhatsApp updates
                   </p>
                   <p className="text-[11px] mt-0.5" style={{ color: "var(--muted-text)" }}>
-                    Study tips, offers, aur important updates WhatsApp pe receive karo. Kabhi bhi unsubscribe kar sakte ho.
+                    Get study tips, offers, and important updates on WhatsApp. Unsubscribe anytime.
                   </p>
                 </div>
               </label>
@@ -426,17 +426,17 @@ function SignupContent() {
                 }}>
                 <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
                 {isSubmitting
-                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Account ban raha hai…</>
-                  : "Account Banao — Free Hai! 🎉"
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Creating account…</>
+                  : "Create Account — It's Free! 🎉"
                 }
               </button>
             </form>
           </div>
 
           <p className="mt-5 text-center text-sm" style={{ color: "var(--muted-text)" }}>
-            Pehle se account hai?{" "}
+            Already have an account?{" "}
             <Link href="/login" className="font-extrabold hover:underline ml-1" style={{ color: "var(--accent)" }}>
-              Login Karo
+              Log In
             </Link>
           </p>
         </div>
