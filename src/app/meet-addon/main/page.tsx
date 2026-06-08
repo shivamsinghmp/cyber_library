@@ -353,7 +353,22 @@ export default function MeetAddonMainStagePage() {
         body: JSON.stringify({ event: "ping", roomKey: "local-room" }),
       }).catch(() => {});
     }, 30_000);
-    return () => clearInterval(id);
+
+    // Send "end" when user closes/leaves the tab while standalone timer is running
+    const onUnload = () => {
+      if (!tokenRef.current) return;
+      fetch("/api/meet-addon/presence", {
+        method: "POST", keepalive: true,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+        body: JSON.stringify({ event: "end", roomKey: "local-room" }),
+      }).catch(() => {});
+    };
+    window.addEventListener("beforeunload", onUnload);
+
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("beforeunload", onUnload);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRunning, timerMode, resolvedSlot?.slotId]);
 

@@ -4,6 +4,7 @@ import { verifyMeetAddonToken } from "@/lib/meet-addon-token";
 import { getMeetAddonCorsHeaders } from "../cors";
 import { getCoinDelta } from "@/lib/gamification/awards";
 import { awardCoins } from "@/lib/coins";
+import { maybeApplyStudyStreakFromMeetPresence } from "@/lib/gamification/study-streak";
 
 function authUserId(request: NextRequest): string | null {
   const authHeader = request.headers.get("authorization");
@@ -94,6 +95,9 @@ export async function POST(request: NextRequest) {
       }
     }
   }
+
+  // Also check streak — presence "end" may arrive after this, so apply here as safety net
+  await maybeApplyStudyStreakFromMeetPresence(userId).catch(() => {});
 
   return NextResponse.json({ ok: true, id: row.id, coinsAwarded }, { headers: cors });
 }

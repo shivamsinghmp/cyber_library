@@ -14,8 +14,8 @@ type UserRow = {
 
 
 const CACHE_TTL = {
-  today: 60,      // 1 min — changes frequently
-  weekly: 300,    // 5 min
+  today: 60,      // 1 min
+  weekly: 120,    // 2 min — reduced so recent sessions appear sooner
   alltime: 600,   // 10 min
 };
 
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     // Cache the top-10 list (not user-specific rank)
     const cacheKey = `leaderboard:${period}:${now.toISOString().slice(0, 10)}`;
-    const ttl = CACHE_TTL[period] ?? 300;
+    const ttl = CACHE_TTL[period] ?? 120;
 
     const leaderboard = await fetchWithCache(
       cacheKey,
@@ -37,10 +37,7 @@ export async function GET(request: Request) {
         let byUser: Map<string, number>;
 
         if (period === "alltime") {
-          // Combine StudySession minutes + MeetPresenceSession seconds (→ minutes)
-          // Note: profile.totalStudyHours is Int and loses precision for short sessions,
-          // so we aggregate directly from the source tables.
-          const [studyRows, meetRows] = await Promise.all([
+          const [studyRows, closedMeetRows, activeMeetSessions] = await Promise.all([
             prisma.studySession.groupBy({
               by: ["userId"],
               where: { durationMinutes: { not: null } },
@@ -51,14 +48,24 @@ export async function GET(request: Request) {
               where: { durationSeconds: { not: null } },
               _sum: { durationSeconds: true },
             }),
+            // Active/ghost sessions not yet closed — use lastHeartbeatAt as conservative end
+            prisma.meetPresenceSession.findMany({
+              where: { endedAt: null },
+              select: { userId: true, startedAt: true, lastHeartbeatAt: true },
+            }),
           ]);
           byUser = new Map<string, number>();
           for (const s of studyRows) {
             byUser.set(s.userId, (byUser.get(s.userId) ?? 0) + (s._sum.durationMinutes ?? 0));
           }
-          for (const m of meetRows) {
+          for (const m of closedMeetRows) {
             const mins = Math.floor((m._sum.durationSeconds ?? 0) / 60);
             byUser.set(m.userId, (byUser.get(m.userId) ?? 0) + mins);
+          }
+          for (const m of activeMeetSessions) {
+            const end = m.lastHeartbeatAt ?? now;
+            const mins = Math.floor(Math.max(0, end.getTime() - m.startedAt.getTime()) / 60000);
+            if (mins > 0) byUser.set(m.userId, (byUser.get(m.userId) ?? 0) + mins);
           }
         } else {
           let start: Date;
@@ -69,8 +76,7 @@ export async function GET(request: Request) {
             start.setDate(start.getDate() - 7);
             start.setHours(0, 0, 0, 0);
           }
-          // Combine StudySession + MeetPresenceSession for the period
-          const [studyRows, meetRows] = await Promise.all([
+          const [studyRows, closedMeetRows, activeMeetSessions] = await Promise.all([
             prisma.studySession.groupBy({
               by: ["userId"],
               where: { startedAt: { gte: start }, durationMinutes: { not: null } },
@@ -81,14 +87,23 @@ export async function GET(request: Request) {
               where: { startedAt: { gte: start }, durationSeconds: { not: null } },
               _sum: { durationSeconds: true },
             }),
+            prisma.meetPresenceSession.findMany({
+              where: { startedAt: { gte: start }, endedAt: null },
+              select: { userId: true, startedAt: true, lastHeartbeatAt: true },
+            }),
           ]);
           byUser = new Map<string, number>();
           for (const s of studyRows) {
             byUser.set(s.userId, (byUser.get(s.userId) ?? 0) + (s._sum.durationMinutes ?? 0));
           }
-          for (const m of meetRows) {
+          for (const m of closedMeetRows) {
             const mins = Math.floor((m._sum.durationSeconds ?? 0) / 60);
             byUser.set(m.userId, (byUser.get(m.userId) ?? 0) + mins);
+          }
+          for (const m of activeMeetSessions) {
+            const end = m.lastHeartbeatAt ?? now;
+            const mins = Math.floor(Math.max(0, end.getTime() - m.startedAt.getTime()) / 60000);
+            if (mins > 0) byUser.set(m.userId, (byUser.get(m.userId) ?? 0) + mins);
           }
         }
 
