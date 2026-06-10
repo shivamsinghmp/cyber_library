@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in";
 
 function isAllowedOrigin(origin: string): boolean {
   if (!origin) return false;

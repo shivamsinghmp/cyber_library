@@ -10,9 +10,11 @@ import {
 import { SpotifyPlayer } from "../panel/components/SpotifyPlayer";
 import { AIChatBot }    from "../panel/components/AIChatBot";
 import { PlanLockedScreen } from "../panel/components/PlanLockedScreen";
+import { queuePendingSession, drainPendingSessions } from "@/lib/pending-sessions";
 
 function getToken(): string | null {
   try { return localStorage.getItem("vl_meet_addon_token"); } catch { return null; }
+
 }
 function getName(): string {
   try { return localStorage.getItem("vl_meet_addon_name") ?? ""; } catch { return ""; }
@@ -171,6 +173,8 @@ export default function MeetAddonMainStagePage() {
   const tokenRef = useRef<string | null>(null);
   const timerDurationRef = useRef(25 * 60);
   const timerModeRef = useRef<"focus" | "break">("focus");
+  const endTimeRef = useRef<number | null>(null);
+  const timeLeftRef = useRef(25 * 60);
 
   const fetchData = useCallback(async () => {
     if (!token) return;
@@ -205,6 +209,7 @@ export default function MeetAddonMainStagePage() {
   useEffect(() => { tokenRef.current = token; }, [token]);
   useEffect(() => { timerDurationRef.current = timerDuration; }, [timerDuration]);
   useEffect(() => { timerModeRef.current = timerMode; }, [timerMode]);
+  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
 
   // Bootstrap from localStorage — client only
   useEffect(() => {
@@ -214,6 +219,8 @@ export default function MeetAddonMainStagePage() {
     if (n) setStudentName(n);
     const savedGoal = parseFloat(localStorage.getItem("study_daily_goal_hours") ?? "3");
     if (!isNaN(savedGoal) && savedGoal > 0) setDailyGoalHours(savedGoal);
+    // Retry sessions that failed to save while the server was down
+    drainPendingSessions();
   }, []);
 
   useEffect(() => {
@@ -286,10 +293,13 @@ export default function MeetAddonMainStagePage() {
 
   useEffect(() => {
     if (isRunning) {
-      timerRef.current = setInterval(() => setTimeLeft(t => {
-        if (t <= 1) { setIsRunning(false); setCompletedSessions(s => s + 1); return 0; }
-        return t - 1;
-      }), 1000);
+      // Pin the end time when timer starts so tab-switch throttling can't cause drift
+      endTimeRef.current = Date.now() + timeLeftRef.current * 1000;
+      timerRef.current = setInterval(() => {
+        const remaining = Math.max(0, Math.floor((endTimeRef.current! - Date.now()) / 1000));
+        setTimeLeft(remaining);
+        if (remaining <= 0) { setIsRunning(false); setCompletedSessions(s => s + 1); }
+      }, 1000);
       // Standalone Focus: open a presence session so dashboard detects active study
       if (timerModeRef.current === "focus" && !resolvedSlotRef.current && tokenRef.current) {
         if (!focusSessionStartRef.current) focusSessionStartRef.current = Date.now();
@@ -301,6 +311,7 @@ export default function MeetAddonMainStagePage() {
       }
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
+      endTimeRef.current = null;
       const startedAt = focusSessionStartRef.current;
       if (startedAt && timerModeRef.current === "focus" && !resolvedSlotRef.current) {
         focusSessionStartRef.current = null;
@@ -316,16 +327,20 @@ export default function MeetAddonMainStagePage() {
         // Save Pomodoro record for coin awards (25+ min = coins)
         if (elapsed >= 60 && tokenRef.current) {
           const planned = timerDurationRef.current;
+          const tok = tokenRef.current;
           fetch("/api/meet-addon/pomodoro-session", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
             body: JSON.stringify({
               roomKey: "local-room",
               plannedSeconds: planned,
               completedSeconds: elapsed,
               completedFully: elapsed >= planned - 2,
             }),
-          }).catch(() => {});
+          }).catch(() => {
+            // Server down — queue for retry on next page load
+            queuePendingSession({ token: tok, roomKey: "local-room", plannedSeconds: planned, completedSeconds: elapsed, completedFully: elapsed >= planned - 2 });
+          });
         }
         setFocusLiveSeconds(0);
       }
@@ -362,6 +377,21 @@ export default function MeetAddonMainStagePage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
         body: JSON.stringify({ event: "end", roomKey: "local-room" }),
       }).catch(() => {});
+      // Also save the pomodoro session so hours aren't lost on tab close
+      const startedAt = focusSessionStartRef.current;
+      if (startedAt && timerModeRef.current === "focus") {
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        if (elapsed >= 60) {
+          const planned = timerDurationRef.current;
+          const tok = tokenRef.current;
+          queuePendingSession({ token: tok, roomKey: "local-room", plannedSeconds: planned, completedSeconds: elapsed, completedFully: elapsed >= planned - 2 });
+          fetch("/api/meet-addon/pomodoro-session", {
+            method: "POST", keepalive: true,
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+            body: JSON.stringify({ roomKey: "local-room", plannedSeconds: planned, completedSeconds: elapsed, completedFully: elapsed >= planned - 2 }),
+          }).catch(() => {});
+        }
+      }
     };
     window.addEventListener("beforeunload", onUnload);
 
@@ -927,7 +957,7 @@ export default function MeetAddonMainStagePage() {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[10px] text-[#94A3B8] font-bold uppercase tracking-wider">Live • Let's Study Focus Session</span>
           </div>
-          <span className="text-[10px] text-[#CBD5E1] font-mono">cyberlib.in</span>
+          <span className="text-[10px] text-[#CBD5E1] font-mono">lstudy.in</span>
         </div>
       )}
     </div>

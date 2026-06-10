@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export const revalidate = 3600; // regenerate every 1 hour — picks up new posts/products automatically
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in";
 
 // [path, priority, changeFreq]
 const STATIC_ROUTES: [string, number, MetadataRoute.Sitemap[number]["changeFrequency"]][] = [

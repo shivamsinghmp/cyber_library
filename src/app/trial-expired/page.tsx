@@ -111,8 +111,8 @@ export default async function TrialExpiredPage() {
         <div className="space-y-1">
           <p className="text-xs text-gray-400">
             Need help?{" "}
-            <a href="mailto:support@cyberlib.in" className="text-indigo-500 hover:underline">
-              support@cyberlib.in
+            <a href="mailto:support@lstudy.in" className="text-indigo-500 hover:underline">
+              support@lstudy.in
             </a>
           </p>
           <LogoutButton />

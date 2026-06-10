@@ -5,19 +5,20 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, ShoppingCart, X, Menu, ChevronRight, Store, Brain, FileText, Home, Info, Sparkles, Tag } from "lucide-react";
+import { LogOut, User, ShoppingCart, X, Menu, ChevronRight, Store, Brain, FileText, Home, Info, Sparkles, Tag, Trophy } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "@/components/Logo";
 
 const navLinks = [
-  { href: "/",          label: "Home",       icon: Home },
-  { href: "/why-join",  label: "Why Join",   icon: Sparkles },
-  { href: "/pricing",   label: "Pricing",    icon: Tag },
-  { href: "/store",     label: "Store",      icon: Store },
-  { href: "/blog",      label: "Blog",       icon: FileText },
-  { href: "/rules",     label: "Rules",      icon: Brain },
-  { href: "/about",     label: "About",      icon: Info },
+  { href: "/",             label: "Home",        icon: Home },
+  { href: "/why-join",     label: "Why Join",    icon: Sparkles },
+  { href: "/leaderboard",  label: "Leaderboard", icon: Trophy },
+  { href: "/pricing",      label: "Pricing",     icon: Tag },
+  { href: "/store",        label: "Store",       icon: Store },
+  { href: "/blog",         label: "Blog",        icon: FileText },
+  { href: "/rules",        label: "Rules",       icon: Brain },
+  { href: "/about",        label: "About",       icon: Info },
 ];
 
 const DEFAULT_TITLE   = "Let's Study";

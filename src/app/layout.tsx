@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import { DM_Sans, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
@@ -57,8 +59,8 @@ const getLayoutSettings = unstable_cache(
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getLayoutSettings();
-  const siteTitle = settings.SITE_TITLE?.trim() || "Let's Study | Live 24/7 Focus Hub & Study Rooms";
-  const siteDescription = "Join Let's Study — the ultimate virtual focus hub. Study with peers via live sessions. Pomodoro sprints, streaks, and accountability for UPSC, JEE, NEET & Professionals.";
+  const siteTitle = settings.SITE_TITLE?.trim() || "Let's Study | AI-Powered Collaborative Learning Platform";
+  const siteDescription = "Join Let's Study — India's AI-powered collaborative learning platform. Live study sessions via Google Meet, Gemini AI doubt solving, Pomodoro timers, and daily accountability for UPSC, JEE, NEET & competitive exam aspirants.";
 
   return {
     title: {
@@ -66,21 +68,21 @@ export async function generateMetadata(): Promise<Metadata> {
       default: siteTitle,
     },
     description: siteDescription,
-    keywords: ["let's study", "lets study", "virtual study room", "study room", "pomodoro timer", "body doubling", "study with me", "UPSC focus group", "JEE study room", "NEET study group", "online library"],
+    keywords: ["let's study", "lets study", "AI learning platform", "virtual study room", "collaborative learning", "pomodoro timer", "body doubling", "study accountability", "UPSC focus sessions", "JEE study platform", "NEET preparation", "EdTech India", "gemini ai tutor", "google meet study room", "ai powered study platform india", "cloud based study app"],
     authors: [{ name: "Let's Study Team" }],
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in"),
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in"),
     alternates: { canonical: "/" },
     openGraph: {
-      title: "Let's Study | Live 24/7 Focus Hub",
+      title: "Let's Study | AI-Powered Collaborative Learning Platform",
       description: siteDescription,
-      url: "https://cyberlib.in",
+      url: "https://lstudy.in",
       siteName: "Let's Study",
       locale: "en_IN",
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: "Let's Study | Live 24/7 Focus Hub",
+      title: "Let's Study | AI-Powered Collaborative Learning Platform",
       description: siteDescription,
     },
     icons: {
@@ -105,13 +107,13 @@ export default async function RootLayout({
   const fbPixelId = settings.FB_PIXEL_ID?.trim();
   const customHeadHtml = settings.CUSTOM_HEAD_HTML?.trim();
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in";
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: "Let's Study",
     url: siteUrl,
-    description: "Live 24/7 Focus Hub & Study Rooms for body doubling.",
+    description: "India's AI-powered collaborative learning platform — structured virtual study sessions, progress analytics, and peer accountability at scale.",
     publisher: { "@type": "Organization", name: "Let's Study", url: siteUrl },
   };
 

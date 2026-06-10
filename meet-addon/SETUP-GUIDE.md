@@ -6,8 +6,8 @@ Yeh guide Virtual Library / Let's Study ke Google Meet add-on ko **zero se deplo
 
 ## Prerequisites (Pehle yeh ready hona chahiye)
 
-1. **Website live honi chahiye** – Add-on ka side panel aapki site par host hai (e.g. `https://cyberlib.in/meet-addon/panel`). Pehle site deploy karo aur SSL (HTTPS) enable karo.
-2. **Logo URL** – Ek logo image jo publicly accessible ho (e.g. `https://cyberlib.in/logo.svg`).
+1. **Website live honi chahiye** – Add-on ka side panel aapki site par host hai (e.g. `https://lstudy.in/meet-addon/panel`). Pehle site deploy karo aur SSL (HTTPS) enable karo.
+2. **Logo URL** – Ek logo image jo publicly accessible ho (e.g. `https://lstudy.in/logo.svg`).
 
 ---
 
@@ -76,29 +76,29 @@ Yeh guide Virtual Library / Let's Study ke Google Meet add-on ko **zero se deplo
    Agar domain alag hai (e.g. `yourdomain.com`) to pehle values change karo:
 
    - `name` → Apne add-on ka naam (e.g. "Virtual Library" ya "Let's Study").
-   - `logoUrl` → Logo ka full URL (e.g. `https://cyberlib.in/logo.svg`).
+   - `logoUrl` → Logo ka full URL (e.g. `https://lstudy.in/logo.svg`).
    - `sidePanelUrl` → **Zaroor** aapki live site ka panel URL, e.g.  
-     `https://cyberlib.in/meet-addon/panel`
+     `https://lstudy.in/meet-addon/panel`
    - `addOnOrigins` → Sirf woh origin jahan add-on host hai, e.g.  
-     `["https://cyberlib.in"]`
+     `["https://lstudy.in"]`
    - `logoUrl` / `darkModeLogoUrl` (meet.web) → Same logo URL agar alag dark logo nahi hai.
 
-   **Example (cyberlib.in ke liye):**
+   **Example (lstudy.in ke liye):**
 
    ```json
    {
      "addOns": {
        "common": {
          "name": "Virtual Library",
-         "logoUrl": "https://cyberlib.in/logo.svg"
+         "logoUrl": "https://lstudy.in/logo.svg"
        },
        "meet": {
          "web": {
-           "sidePanelUrl": "https://cyberlib.in/meet-addon/panel",
+           "sidePanelUrl": "https://lstudy.in/meet-addon/panel",
            "supportsScreenSharing": false,
-           "addOnOrigins": ["https://cyberlib.in"],
-           "logoUrl": "https://cyberlib.in/logo.svg",
-           "darkModeLogoUrl": "https://cyberlib.in/logo.svg"
+           "addOnOrigins": ["https://lstudy.in"],
+           "logoUrl": "https://lstudy.in/logo.svg",
+           "darkModeLogoUrl": "https://lstudy.in/logo.svg"
          }
        }
      }

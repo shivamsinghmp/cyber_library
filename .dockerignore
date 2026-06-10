@@ -1,0 +1,30 @@
+.git
+.gitignore
+.next
+node_modules
+npm-debug.log*
+
+# Python server has its own Dockerfile — exclude from Next.js image
+python_server/
+
+# Secrets — never bake into image
+.env
+.env.*
+!.env.example
+
+# Dev/docs
+README.md
+docs/
+*.log
+build_error.log
+tsc_output.txt
+full_headers.txt
+headers.txt
+
+# Chrome extension and Meet addon source (served separately)
+chrome-extension/
+meet-addon/
+
+# OS noise
+.DS_Store
+Thumbs.db

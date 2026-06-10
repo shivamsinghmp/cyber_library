@@ -73,8 +73,8 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<void> {
   
   // From details
   doc.text("Let's Study", w - m, y, { align: "right" });
-  doc.text("support@cyberlib.in", w - m, y + 6, { align: "right" });
-  doc.text("www.cyberlib.in", w - m, y + 12, { align: "right" });
+  doc.text("support@lstudy.in", w - m, y + 6, { align: "right" });
+  doc.text("www.lstudy.in", w - m, y + 12, { align: "right" });
 
   y += 24;
 
@@ -195,7 +195,7 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<void> {
   doc.text("Email:", m, y);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(TEXT_MUTED[0], TEXT_MUTED[1], TEXT_MUTED[2]);
-  doc.text("support@cyberlib.in", m + 22, y);
+  doc.text("support@lstudy.in", m + 22, y);
 
   // --- BIG "Thank You!" ---
   // The provided layout has a huge "Thank You!" at the bottom right

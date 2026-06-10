@@ -142,7 +142,7 @@ function UtmGenerator() {
   const [campaign, setCampaign] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const siteUrl = "https://cyberlib.in";
+  const siteUrl = "https://lstudy.in";
   const params = new URLSearchParams({ utm_source: platform, utm_medium: "social" });
   if (campaign.trim()) params.set("utm_campaign", campaign.trim());
   const finalUrl = `${siteUrl}${page.startsWith("/") ? page : "/" + page}?${params.toString()}`;

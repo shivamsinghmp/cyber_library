@@ -63,6 +63,23 @@ export async function POST(request: NextRequest) {
   const done = completedFully ? plannedSeconds : Math.min(completedSeconds, plannedSeconds);
   const startedAt = new Date(endedAt.getTime() - done * 1000);
 
+  // Dedup: skip if an overlapping session already exists for this user (e.g. panel + main both running)
+  const overlapping = await prisma.pomodoroTimerSession.findFirst({
+    where: {
+      userId,
+      startedAt: { lt: endedAt },
+      endedAt:   { gt: startedAt },
+    },
+    select: { startedAt: true, endedAt: true },
+  });
+  if (overlapping) {
+    const overlapMs = Math.min(overlapping.endedAt.getTime(), endedAt.getTime())
+                    - Math.max(overlapping.startedAt.getTime(), startedAt.getTime());
+    if (overlapMs > done * 500) { // overlap > 50% of this session
+      return NextResponse.json({ ok: true, skipped: true, duplicate: true }, { headers: cors });
+    }
+  }
+
   const row = await prisma.pomodoroTimerSession.create({
     data: {
       userId,

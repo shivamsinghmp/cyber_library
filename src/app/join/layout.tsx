@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Join Let's Study — Start Studying with 1000+ Students",
     description: "Create your free account and join live 24/7 study rooms with focused students.",
-    url: "https://cyberlib.in/join",
+    url: "https://lstudy.in/join",
     type: "website",
   },
   twitter: {

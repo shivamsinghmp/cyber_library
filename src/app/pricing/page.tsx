@@ -190,10 +190,10 @@ export default function PricingPage() {
         )}
 
         <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
-          Simple, honest pricing
+          Transparent, Learner-First Pricing
         </h1>
         <p className="mt-3 text-base text-white/60">
-          {data.subtitle || "Everything you need to ace your exams"}
+          {data.subtitle || "Full platform access — no hidden fees, no lock-ins"}
         </p>
 
         {/* Billing Toggle */}
@@ -416,20 +416,20 @@ export default function PricingPage() {
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-10">
           <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
             <Shield className="h-4 w-4 text-emerald-500" />
-            <span>Secure payments via Razorpay</span>
+            <span>256-bit SSL · Powered by Razorpay</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
             <Users className="h-4 w-4 text-blue-500" />
-            <span>5,000+ students enrolled</span>
+            <span>5,000+ learners on the platform</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-[var(--muted-text)]">
             <Zap className="h-4 w-4 text-amber-500" />
-            <span>Cancel anytime, no questions</span>
+            <span>Cancel anytime — no lock-in</span>
           </div>
         </div>
 
-        <p className="mt-6 text-center text-xs text-[var(--muted-text)]">
-          Prices are inclusive of all taxes.
+        <p className="mt-4 text-center text-xs text-[var(--muted-text)]">
+          All prices are inclusive of applicable taxes. Data protected under India&apos;s DPDP Act, 2023.
         </p>
       </div>
     </div>

@@ -107,10 +107,10 @@ const SECTIONS = [
       <p>
         For privacy-related questions or requests, contact us at{" "}
         <a
-          href="mailto:support@cyberlib.in"
+          href="mailto:support@lstudy.in"
           className="text-[var(--accent)] font-semibold underline underline-offset-2 hover:text-[var(--accent-hover)] transition-colors"
         >
-          support@cyberlib.in
+          support@lstudy.in
         </a>
         .
       </p>

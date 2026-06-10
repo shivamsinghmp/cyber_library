@@ -5,19 +5,25 @@ import { fadeIn, staggerContainer } from "./animations";
 
 type Stats = { totalStudents: number; totalHours: number; activeNow: number };
 
+function fmtK(n: number) {
+  if (n < 1000) return `${n}+`;
+  const k = n / 1000;
+  return k % 1 === 0 ? `${k}k+` : `${k.toFixed(1)}k+`;
+}
+
 export function StatsSection({ stats }: { stats: Stats | null }) {
-  const displayStudents = Math.max(stats?.totalStudents ?? 0, 1000);
-  const displayHours    = Math.max(stats?.totalHours    ?? 0, 52000);
+  const displayStudents = Math.max(stats?.totalStudents ?? 0, 10000);
+  const displayHours    = Math.max(stats?.totalHours    ?? 0, 5000);
   const activeNow       = stats?.activeNow ?? 0;
 
   const items = [
     {
-      value: displayStudents >= 1000 ? `${(displayStudents / 1000).toFixed(1)}k+` : `${displayStudents}+`,
+      value: fmtK(displayStudents),
       label: "Students Enrolled", emoji: "👥",
       bg: "linear-gradient(135deg, #6366F1, #8B5CF6)", glow: "rgba(99,102,241,0.35)",
     },
     {
-      value: displayHours >= 1000 ? `${Math.floor(displayHours / 1000)}k+` : `${displayHours}+`,
+      value: fmtK(displayHours),
       label: "Hours Studied", emoji: "⏱️",
       bg: "linear-gradient(135deg, #8B5CF6, #06B6D4)", glow: "rgba(139,92,246,0.35)",
     },

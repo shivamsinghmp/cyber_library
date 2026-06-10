@@ -179,14 +179,14 @@ export default async function ReceiptPage({ params }: { params: Promise<{ transa
             {/* Support */}
             <p className="mt-6 text-center text-xs text-gray-400">
               Questions?{" "}
-              <a href="mailto:support@cyberlib.in" className="text-indigo-500 hover:underline">support@cyberlib.in</a>
+              <a href="mailto:support@lstudy.in" className="text-indigo-500 hover:underline">support@lstudy.in</a>
             </p>
           </div>
 
           {/* Footer */}
           <div className="px-10 py-5 text-center" style={{ background: "#1e1b4b" }}>
             <p className="text-[10px] text-indigo-400 tracking-[2px] uppercase mb-0.5">Let's Study</p>
-            <p className="text-[10px] text-indigo-800">© {new Date().getFullYear()} cyberlib.in — All rights reserved</p>
+            <p className="text-[10px] text-indigo-800">© {new Date().getFullYear()} lstudy.in — All rights reserved</p>
           </div>
         </div>
 

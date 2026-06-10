@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, LogOut, Menu, X, Coins } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, X, Coins, Users, Radio, Send, Video, ChevronDown } from "lucide-react";
 import Logo from "@/components/Logo";
 import { calculateCompletion, type ProfileForCompletion } from "@/lib/profileCompletion";
 import { STUDENT_MODULES, filterEnabledModules } from "@/lib/student-modules";
@@ -23,6 +23,20 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
   const [totalCoins, setTotalCoins] = useState<number | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [siteTitle, setSiteTitle] = useState("Let's Study");
+  const [communityLinks, setCommunityLinks] = useState<{
+    whatsappGroupLink: string | null;
+    whatsappChannelLink: string | null;
+    telegramChannelLink: string | null;
+    googleMeetAppLink: string | null;
+  }>({ whatsappGroupLink: null, whatsappChannelLink: null, telegramChannelLink: null, googleMeetAppLink: null });
+
+  const [openSections, setOpenSections] = useState<Set<string>>(() => {
+    const enabled = filterEnabledModules(STUDENT_MODULES, disabledModules);
+    const activeLabel = (["Main", "Study", "Account"] as const)
+      .map(lbl => ({ lbl, items: enabled.filter(m => m.section === lbl) }))
+      .find(s => s.items.some(i => pathname === i.href || pathname.startsWith(i.href + "/")))?.lbl;
+    return new Set<string>(activeLabel ? ["Main", activeLabel] : ["Main"]);
+  });
 
   useEffect(() => {
     fetch("/api/dashboard/meet-addon", { credentials: "include" })
@@ -38,6 +52,19 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
       .then((d: { logoUrl?: string | null; title?: string | null }) => {
         if (d.logoUrl) setLogoUrl(d.logoUrl);
         if (d.title) setSiteTitle(d.title);
+      }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/support-info")
+      .then(r => r.ok ? r.json() : {})
+      .then((d: { whatsappGroupLink?: string | null; whatsappChannelLink?: string | null; telegramChannelLink?: string | null; googleMeetAppLink?: string | null }) => {
+        setCommunityLinks({
+          whatsappGroupLink: d.whatsappGroupLink ?? null,
+          whatsappChannelLink: d.whatsappChannelLink ?? null,
+          telegramChannelLink: d.telegramChannelLink ?? null,
+          googleMeetAppLink: d.googleMeetAppLink ?? null,
+        });
       }).catch(() => {});
   }, []);
 
@@ -68,8 +95,25 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
     items: enabledModules.filter(m => m.section === label),
   })).filter(s => s.items.length > 0);
 
+  useEffect(() => {
+    const enabled = filterEnabledModules(STUDENT_MODULES, disabledModules);
+    const active = (["Main", "Study", "Account"] as const)
+      .map(lbl => ({ lbl, items: enabled.filter(m => m.section === lbl) }))
+      .find(s => s.items.some(i => pathname === i.href || pathname.startsWith(i.href + "/")))?.lbl;
+    if (active) setOpenSections(prev => new Set([...prev, active]));
+  }, [pathname, disabledModules]);
+
+  function toggleSection(label: string) {
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
+
   const SidebarBody = () => (
-    <div className="flex flex-1 flex-col min-h-0">
+    <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
       {/* Profile section */}
       <div className="px-4 py-5 border-b border-[var(--cream-muted)]">
         <div className="flex items-center gap-3">
@@ -113,7 +157,7 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-2 px-2">
+      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-hide py-2 px-2">
         {/* Dashboard — always visible */}
         {(() => {
           const isActive = pathname === "/dashboard";
@@ -131,36 +175,111 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
           );
         })()}
 
-        {navSections.map((section) => (
-          <div key={section.label} className="mb-1">
-            <p className="px-3 pt-3 pb-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-[var(--accent)]/60">
-              {section.label}
-            </p>
-            {section.items.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setDrawerOpen(false)}
-                  className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 mb-0.5 ${
-                    isActive
-                      ? "bg-[var(--accent)]/10 text-[var(--accent)] font-semibold border border-[var(--accent)]/20"
-                      : "text-[var(--body-text)] hover:bg-[var(--cream)] hover:text-[var(--accent)]"
-                  }`}
-                >
-                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[var(--accent)]" : "text-[var(--muted-text)]"}`} />
-                  <span>{item.label}</span>
-                  {isActive && (
-                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+        {navSections.map((section) => {
+          const isOpen = openSections.has(section.label);
+          const hasActive = section.items.some(item => pathname === item.href || pathname.startsWith(item.href + "/"));
+          return (
+            <div key={section.label} className="mb-1">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.label)}
+                className="w-full flex items-center justify-between px-3 pt-3 pb-1.5 rounded-lg hover:bg-[var(--cream)] transition-colors group"
+              >
+                <span className={`text-[9px] font-black uppercase tracking-[0.2em] transition-colors ${
+                  hasActive ? "text-[var(--accent)]" : "text-[var(--accent)]/60 group-hover:text-[var(--accent)]/80"
+                }`}>
+                  {section.label}
+                </span>
+                <ChevronDown className={`h-3 w-3 text-[var(--accent)]/40 transition-transform duration-200 ${
+                  isOpen ? "rotate-180" : "rotate-0"
+                }`} />
+              </button>
+
+              <div className={`overflow-hidden transition-all duration-200 ease-in-out ${
+                isOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
+              }`}>
+                {section.items.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setDrawerOpen(false)}
+                      className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 mb-0.5 ${
+                        isActive
+                          ? "bg-[var(--accent)]/10 text-[var(--accent)] font-semibold border border-[var(--accent)]/20"
+                          : "text-[var(--body-text)] hover:bg-[var(--cream)] hover:text-[var(--accent)]"
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-[var(--accent)]" : "text-[var(--muted-text)]"}`} />
+                      <span>{item.label}</span>
+                      {isActive && (
+                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </nav>
+
+      {/* Community Links */}
+      {(communityLinks.whatsappGroupLink || communityLinks.whatsappChannelLink || communityLinks.telegramChannelLink || communityLinks.googleMeetAppLink) && (
+        <div className="border-t border-[var(--cream-muted)] px-3 py-3 space-y-1">
+          <p className="px-1 pb-1 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)]/80">Community</p>
+          {communityLinks.whatsappGroupLink && (
+            <a
+              href={communityLinks.whatsappGroupLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setDrawerOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--body-text)] hover:bg-green-50 hover:text-green-700 transition-all duration-150"
+            >
+              <Users className="h-4 w-4 shrink-0 text-green-600" />
+              <span>Join WhatsApp Group</span>
+            </a>
+          )}
+          {communityLinks.whatsappChannelLink && (
+            <a
+              href={communityLinks.whatsappChannelLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setDrawerOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--body-text)] hover:bg-green-50 hover:text-green-700 transition-all duration-150"
+            >
+              <Radio className="h-4 w-4 shrink-0 text-green-500" />
+              <span>Join WhatsApp Channel</span>
+            </a>
+          )}
+          {communityLinks.telegramChannelLink && (
+            <a
+              href={communityLinks.telegramChannelLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setDrawerOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--body-text)] hover:bg-blue-50 hover:text-blue-700 transition-all duration-150"
+            >
+              <Send className="h-4 w-4 shrink-0 text-blue-500" />
+              <span>Join Telegram Channel</span>
+            </a>
+          )}
+          {communityLinks.googleMeetAppLink && (
+            <a
+              href={communityLinks.googleMeetAppLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setDrawerOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--body-text)] hover:bg-red-50 hover:text-red-700 transition-all duration-150"
+            >
+              <Video className="h-4 w-4 shrink-0 text-red-500" />
+              <span>Install Google Meet App</span>
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Logout */}
       <div className="border-t border-[var(--cream-muted)] p-3">
@@ -239,7 +358,7 @@ export function StudentSidebar({ disabledModules = [] }: { disabledModules?: str
       {/* Sidebar */}
       <aside
         className={`
-          fixed left-0 top-0 z-50 flex h-full w-64 shrink-0 flex-col
+          fixed left-0 top-0 z-50 flex h-full w-64 shrink-0 flex-col overflow-hidden
           bg-white border-r border-[var(--cream-muted)] shadow-[4px_0_24px_rgba(13,148,136,0.06)]
           transition-transform duration-300 ease-out
           md:static md:z-auto md:translate-x-0 md:shadow-none

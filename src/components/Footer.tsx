@@ -21,6 +21,7 @@ const DEFAULT_FOOTER: FooterConfig = {
       title: "Platform",
       links: [
         { label: "Study Room", url: "/study-room" },
+        { label: "Leaderboard", url: "/leaderboard" },
         { label: "Mentorship", url: "/mentorship" },
         { label: "Mental Session", url: "/mental-session" },
         { label: "Store", url: "/store" },
@@ -31,31 +32,28 @@ const DEFAULT_FOOTER: FooterConfig = {
       links: [
         { label: "About Us", url: "/about" },
         { label: "Blog", url: "/blog" },
-        { label: "Rules", url: "/rules" },
-        { label: "Support", url: "/support" },
+        { label: "Platform Rules", url: "/rules" },
+        { label: "Support Centre", url: "/support" },
+        { label: "Contact Us", url: "/support" },
       ],
     },
     {
       title: "Legal",
       links: [
-        { label: "Terms", url: "/terms" },
-        { label: "Privacy", url: "/privacy" },
-        { label: "Refund", url: "/refund" },
+        { label: "Terms of Service", url: "/terms" },
+        { label: "Privacy Policy", url: "/privacy" },
+        { label: "Refund Policy", url: "/refund" },
+        { label: "Cookie Policy", url: "/cookie-policy" },
         { label: "WhatsApp Data Deletion", url: "/whatsapp-data-deletion" },
       ],
     },
   ],
   newsletter: {
-    title: "Stay in the loop",
-    description: "Focus tips & hub updates, weekly.",
+    title: "Platform Updates",
+    description: "Learning science, platform updates, and productivity research — weekly.",
     buttonText: "Subscribe",
   },
-  socials: [
-    { platform: "instagram", url: "https://instagram.com" },
-    { platform: "youtube",   url: "https://youtube.com" },
-    { platform: "twitter",   url: "https://twitter.com" },
-    { platform: "github",    url: "https://github.com" },
-  ],
+  socials: [],
   copyright: `© ${new Date().getFullYear()} Let's Study. All rights reserved.`,
 };
 
@@ -103,24 +101,38 @@ function FooterInner({ config }: { config: FooterConfig }) {
             </div>
 
             <p className="text-[13px] font-bold leading-relaxed max-w-[180px]" style={{ color: "var(--muted-text)" }}>
-              Elite online focus sessions for serious students.
+              India&apos;s Gemini AI-powered study accountability platform — built for UPSC, JEE, NEET, and every serious learner.
             </p>
 
-            <div className="flex items-center gap-1.5">
-              {config.socials.filter(s => s.url).map((item) => (
-                <a
-                  key={item.platform}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={item.platform}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:-translate-y-0.5 hover:border-[var(--accent-border)] hover:text-[var(--accent)]"
-                  style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: "white" }}
-                >
-                  {resolveIcon(item.platform)}
-                </a>
-              ))}
-            </div>
+            {config.socials.filter(s => s.url).length > 0 ? (
+              <div className="flex items-center gap-1.5">
+                {config.socials.filter(s => s.url).map((item) => (
+                  <a
+                    key={item.platform}
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={item.platform}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg border transition-all hover:-translate-y-0.5 hover:border-[var(--accent-border)] hover:text-[var(--accent)]"
+                    style={{ borderColor: "var(--border)", color: "var(--muted-text)", background: "white" }}
+                  >
+                    {resolveIcon(item.platform)}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[12px] font-bold" style={{ color: "var(--muted-text)" }}>
+                Follow our journey →{" "}
+                <Link href="/blog" className="hover:text-[var(--accent)] transition-colors">Blog</Link>
+                {" · "}
+                <a href="https://linkedin.com/company/letsstudy" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--accent)] transition-colors">LinkedIn</a>
+              </p>
+            )}
+
+            <a href="mailto:support@lstudy.in" className="flex items-center gap-1.5 text-[12px] font-bold transition-colors hover:text-[var(--accent)]" style={{ color: "var(--muted-text)" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              support@lstudy.in — 24hr response
+            </a>
           </div>
 
           {/* Links */}
@@ -167,12 +179,14 @@ function FooterInner({ config }: { config: FooterConfig }) {
           <p className="text-[13px] font-bold" style={{ color: "var(--muted-text)" }}>
             {config.copyright}
           </p>
-          <div className="flex items-center gap-1 text-[13px] font-bold" style={{ color: "var(--muted-text)" }}>
-            <span>Made with ❤️ for serious students</span>
+          <div className="flex items-center gap-1.5 text-[12px] font-bold flex-wrap" style={{ color: "var(--muted-text)" }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>SSL Encrypted · DPDP Compliant · SOC 2 In Progress · Data hosted in India</span>
           </div>
           <div className="flex items-center gap-3 text-[13px] font-bold" style={{ color: "var(--muted-text)" }}>
             <Link href="/terms"   className="hover:text-[var(--accent)] transition-colors">Terms</Link>
             <Link href="/privacy" className="hover:text-[var(--accent)] transition-colors">Privacy</Link>
+            <Link href="/cookie-policy" className="hover:text-[var(--accent)] transition-colors">Cookies</Link>
             <Link href="/support" className="hover:text-[var(--accent)] transition-colors">Support</Link>
           </div>
         </div>

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         next: { revalidate: 300 },
         // Server-side fetches have no Referer by default, which causes YouTube to
         // reject requests when the API key has HTTP-referrer restrictions configured.
-        headers: { Referer: "https://cyberlib.in/" },
+        headers: { Referer: "https://lstudy.in/" },
       }
     );
 

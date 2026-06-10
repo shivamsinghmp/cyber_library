@@ -1,4 +1,4 @@
-// Content script - runs on cyberlib.in pages
+// Content script - runs on lstudy.in pages
 // Adds a floating PiP button on the page
 
 (function() {

@@ -96,7 +96,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const title = post.metaTitle || post.title;
     // Fallback chain: metaDescription → excerpt → first 155 chars of body
     const description = post.metaDescription || post.excerpt || bodyToPlainText(post.body || "")  || undefined;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in";
     return {
       title,
       description,
@@ -150,7 +150,7 @@ export default async function BlogPostPage({ params }: Props) {
   const sanitizedBody = injectHeadingIds(sanitizeBlogHtml(post.body));
   const toc = extractToc(post.body);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in";
   const articleSchema = {
     "@context": "https://schema.org",
     "@type": "Article",

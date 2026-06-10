@@ -13,6 +13,7 @@ import { LoginCard } from "./components/LoginCard";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { AIChatBot }    from "./components/AIChatBot";
 import { PlanLockedScreen } from "./components/PlanLockedScreen";
+import { queuePendingSession, drainPendingSessions } from "@/lib/pending-sessions";
 
 const TOKEN_KEY = "vl_meet_addon_token";
 const TIMER_STORAGE_KEY = "vl_meet_timer_state";
@@ -180,6 +181,10 @@ export default function MeetAddonPanelPage() {
     setTokenState(getToken());
     const savedName = localStorage.getItem("vl_meet_addon_name");
     if (savedName) setStudentName(savedName);
+
+    // Retry any sessions that failed to save while the server was down
+    drainPendingSessions();
+
     const saved = localStorage.getItem(TIMER_STORAGE_KEY);
     if (saved) {
       try {
@@ -187,8 +192,18 @@ export default function MeetAddonPanelPage() {
         if (data.isRunning && data.endTime) {
           const remaining = Math.max(0, Math.floor((data.endTime - Date.now()) / 1000));
           setTimerDuration(data.duration || 25 * 60);
-          if (remaining > 0) { setTimeLeft(remaining); setIsRunning(true); }
-          else { setTimeLeft(data.duration || 25 * 60); setIsRunning(false); }
+          if (remaining > 0) {
+            setTimeLeft(remaining); setIsRunning(true);
+          } else {
+            // Timer completed while the page was closed — queue a recovery session
+            const planned = data.duration || 25 * 60;
+            const tok = getToken();
+            if (tok && planned >= 60) {
+              queuePendingSession({ token: tok, roomKey: "local-room", plannedSeconds: planned, completedSeconds: planned, completedFully: true });
+              drainPendingSessions();
+            }
+            setTimeLeft(planned); setIsRunning(false);
+          }
         } else {
           setTimerDuration(data.duration || 25 * 60);
           setTimeLeft(data.pausedTimeLeft ?? data.duration ?? (25 * 60));
@@ -210,7 +225,7 @@ export default function MeetAddonPanelPage() {
         setIsMainStageOpen(false);
       } else {
         if (typeof window !== "undefined" && window.self !== window.top && meetClient) {
-          await meetClient.startActivity({ mainStageUrl: "https://cyberlib.in/meet-addon/main" });
+          await meetClient.startActivity({ mainStageUrl: "https://lstudy.in/meet-addon/main" });
           setIsMainStageOpen(true);
         } else {
           window.open("/meet-addon/main", "_blank");
@@ -425,13 +440,17 @@ export default function MeetAddonPanelPage() {
 
   const saveTimerSession = async (planned: number, completed: number, isFinished: boolean) => {
     if (!token || completed <= 0) return;
+    const roomKey = resolvedSlot?.slotId ?? "local-room";
     try {
       await fetch("/api/meet-addon/pomodoro-session", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ roomKey: resolvedSlot?.slotId ?? "local-room", plannedSeconds: planned, completedSeconds: completed, completedFully: isFinished }),
+        body: JSON.stringify({ roomKey, plannedSeconds: planned, completedSeconds: completed, completedFully: isFinished }),
       });
-    } catch (e) { console.error("Timer sync failed", e); }
+    } catch {
+      // Server down — queue for retry on next page load
+      queuePendingSession({ token, roomKey, plannedSeconds: planned, completedSeconds: completed, completedFully: isFinished });
+    }
   };
 
   // Live slot-time counter — ticks every second after slot is resolved
@@ -501,6 +520,24 @@ export default function MeetAddonPanelPage() {
     setTimerDuration(newMins * 60); setTimeLeft(newMins * 60);
     localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify({ isRunning: false, duration: newMins * 60, pausedTimeLeft: newMins * 60 }));
   };
+
+  // Save session when user closes the tab while the timer is running
+  useEffect(() => {
+    if (!isRunning || !token) return;
+    const handleUnload = () => {
+      const completed = timerDuration - timeLeft;
+      if (completed < 60) return;
+      const roomKey = resolvedSlot?.slotId ?? "local-room";
+      queuePendingSession({ token, roomKey, plannedSeconds: timerDuration, completedSeconds: completed, completedFully: false });
+      fetch("/api/meet-addon/pomodoro-session", {
+        method: "POST", keepalive: true,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ roomKey, plannedSeconds: timerDuration, completedSeconds: completed, completedFully: false }),
+      }).catch(() => {});
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [isRunning, token, timerDuration, timeLeft, resolvedSlot]);
 
   const handleAddBrainDump = () => {
     if (!dumpInput.trim() && !dumpTitle.trim()) return;

@@ -79,15 +79,19 @@ function LoginForm() {
         email: data.email, password: data.password, loginAsRole: loginAs, redirect: false,
       });
       if (result?.error) {
-        // Check if failure is due to unverified email
-        try {
-          const statusRes = await fetch(`/api/auth/check-email-status?email=${encodeURIComponent(data.email)}`);
-          const status = await statusRes.json();
-          if (status.exists && !status.verified) {
-            setUnverifiedEmail(data.email);
-            return;
-          }
-        } catch {}
+        // Only check unverified email for STUDENT role — admin/staff/etc. accounts
+        // are created by admins and are always verified. Showing this message for
+        // other roles when the real cause is a role mismatch would be misleading.
+        if (loginAs === "STUDENT") {
+          try {
+            const statusRes = await fetch(`/api/auth/check-email-status?email=${encodeURIComponent(data.email)}`);
+            const status = await statusRes.json();
+            if (status.exists && !status.verified) {
+              setUnverifiedEmail(data.email);
+              return;
+            }
+          } catch {}
+        }
         setSubmitError("Incorrect email or password. Please try again.");
         return;
       }

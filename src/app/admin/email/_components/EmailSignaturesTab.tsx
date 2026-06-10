@@ -13,7 +13,7 @@ type Props = {
 
 const DEFAULT_SIG_HTML = `<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e4e4e7;font-family:Inter,sans-serif;font-size:12px;color:#71717a;">
   <p style="margin:0;font-weight:700;color:#09090b;">Let's Study</p>
-  <p style="margin:4px 0 0;">support@cyberlib.in · cyberlib.in</p>
+  <p style="margin:4px 0 0;">support@lstudy.in · lstudy.in</p>
 </div>`;
 
 export function EmailSignaturesTab({ signatures, onRefresh }: Props) {

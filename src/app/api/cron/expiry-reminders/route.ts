@@ -127,7 +127,7 @@ export async function GET(request: Request) {
         `*Let's Study* — Your *7-day free trial* ended today.\n\n` +
         `We hope you enjoyed our study rooms, AI assistant, and other features during the trial.\n\n` +
         `🚀 *Subscribe now and continue your studies:*\n` +
-        `https://cyberlib.in/pricing\n\n` +
+        `https://lstudy.in/pricing\n\n` +
         `Feel free to reach out if you have any questions. Best of luck! 💪`;
 
       const ok = await sendWhatsAppText(phone, msg);
@@ -150,7 +150,7 @@ export async function GET(request: Request) {
         `• Live Video Sessions\n` +
         `• Daily Slots Booking\n\n` +
         `✅ *Subscribe today and keep your access:*\n` +
-        `https://cyberlib.in/pricing\n\n` +
+        `https://lstudy.in/pricing\n\n` +
         `Don't stop studying! 📚`;
 
       const ok = await sendWhatsAppText(phone, msg);
@@ -224,7 +224,7 @@ export async function GET(request: Request) {
           `Hello ${name}! ⏰\n\n` +
           `*Let's Study* — Your subscription expires in *${daysLeft} days*!\n\n` +
           `Renew before you lose access:\n` +
-          `https://cyberlib.in/pricing\n\n` +
+          `https://lstudy.in/pricing\n\n` +
           `Keep studying! 📚`;
         sent = await sendWhatsAppText(phone, msg);
       }

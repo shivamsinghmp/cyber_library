@@ -1,15 +1,16 @@
 /**
- * PM2 Ecosystem Config — Cyber Library Production
- * Usage:
- *   pm2 start ecosystem.config.js
- *   pm2 startup systemd && pm2 save   # auto-start on reboot
+ * PM2 Ecosystem Config — LOCAL DEVELOPMENT ONLY
  *
- * Assumes: DO 4vCPU-8GB Droplet, Next.js on port 3000
+ * Production runs on Google Cloud Run (Docker containers).
+ * Use this file only to run both servers locally:
+ *   pm2 start ecosystem.config.js
+ *   pm2 logs
  */
 module.exports = {
   apps: [
+    // ── Next.js ─────────────────────────────────────────────────────────────
     {
-      name:        "cyber-library",
+      name:        "lstudy",
       script:      "node_modules/.bin/next",
       args:        "start",
       cwd:         "/var/www/cyber_library",
@@ -18,35 +19,55 @@ module.exports = {
       instances:   3,
       exec_mode:   "cluster",
 
-      // Memory safety: restart worker if it exceeds 1GB
-      max_memory_restart: "1G",
-
-      // Crash recovery: wait 3s before restart, exponential backoff after repeated crashes
+      max_memory_restart:       "1G",
       restart_delay:            3000,
       exp_backoff_restart_delay: 100,
       max_restarts:             10,
 
-      // Environment
       env: {
         NODE_ENV:      "production",
         PORT:          3000,
-        // Total worker count — rate-limit.ts divides per-IP limits by this
-        // so that a user hitting all 3 workers still sees the intended limit.
         PM2_INSTANCES: "3",
       },
 
-      // Logs (rotate manually or use pm2-logrotate module)
-      error_file:      "/var/log/cyber-library/error.log",
-      out_file:        "/var/log/cyber-library/out.log",
+      error_file:      "/var/log/lstudy/error.log",
+      out_file:        "/var/log/lstudy/out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       merge_logs:      true,
 
-      // Graceful shutdown: wait 10s for in-flight requests
-      kill_timeout:    10000,
-      listen_timeout:  8000,
+      kill_timeout:   10000,
+      listen_timeout: 8000,
+      watch:          false,
+    },
 
-      // Watch (DISABLE in production — causes hot reload = crashes)
-      watch: false,
+    // ── Python FastAPI (StudyMate AI) ────────────────────────────────────────
+    {
+      name:     "lstudy-python",
+      script:   "/var/www/cyber_library/python_server/venv/bin/uvicorn",
+      args:     "main:app --host 127.0.0.1 --port 8001 --workers 2",
+      cwd:      "/var/www/cyber_library/python_server",
+
+      // fork — PM2 cluster mode is Node.js-only; Python uses fork
+      instances: 1,
+      exec_mode: "fork",
+      interpreter: "none",        // uvicorn IS the interpreter
+
+      max_memory_restart:       "512M",
+      restart_delay:            5000,
+      exp_backoff_restart_delay: 200,
+      max_restarts:             10,
+
+      env: {
+        PYTHON_SERVER_PORT: "8001",
+      },
+
+      error_file:      "/var/log/lstudy/python-error.log",
+      out_file:        "/var/log/lstudy/python-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      merge_logs:      true,
+
+      kill_timeout: 8000,
+      watch:        false,
     },
   ],
 };

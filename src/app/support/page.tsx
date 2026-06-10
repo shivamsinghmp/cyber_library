@@ -13,8 +13,8 @@ const CONTACT_CARDS = [
     icon: Mail,
     title: "Email Support",
     desc: "For general inquiries and technical help.",
-    value: "support@cyberlib.in",
-    href: "mailto:support@cyberlib.in",
+    value: "support@lstudy.in",
+    href: "mailto:support@lstudy.in",
     color: "text-[var(--accent)] bg-[var(--accent-pale)]",
   },
   {

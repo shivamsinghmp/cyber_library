@@ -1,97 +1,173 @@
-name: Deploy to DigitalOcean
+name: Deploy to Cloud Run
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
+
+# Required GitHub secrets (Settings → Secrets → Actions):
+#
+#   GCP_SA_KEY        — Service account JSON key (roles: Cloud Run Admin, Storage Admin, Artifact Registry Writer)
+#   GCP_PROJECT_ID    — GCP project ID (e.g. lstudy-prod)
+#   GCP_REGION        — Cloud Run region (e.g. asia-south1)
+#
+#   PYTHON_ENV_YAML   — Python service env vars in Cloud Run YAML format:
+#                         PYTHON_SERVER_SECRET: your-secret
+#                         NEXTJS_ORIGIN: https://lstudy.in
+#
+#   NEXTJS_ENV_YAML   — Next.js service env vars in Cloud Run YAML format:
+#                         NODE_ENV: production
+#                         DATABASE_URL: postgresql://...
+#                         AUTH_SECRET: ...
+#                         NEXTAUTH_URL: https://lstudy.in
+#                         ENCRYPTION_KEY: ...
+#                         PYTHON_SERVER_SECRET: your-secret
+#                         ... (all your .env keys except PYTHON_SERVER_URL)
+#                       Note: PYTHON_SERVER_URL is added automatically at deploy time.
+#
+#   DATABASE_URL      — Postgres connection string (used only for prisma migrate deploy)
 
 jobs:
   deploy:
+    name: Build & Deploy
     runs-on: ubuntu-latest
+
     steps:
-      - name: Deploy via SSH
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Google Cloud auth ────────────────────────────────────────────────────
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
+
+      # ── Python: build + push ─────────────────────────────────────────────────
+      - name: Build Python image
+        run: |
+          docker build \
+            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:${{ github.sha }} \
+            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:latest \
+            ./python_server
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:${{ github.sha }}
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:latest
+
+      # ── Python: deploy ───────────────────────────────────────────────────────
+      - name: Write Python env vars
         env:
-          DO_HOST: ${{ secrets.DO_HOST }}
-          DO_USER: ${{ secrets.DO_USER }}
-          DO_SSH_KEY: ${{ secrets.DO_SSH_KEY }}
+          PYTHON_ENV_YAML: ${{ secrets.PYTHON_ENV_YAML }}
+        run: printf '%s' "$PYTHON_ENV_YAML" > /tmp/python.env.yaml
+
+      - name: Deploy Python to Cloud Run
         run: |
-          mkdir -p ~/.ssh
-          echo "$DO_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$DO_HOST" >> ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key "$DO_USER@$DO_HOST" << 'ENDSSH'
-            set -e
-            cd /var/www/cyber_library
+          gcloud run deploy lstudy-python \
+            --image      gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:${{ github.sha }} \
+            --region     ${{ secrets.GCP_REGION }} \
+            --platform   managed \
+            --allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 4 \
+            --memory     512Mi \
+            --cpu        1 \
+            --concurrency 80 \
+            --env-vars-file /tmp/python.env.yaml \
+            --quiet
 
-            git checkout -- .
-            git pull origin main
+          # Capture stable service URL for Next.js
+          PYTHON_URL=$(gcloud run services describe lstudy-python \
+            --region ${{ secrets.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "PYTHON_URL=$PYTHON_URL" >> $GITHUB_ENV
+          echo "Python URL: $PYTHON_URL"
 
-            # Update yt-dlp only if version changed (pinned — update intentionally)
-            YT_DLP_VERSION="2025.05.22"
-            INSTALLED=$(/usr/local/bin/yt-dlp --version 2>/dev/null || echo "none")
-            if [ "$INSTALLED" != "$YT_DLP_VERSION" ]; then
-              echo "Updating yt-dlp $INSTALLED → $YT_DLP_VERSION"
-              curl -sSL "https://github.com/yt-dlp/yt-dlp/releases/download/$YT_DLP_VERSION/yt-dlp" \
-                -o /usr/local/bin/yt-dlp
-              chmod a+rx /usr/local/bin/yt-dlp
-            else
-              echo "yt-dlp already at $YT_DLP_VERSION, skipping"
-            fi
+      # ── DB Migration ─────────────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-            # Sync nginx config and reload if changed
-            if ! diff -q nginx/cyberlib.conf /etc/nginx/sites-available/cyberlib.in > /dev/null 2>&1; then
-              echo "Nginx config changed — reloading"
-              cp nginx/cyberlib.conf /etc/nginx/sites-available/cyberlib.in
-              cp nginx/proxy_params   /etc/nginx/proxy_params
-              nginx -t && nginx -s reload
-            else
-              echo "Nginx config unchanged, skipping reload"
-            fi
-
-            rm -rf node_modules
-            npm ci
-            npx prisma generate
-            npx prisma migrate deploy
-            npm run build
-
-            # Remove devDependencies from production server after build
-            npm prune --omit=dev
-
-            pm2 reload ecosystem.config.js --update-env
-            pm2 save
-          ENDSSH
-
-      - name: Health check
+      - name: Run Prisma migration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "Waiting for app to be ready..."
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+
+      # ── Next.js: build + push ────────────────────────────────────────────────
+      - name: Build Next.js image
+        run: |
+          docker build \
+            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:${{ github.sha }} \
+            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:latest \
+            .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:${{ github.sha }}
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:latest
+
+      # ── Next.js: deploy ──────────────────────────────────────────────────────
+      - name: Write Next.js env vars
+        env:
+          NEXTJS_ENV_YAML: ${{ secrets.NEXTJS_ENV_YAML }}
+        run: |
+          printf '%s' "$NEXTJS_ENV_YAML" > /tmp/nextjs.env.yaml
+          # Append the Python URL captured from the deploy step above
+          printf '\nPYTHON_SERVER_URL: "%s"\n' "$PYTHON_URL" >> /tmp/nextjs.env.yaml
+
+      - name: Deploy Next.js to Cloud Run
+        run: |
+          gcloud run deploy lstudy \
+            --image      gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:${{ github.sha }} \
+            --region     ${{ secrets.GCP_REGION }} \
+            --platform   managed \
+            --allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 10 \
+            --memory     1Gi \
+            --cpu        2 \
+            --concurrency 100 \
+            --env-vars-file /tmp/nextjs.env.yaml \
+            --quiet
+
+          NEXTJS_URL=$(gcloud run services describe lstudy \
+            --region ${{ secrets.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "NEXTJS_URL=$NEXTJS_URL" >> $GITHUB_ENV
+
+      # ── Health checks ────────────────────────────────────────────────────────
+      - name: Health check — Next.js
+        run: |
+          echo "Waiting for Next.js to be ready..."
           for i in $(seq 1 12); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 https://cyberlib.in || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 ${{ env.NEXTJS_URL }} || echo "000")
             if [ "$STATUS" = "200" ]; then
-              echo "✅ App is up (attempt $i)"
+              echo "✅ Next.js is up (attempt $i)"
               break
             fi
             echo "Attempt $i: got $STATUS, retrying in 10s..."
             sleep 10
             if [ "$i" = "12" ]; then
-              echo "❌ App did not come up after 120s (last status: $STATUS)"
+              echo "❌ Next.js did not come up (last: $STATUS)"
               exit 1
             fi
           done
 
-          DASH=$(curl -s -o /dev/null -w "%{http_code}" -L --max-redirs 1 https://cyberlib.in/dashboard)
-          if [ "$DASH" = "200" ] || [ "$DASH" = "307" ]; then
-            echo "✅ Dashboard redirect OK"
+          AUTH=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.NEXTJS_URL }}/api/auth/session)
+          [ "$AUTH" = "200" ] && echo "✅ Auth OK" || (echo "❌ Auth returned $AUTH" && exit 1)
+
+      - name: Health check — Python server
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 ${{ env.PYTHON_URL }}/health || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Python server is up"
           else
-            echo "❌ Dashboard returned unexpected status $DASH"
+            echo "❌ Python server health failed (status: $STATUS)"
             exit 1
           fi
-
-          AUTH=$(curl -s -o /dev/null -w "%{http_code}" https://cyberlib.in/api/auth/session)
-          if [ "$AUTH" != "200" ]; then
-            echo "❌ /api/auth/session returned $AUTH (expected 200)"
-            exit 1
-          fi
-          echo "✅ Auth session OK"
-
           echo "🚀 All health checks passed!"

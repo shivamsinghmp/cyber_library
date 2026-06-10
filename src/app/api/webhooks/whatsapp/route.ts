@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encrypt";
+import { sendWhatsAppText } from "@/lib/whatsapp";
 import crypto from "crypto";
+
+const PYTHON_URL    = process.env.PYTHON_SERVER_URL    ?? "http://localhost:8001";
+const PYTHON_SECRET = process.env.PYTHON_SERVER_SECRET ?? "";
 
 function encryptContent(plain: string) {
   try { const { encrypted, iv } = encrypt(plain); return { content: encrypted, contentIv: iv }; }
@@ -159,22 +163,34 @@ async function handleWebhookBody(body: { object: string; entry: WAEntry[] }) {
             console.info(`[Webhook/WhatsApp] opt-out received from ${fromPhone}`);
           }
 
-          const enc = encryptContent(content);
-          await prisma.whatsAppMessage.upsert({
+          // Meta retries webhooks — dedupe BEFORE firing the bot, otherwise a
+          // retry produces a second AI reply and a second coin deduction.
+          const alreadySeen = await prisma.whatsAppMessage.findUnique({
             where:  { wamid: msg.id },
-            create: {
-              wamid:      msg.id,
-              phoneNumber: fromPhone,
-              content:    enc.content,
-              contentIv:  enc.contentIv,
-              direction:  "INBOUND",
-              status:     "DELIVERED",
-              userId:     profile?.userId ?? null,
-            },
-            update: {}, // already saved — no-op
+            select: { id: true },
           });
 
-          console.info(`[Webhook/WhatsApp] inbound from ${fromPhone}: "${content.slice(0, 60)}"`);
+          if (!alreadySeen) {
+            const enc = encryptContent(content);
+            await prisma.whatsAppMessage.create({
+              data: {
+                wamid:      msg.id,
+                phoneNumber: fromPhone,
+                content:    enc.content,
+                contentIv:  enc.contentIv,
+                direction:  "INBOUND",
+                status:     "DELIVERED",
+                userId:     profile?.userId ?? null,
+              },
+            }).catch(() => {}); // unique race with a parallel retry — safe to ignore
+
+            console.info(`[Webhook/WhatsApp] inbound from ${fromPhone}: "${content.slice(0, 60)}"`);
+
+            // ── AI Bot reply (fire-and-forget) ────────────────────────────────
+            if (profile?.userId && !isOptOut && content.trim().length > 0 && !content.startsWith("[")) {
+              handleWaBot(fromPhone, content, profile.userId).catch(() => {});
+            }
+          }
         }
 
         // ── Status updates (delivery receipts) ────────────────────────────────
@@ -204,6 +220,176 @@ async function handleWebhookBody(body: { object: string; entry: WAEntry[] }) {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+
+// ─── Intent classifier ─────────────────────────────────────────────────────────
+async function classifyIntent(message: string, apiKey: string | null): Promise<string> {
+  if (!apiKey || message.trim().length <= 2) {
+    return message.trim().length <= 2 ? "greeting" : "study_help";
+  }
+  try {
+    const res = await fetch(`${PYTHON_URL}/classify/intent`, {
+      method:  "POST",
+      headers: { "Authorization": `Bearer ${PYTHON_SECRET}`, "Content-Type": "application/json" },
+      body:    JSON.stringify({ message, apiKey }),
+      signal:  AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return "study_help";
+    const data = await res.json() as { intent: string };
+    return data.intent || "study_help";
+  } catch {
+    return "study_help";
+  }
+}
+
+// ─── WhatsApp AI Bot ────────────────────────────────────────────────────────────
+async function handleWaBot(phone: string, userText: string, userId: string): Promise<void> {
+  try {
+    const { batchGetAppSettings } = await import("@/lib/app-settings");
+
+    // Load settings + profile in parallel
+    const [settings, profile] = await Promise.all([
+      batchGetAppSettings(["GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]),
+      prisma.profile.findUnique({
+        where:  { userId },
+        select: { coinBalance: true, fullName: true, targetExam: true, targetYear: true,
+                  studyGoal: true, totalStudyHours: true, currentStreak: true },
+      }),
+    ]);
+
+    const googleKey = settings["GEMINI_API_KEY"] || null;
+
+    // Step 1: Classify intent — cheap + fast, avoids wasting coins on greetings
+    const intent = await classifyIntent(userText, googleKey);
+
+    if (intent === "ignore") return;
+
+    if (intent === "greeting") {
+      await sendWhatsAppText(phone,
+        "Hey! 👋 Type your study question and StudyMate AI will help you right away!"
+      );
+      return;
+    }
+
+    if (intent === "schedule") {
+      await sendWhatsAppText(phone,
+        "Check your class schedule here: https://lstudy.in/dashboard\n\n" +
+        "Got a study question? Just ask and StudyMate AI will help! 📚"
+      );
+      return;
+    }
+
+    if (intent === "payment") {
+      await sendWhatsAppText(phone,
+        "Buy coins or manage your subscription here: https://lstudy.in/dashboard/wallet\n\n" +
+        "💡 1 coin = ₹0.50 · AI study sessions start at 1 coin"
+      );
+      return;
+    }
+
+    // study_help → proceed with AI
+    if (!profile || profile.coinBalance < 1) {
+      await sendWhatsAppText(phone,
+        "Hey! 🪙 You need coins to chat with StudyMate AI.\nBuy coins here: https://lstudy.in/dashboard/wallet/buy-coins"
+      );
+      return;
+    }
+
+    // Rate limit: max 6 bot replies per user per minute — protects the Gemini
+    // quota and the WhatsApp send budget from message flooding
+    const oneMinAgo = new Date(Date.now() - 60_000);
+    const recentCount = await prisma.whatsAppMessage.count({
+      where: { userId, direction: "OUTBOUND", createdAt: { gte: oneMinAgo } },
+    });
+    if (recentCount >= 6) {
+      console.warn(`[WA Bot] rate limit hit for user ${userId}`);
+      return;
+    }
+
+    // Load last 8 WA messages as conversation history
+    const recentMsgs = await prisma.whatsAppMessage.findMany({
+      where:   { userId, direction: { in: ["INBOUND", "OUTBOUND"] } },
+      orderBy: { createdAt: "desc" },
+      take:    8,
+      select:  { direction: true, content: true, contentIv: true },
+    });
+    const { decrypt } = await import("@/lib/encrypt");
+
+    const history = recentMsgs
+      .reverse()
+      .map((m) => {
+        let content = m.content;
+        // contentIv empty = stored as plaintext (encryption failed at write time)
+        if (m.contentIv) {
+          try { content = decrypt(m.content, m.contentIv); } catch { return null; }
+        }
+        return { role: m.direction === "INBOUND" ? "user" : "assistant", content };
+      })
+      .filter((m): m is { role: string; content: string } => m !== null);
+
+    const keys = {
+      google:    googleKey,
+      anthropic: settings["ANTHROPIC_API_KEY"] || null,
+      openai:    settings["OPENAI_API_KEY"]    || null,
+    };
+
+    const messages = [...history, { role: "user", content: userText }];
+
+    // Call Python /chat/complete (non-streaming JSON endpoint)
+    const pyRes = await fetch(`${PYTHON_URL}/chat/complete`, {
+      method:  "POST",
+      headers: { "Authorization": `Bearer ${PYTHON_SECRET}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages,
+        availableModels: keys.google ? ["gemini-2.5-flash"] : [],
+        currentCoins:    profile.coinBalance,
+        acceptLowerQuality: true,
+        budgetMode:      "strict",
+        keys,
+        profile: {
+          name:            profile.fullName,
+          targetExam:      profile.targetExam,
+          targetYear:      profile.targetYear,
+          studyGoal:       profile.studyGoal,
+          totalStudyHours: profile.totalStudyHours,
+          currentStreak:   profile.currentStreak,
+        },
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!pyRes.ok) return;
+    const data = await pyRes.json() as { reply: string; coins: number; model: string };
+    if (!data.reply) return;
+
+    // Send WA reply
+    const wamid = await sendWhatsAppText(phone, data.reply);
+
+    // Save outbound message + deduct coins (guard: never push balance negative
+    // when two messages are processed concurrently)
+    const coinsToDeduct = Math.max(0, data.coins ?? 1);
+    const enc2 = encryptContent(data.reply);
+    await prisma.$transaction(async (tx) => {
+      await tx.whatsAppMessage.create({
+        data: {
+          wamid: wamid ?? undefined, phoneNumber: phone,
+          content: enc2.content, contentIv: enc2.contentIv,
+          direction: "OUTBOUND", status: wamid ? "SENT" : "FAILED", userId,
+        },
+      });
+      const updated = await tx.profile.updateMany({
+        where: { userId, coinBalance: { gte: coinsToDeduct } },
+        data:  { coinBalance: { decrement: coinsToDeduct } },
+      });
+      if (updated.count > 0 && coinsToDeduct > 0) {
+        await tx.studyCoinLog.create({
+          data: { userId, coins: -coinsToDeduct, reason: `WA_BOT_${data.model?.toUpperCase().replace(/-/g, "_")}_${Date.now()}` },
+        });
+      }
+    });
+  } catch (e) {
+    console.error("[WA Bot] error:", e);
+  }
+}
 
 function extractContent(msg: NonNullable<WAEntry["changes"][0]["value"]["messages"]>[0]): string {
   if (msg.text?.body)                     return msg.text.body;

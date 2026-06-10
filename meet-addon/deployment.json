@@ -2,12 +2,12 @@
   "addOns": {
     "common": {
       "name": "Let's Study",
-      "logoUrl": "https://cyberlib.in/logo.png"
+      "logoUrl": "https://lstudy.in/logo.png"
     },
     "meet": {
       "web": {
-        "addOnOrigins": ["https://cyberlib.in"],
-        "sidePanelUrl": "https://cyberlib.in/meet-addon/panel"
+        "addOnOrigins": ["https://lstudy.in"],
+        "sidePanelUrl": "https://lstudy.in/meet-addon/panel"
       }
     },
     "httpOptions": {

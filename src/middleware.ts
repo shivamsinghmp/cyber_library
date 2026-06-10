@@ -43,7 +43,7 @@ const loginRatelimit = _redisClient
 // Computed from NEXT_PUBLIC_SITE_URL. Same-origin requests are always allowed.
 // Webhooks (/api/webhooks/*) and meet-addon routes are excluded — they handle
 // their own CORS or receive requests from trusted external servers (no Origin).
-const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_URL || "https://cyberlib.in").replace(/\/$/, "");
+const SITE_ORIGIN = (process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in").replace(/\/$/, "");
 const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
   SITE_ORIGIN,
   ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000"] : []),

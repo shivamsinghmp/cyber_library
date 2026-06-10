@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "Let's Study — Live 24/7 Focus Hub & Study Rooms";
+export const alt = "Let's Study — India's AI-Powered Collaborative Learning Platform";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -62,7 +62,7 @@ export default function OgImage() {
         >
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ade80" }} />
           <span style={{ color: "#a5b4fc", fontSize: 18, fontWeight: 600, letterSpacing: 1 }}>
-            Live 24/7 · 1000+ Students Studying
+            Live 24/7 · 5,000+ Active Learners on Platform
           </span>
         </div>
 
@@ -92,7 +92,7 @@ export default function OgImage() {
             lineHeight: 1.4,
           }}
         >
-          Virtual study rooms, Pomodoro sessions & accountability — for UPSC, JEE, NEET & Professionals.
+          AI-powered collaborative study sessions, intelligent progress tracking, and peer accountability — for India&apos;s most serious learners.
         </div>
 
         {/* Footer */}
@@ -116,7 +116,7 @@ export default function OgImage() {
           >
             <span style={{ color: "#fff", fontSize: 26, fontWeight: 800 }}>L</span>
           </div>
-          <span style={{ color: "#e2e8f0", fontSize: 22, fontWeight: 700 }}>cyberlib.in</span>
+          <span style={{ color: "#e2e8f0", fontSize: 22, fontWeight: 700 }}>lstudy.in</span>
         </div>
       </div>
     ),

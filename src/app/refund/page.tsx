@@ -35,7 +35,7 @@ const STEPS = [
   {
     num: "01",
     title: "Email us",
-    desc: 'Send a refund request to support@cyberlib.in with subject line "Refund Request".',
+    desc: 'Send a refund request to support@lstudy.in with subject line "Refund Request".',
     icon: Mail,
   },
   {

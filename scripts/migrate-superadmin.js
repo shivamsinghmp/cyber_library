@@ -11,7 +11,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-const LEGACY_SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL || "admin@cyberlib.in";
+const LEGACY_SUPERADMIN_EMAIL = process.env.SUPERADMIN_EMAIL || "admin@lstudy.in";
 
 async function main() {
   console.log("🚀 Starting migration...\n");

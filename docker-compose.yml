@@ -1,0 +1,32 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-lstudy}
+      POSTGRES_USER:     ${POSTGRES_USER:-lstudy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lstudy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      # Override DATABASE_URL to point at the compose db service
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lstudy}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lstudy}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

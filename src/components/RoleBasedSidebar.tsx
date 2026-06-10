@@ -97,6 +97,7 @@ const roleNav: Record<string, NavNode[]> = {
         { href: "/admin/coupons", label: "Coupons" },
         { href: "/admin/rewards", label: "Reward Program" },
         { href: "/admin/coin-engine", label: "Coin Engine" },
+        { href: "/admin/plan-features", label: "Plan Features" },
       ],
     },
     {

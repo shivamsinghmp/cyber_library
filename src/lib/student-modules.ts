@@ -70,9 +70,13 @@ export async function setDisabledModules(ids: string[]): Promise<void> {
   _disabledCache = null;
 }
 
+// Modules always accessible regardless of plan (mirrors SubscriptionGate free paths)
+const PLAN_EXEMPT = new Set(["profile", "settings", "feedback", "profile-form"]);
+
 /**
  * Returns true if the student can access the module.
- * Checks both global disabled list and per-student overrides.
+ * Checks: global disabled → per-student override → plan-based gate.
+ * Profile/settings/feedback are exempt from plan gating.
  */
 export async function canAccessModule(userId: string, moduleId: string): Promise<boolean> {
   const { prisma } = await import("./prisma");
@@ -84,6 +88,18 @@ export async function canAccessModule(userId: string, moduleId: string): Promise
   ]);
   if (globalDisabled.includes(moduleId)) return false;
   if (studentOverride?.disabled) return false;
+
+  // Profile/settings/feedback bypass plan check
+  if (PLAN_EXEMPT.has(moduleId)) return true;
+
+  // Plan-based gate — fails open so a DB error never locks users out
+  try {
+    const { isPlanFeatureEnabled } = await import("./plan-features");
+    if (!(await isPlanFeatureEnabled(userId, moduleId))) return false;
+  } catch {
+    // plan-features unavailable — fail open
+  }
+
   return true;
 }
 

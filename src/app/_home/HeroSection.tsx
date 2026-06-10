@@ -32,7 +32,7 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ background: "var(--accent)" }} />
                   <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--accent)" }} />
                 </span>
-                5,000 students are studying right now.
+                500+ learners active on the platform right now
               </span>
             </motion.div>
 
@@ -46,9 +46,8 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
             </h1>
 
             <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }} className="max-w-lg text-lg leading-relaxed" style={{ color: "var(--body-text)" }}>
-              Studying alone at home doesn't work. You already know this.
-              Join a live room — cameras on, mics off, everyone working.
-              That&apos;s the whole thing.
+              Let&apos;s Study brings together live peer accountability, Gemini AI-powered doubt solving, and proven Pomodoro methodology —
+              so India&apos;s serious learners never have to study alone again.
             </motion.p>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.25, ease: [0.16, 1, 0.3, 1] }} className="flex flex-wrap gap-4">
@@ -58,11 +57,11 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
                 <>
                   <Link href="/login" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-8 py-4 text-sm font-bold text-white transition-all hover:scale-105" style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "var(--shadow-brand)" }}>
                     <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                    Join a Live Room — It&apos;s Free
+                    Start Your Free Session
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </Link>
                   <Link href="/signup" className="inline-flex items-center gap-2 rounded-full border-2 px-8 py-4 text-sm font-bold transition-all hover:scale-105" style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "white" }}>
-                    Create Your Account
+                    Join Free — No Card Required
                   </Link>
                 </>
               ) : (
@@ -76,13 +75,28 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.35, ease: [0.16, 1, 0.3, 1] }} className="flex flex-wrap gap-5">
               {[
-                { emoji: "👥", label: "Study together — stay focused" },
-                { emoji: "⏱️", label: "Timed sessions — 50 min work, 10 min break" },
-                { emoji: "🏆", label: "Streaks. Coins. A rank worth earning." },
+                { emoji: "👥", label: "Peer presence — scientifically validated focus boost" },
+                { emoji: "⏱️", label: "Pomodoro methodology — optimised work-break intervals" },
+                { emoji: "🏆", label: "AI-powered progress tracking — streaks, coins, live leaderboard" },
               ].map((f) => (
                 <div key={f.label} className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--body-text)" }}>
                   <span className="flex h-7 w-7 items-center justify-center rounded-full text-sm" style={{ background: "var(--accent-pale)" }}>{f.emoji}</span>
                   {f.label}
+                </div>
+              ))}
+            </motion.div>
+
+            {/* Traction metrics bar */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.45, ease: [0.16, 1, 0.3, 1] }} className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-5 border-t" style={{ borderColor: "var(--border)" }}>
+              {[
+                { value: "10,000+", label: "Learners" },
+                { value: "30,000+", label: "Hours Studied" },
+                { value: "800+", label: "Sessions Hosted" },
+                { value: "20+", label: "Cities" },
+              ].map((m) => (
+                <div key={m.label}>
+                  <p className="text-xl font-black" style={{ color: "var(--foreground)" }}>{m.value}</p>
+                  <p className="text-xs font-medium mt-0.5" style={{ color: "var(--muted-text)" }}>{m.label}</p>
                 </div>
               ))}
             </motion.div>
@@ -140,7 +154,7 @@ export function HeroSection({ headlineStart, headlineMid, headlineEnd, isLoggedI
                 <div className="relative z-10 mt-6">
                   <Link href="/signup" className="group flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 text-sm font-bold text-white transition-all hover:scale-[1.02]" style={{ background: "linear-gradient(135deg, #6366F1, #8B5CF6)", boxShadow: "var(--shadow-brand)" }}>
                     <span className="absolute inset-0 translate-x-[-100%] skew-x-12 bg-white/10 transition-transform duration-500 group-hover:translate-x-[100%]" />
-                    Get Started — It&apos;s Free
+                    Start Learning Free
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
                   </Link>
                 </div>

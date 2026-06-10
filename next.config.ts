@@ -12,6 +12,8 @@ const gitHash = (() => {
 
 const nextConfig: NextConfig = {
   generateBuildId: async () => gitHash,
+  // Emit a self-contained server bundle — required for the Docker image
+  output: "standalone",
   // Fix the workspace root detection warning from multiple lockfiles
   outputFileTracingRoot: path.join(__dirname),
 

@@ -110,7 +110,7 @@ export async function sendWelcomeMessage(opts: {
   const { phone, name, studentId } = opts;
   if (!phone) return;
 
-  const loginUrl = (process.env.NEXTAUTH_URL?.trim() || "https://cyberlib.in") + "/login";
+  const loginUrl = (process.env.NEXTAUTH_URL?.trim() || "https://lstudy.in") + "/login";
 
   try {
     const tmpl = await prisma.whatsAppTemplate.findFirst({
@@ -126,7 +126,7 @@ export async function sendWelcomeMessage(opts: {
 
       let params: string[];
       if (labels.length > 0) {
-        const appUrl = process.env.NEXTAUTH_URL?.trim() || "https://cyberlib.in";
+        const appUrl = process.env.NEXTAUTH_URL?.trim() || "https://lstudy.in";
         params = labels.map(label => {
           const l = label.toLowerCase().trim();
           if (l.includes("name") || l === "naam" || l === "full name")          return name;

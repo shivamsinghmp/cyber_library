@@ -99,8 +99,8 @@ export function PlanLockedScreen({ state, onBack }: Props) {
 
         <p className="text-center text-[11px] font-semibold" style={{ color: "#94A3B8" }}>
           Need help?{" "}
-          <a href="mailto:support@cyberlib.in" className="underline" style={{ color: "#6366F1" }}>
-            support@cyberlib.in
+          <a href="mailto:support@lstudy.in" className="underline" style={{ color: "#6366F1" }}>
+            support@lstudy.in
           </a>
         </p>
       </div>

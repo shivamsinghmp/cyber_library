@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { RoleBasedSidebar } from "./RoleBasedSidebar";
+import { AdminTopNav } from "./AdminTopNav";
 import { StudentSidebar } from "./StudentSidebar";
 import { RecordLoginOnLoad } from "./RecordLoginOnLoad";
 import { ActivityTracker } from "./ActivityTracker";
@@ -53,15 +54,30 @@ export async function DashboardShell({
         .catch(() => [] as string[])
     : [];
 
+  // Admin/staff/non-student: top nav layout (full-width, no sidebar)
+  if (!isStudent) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50 admin-light">
+        <AdminTopNav allowedModules={allowedModules} />
+        {emailUnverified && <EmailVerifyBanner email={userEmail} />}
+        <RecordLoginOnLoad />
+        <main className="flex-1 w-full overflow-y-auto px-4 py-5 md:px-6 lg:px-8">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  // Student: sidebar layout
   return (
-    <div className={`min-h-screen flex flex-col bg-[var(--dash-bg)] ${!isStudent ? "admin-light" : ""}`}>
+    <div className="min-h-screen flex flex-col bg-[var(--dash-bg)]">
       {emailUnverified && <EmailVerifyBanner email={userEmail} />}
       <div className="flex flex-1 overflow-hidden">
         <RecordLoginOnLoad />
-        {isStudent && <ActivityTracker />}
-        {isStudent ? <StudentSidebar disabledModules={disabledModules} /> : <RoleBasedSidebar allowedModules={allowedModules} />}
-        <main className="flex-1 overflow-auto px-4 py-6 pt-16 md:pt-6 md:px-6 lg:px-8">
-          {isStudent ? <SubscriptionGate>{children}</SubscriptionGate> : children}
+        <ActivityTracker />
+        <StudentSidebar disabledModules={disabledModules} />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 py-6 pt-16 md:pt-6 md:px-6 lg:px-8">
+          <SubscriptionGate>{children}</SubscriptionGate>
         </main>
       </div>
     </div>

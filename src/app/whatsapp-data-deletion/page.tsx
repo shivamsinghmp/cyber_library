@@ -35,12 +35,12 @@ export default function WhatsAppDataDeletionPage() {
             To request deletion of your WhatsApp data, please send an email to:
           </p>
           <a
-            href="mailto:admin@cyberlib.in?subject=WhatsApp%20Data%20Deletion%20Request"
+            href="mailto:admin@lstudy.in?subject=WhatsApp%20Data%20Deletion%20Request"
             className="flex items-center gap-3 rounded-xl border-2 border-indigo-500 bg-indigo-50 px-5 py-4 hover:bg-indigo-100 transition-colors group"
           >
             <Mail className="w-5 h-5 text-indigo-600 shrink-0" />
             <div>
-              <p className="font-bold text-indigo-700 group-hover:underline">admin@cyberlib.in</p>
+              <p className="font-bold text-indigo-700 group-hover:underline">admin@lstudy.in</p>
               <p className="text-xs text-indigo-500">Click to open email with pre-filled subject</p>
             </div>
           </a>
@@ -138,7 +138,7 @@ export default function WhatsAppDataDeletionPage() {
           </p>
           <p className="text-gray-600">
             Questions? Contact us at{" "}
-            <a href="mailto:admin@cyberlib.in" className="text-indigo-600 hover:underline font-medium">admin@cyberlib.in</a>
+            <a href="mailto:admin@lstudy.in" className="text-indigo-600 hover:underline font-medium">admin@lstudy.in</a>
           </p>
         </div>
 

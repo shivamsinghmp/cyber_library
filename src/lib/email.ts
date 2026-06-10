@@ -22,7 +22,7 @@ async function getFromAddress(): Promise<string> {
   return (
     process.env.RESEND_FROM?.trim() ||
     (await getAppSetting("RESEND_FROM")) ||
-    "Let's Study <no-reply@cyberlib.in>"
+    "Let's Study <no-reply@lstudy.in>"
   );
 }
 
@@ -226,7 +226,7 @@ export async function sendPurchaseReceipt({
   membershipEnd?: Date | null;
   enrolledRooms?: EnrolledRoom[] | null;
 }) {
-  const siteUrl    = process.env.NEXT_PUBLIC_SITE_URL ?? "https://cyberlib.in";
+  const siteUrl    = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lstudy.in";
   const logoUrl    = `${siteUrl}/logo.png`;
   const receiptUrl = `${siteUrl}/dashboard/receipt/${transactionId}`;
   const isSubscription = !!planType;
@@ -394,21 +394,21 @@ export async function sendPurchaseReceipt({
 
       <!-- Support -->
       <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
-        Questions? Reach us at <a href="mailto:support@cyberlib.in" style="color:#6366f1;text-decoration:none;">support@cyberlib.in</a>
+        Questions? Reach us at <a href="mailto:support@lstudy.in" style="color:#6366f1;text-decoration:none;">support@lstudy.in</a>
       </p>
     </div>
 
     <!-- Footer -->
     <div style="background:#1e1b4b;border-radius:0 0 20px 20px;padding:20px 36px;text-align:center;">
       <p style="margin:0 0 4px;font-size:11px;color:#6366f1;letter-spacing:2px;text-transform:uppercase;">Let's Study</p>
-      <p style="margin:0;font-size:11px;color:#4c4477;">© ${new Date().getFullYear()} cyberlib.in — All rights reserved</p>
+      <p style="margin:0;font-size:11px;color:#4c4477;">© ${new Date().getFullYear()} lstudy.in — All rights reserved</p>
     </div>
 
   </div>
 </body>
 </html>`;
 
-  const text = `${isSubscription ? "Welcome to Premium! — Let's Study" : "Payment Confirmed — Let's Study"}\n\nHi ${firstName},\n\nTotal: ₹${totalAmount}\nTransaction: ${transactionId}\nDate: ${date}\n\nView receipt: ${receiptUrl}\n\nSupport: support@cyberlib.in`;
+  const text = `${isSubscription ? "Welcome to Premium! — Let's Study" : "Payment Confirmed — Let's Study"}\n\nHi ${firstName},\n\nTotal: ₹${totalAmount}\nTransaction: ${transactionId}\nDate: ${date}\n\nView receipt: ${receiptUrl}\n\nSupport: support@lstudy.in`;
 
   return sendAndLog({ to, toName: customerName, subject, html, text, purpose: "RECEIPT" });
 }

@@ -122,7 +122,10 @@
 ══════════════════════════════════════════════════════════════════════════ */
 
 @layer base {
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden; /* block horizontal page scroll globally */
+  }
 
   body {
     background-color: var(--page-bg);
@@ -131,6 +134,7 @@
     font-size: 16px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden; /* belt-and-suspenders — stops any child from breaking layout */
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -163,6 +167,17 @@
   ::-webkit-scrollbar-thumb:hover { background: var(--accent-hover); }
 
   ::selection { background: var(--accent-pale); color: var(--accent-hover); }
+}
+
+/* ── Scrollbar hide utility — hides bar visually, scroll still works ── */
+@layer utilities {
+  .scrollbar-hide {
+    scrollbar-width: none;       /* Firefox */
+    -ms-overflow-style: none;    /* IE / Edge */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;               /* Chrome / Safari / Opera */
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

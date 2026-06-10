@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Study Store — Notes, PDFs & Study Materials | Let's Study",
     description: "Premium study notes and PDFs for UPSC, JEE, NEET. Buy with coins or direct purchase.",
-    url: "https://cyberlib.in/store",
+    url: "https://lstudy.in/store",
     type: "website",
   },
   twitter: {

@@ -1,4 +1,4 @@
-const BASE = "https://cyberlib.in";
+const BASE = "https://lstudy.in";
 
 function showStatus(msg, type = "success") {
   const el = document.getElementById("status");

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Mentorship Sessions | Let's Study",
     description: "Book 1-on-1 or group mentorship sessions. Get personalised guidance for UPSC, JEE, NEET and career planning.",
-    url: "https://cyberlib.in/mentorship",
+    url: "https://lstudy.in/mentorship",
     type: "website",
   },
   twitter: {

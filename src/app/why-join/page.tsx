@@ -28,7 +28,7 @@ const FEATURES = [
   {
     icon: "🖥️",
     title: "Live Google Meet Sessions",
-    desc: "Real students, real cameras, real accountability. This isn't Netflix — everyone here is actually studying.",
+    desc: "Live study sessions run on Google Meet API — real cameras, real peers, zero distractions. The same video infrastructure that powers enterprise teams, now powering India's most serious learners.",
     gradient: "linear-gradient(145deg, #818CF8, #4F46E5)",
     glow: "rgba(99,102,241,0.40)",
   },
@@ -77,12 +77,12 @@ const FEATURES = [
 ];
 
 const AI_FEATURES = [
-  { emoji: "🗓️", title: "Study Plan",     desc: "Enter exam date + syllabus — AI builds your perfect timetable in a second",          bg: "#EEF2FF", border: "#C7D2FE", iconBg: "#6366F1" },
+  { emoji: "🗓️", title: "Study Plan",     desc: "Enter your exam date and syllabus — Gemini AI generates a personalised, day-by-day study timetable instantly.",          bg: "#EEF2FF", border: "#C7D2FE", iconBg: "#6366F1" },
   { emoji: "⚡",  title: "Shortcuts",       desc: "3 methods per question — slow, fast, fastest. Save time in the exam.",               bg: "#FFFBEB", border: "#FDE68A", iconBg: "#D97706" },
-  { emoji: "📸",  title: "Photo Solve",     desc: "Handwritten or printed question — upload a photo, AI solves it step-by-step",      bg: "#F5F3FF", border: "#DDD6FE", iconBg: "#7C3AED" },
+  { emoji: "📸",  title: "Photo Solve",     desc: "Upload any handwritten or printed question — Gemini AI reads it and solves it step by step, with shortcuts.",      bg: "#F5F3FF", border: "#DDD6FE", iconBg: "#7C3AED" },
   { emoji: "🎯",  title: "80/20 Focus",     desc: "Top 20% topics that give 80% marks — stop wasting time on the rest",            bg: "#FEF2F2", border: "#FECACA", iconBg: "#DC2626" },
-  { emoji: "🧠",  title: "Doubt Clear",     desc: "Explains with step-by-step reasoning — keeps going until you fully understand", bg: "#ECFDF5", border: "#A7F3D0", iconBg: "#059669" },
-  { emoji: "📈",  title: "Weak Topic Fix",  desc: "AI diagnoses where and why you go wrong — fixes the root cause",              bg: "#ECFEFF", border: "#A5F3FC", iconBg: "#0891B2" },
+  { emoji: "🧠",  title: "Doubt Clear",     desc: "Gemini AI explains concepts with step-by-step reasoning, adapts to your level, and keeps going until you fully understand.", bg: "#ECFDF5", border: "#A7F3D0", iconBg: "#059669" },
+  { emoji: "📈",  title: "Weak Topic Fix",  desc: "Gemini AI analyses your performance patterns, diagnoses root causes, and builds a targeted revision plan for weak topics.",              bg: "#ECFEFF", border: "#A5F3FC", iconBg: "#0891B2" },
   { emoji: "⏱️",  title: "Speed Training",  desc: "Standard vs shortcut method side by side — double your exam speed",               bg: "#FFF7ED", border: "#FED7AA", iconBg: "#EA580C" },
   { emoji: "💆",  title: "Stress Support",  desc: "Feeling frustrated? Just say so — AI switches to friend mode, no judgement",     bg: "#FDF2F8", border: "#FBCFE8", iconBg: "#DB2777" },
 ];
@@ -110,7 +110,7 @@ const MOCK_FLOW = [
     step: "03",
     emoji: "🧠",
     title: "AI Gives an Instant Solution",
-    desc: "Right there — what the reason was, the correct approach, the shortcut, and how to avoid the same mistake next time.",
+    desc: "Gemini AI explains right there — the correct approach, the shortcut method, and how to avoid the same mistake next time. In Hindi or English.",
     bg: "linear-gradient(135deg, #ECFDF5, #D1FAE5)",
     border: "#A7F3D0",
     accent: "#059669",
@@ -220,17 +220,16 @@ export default function WhyJoinPage() {
 
             <motion.h1 variants={fadeIn} className="text-4xl font-extrabold tracking-tight sm:text-6xl leading-[1.08]"
               style={{ color: "var(--foreground)" }}>
-              Can't Focus at Home?{" "}
+              Study Smarter with AI —{" "}
               <span className="bg-clip-text text-transparent"
                 style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6, #06B6D4)", backgroundSize: "200% auto" }}>
-                We Understand.
+                and Never Study Alone Again
               </span>
             </motion.h1>
 
             <motion.p variants={fadeIn} className="mx-auto max-w-2xl text-lg leading-relaxed"
               style={{ color: "var(--body-text)" }}>
-              Let's Study is a place where real students show up daily — cameras on, mics off, zero distractions.
-              Try it once and you'll feel the difference yourself.
+              Let's Study pairs live peer accountability with Gemini AI tutoring — so you stay consistent, solve doubts instantly, and reach your exam goal faster.
             </motion.p>
 
             <motion.div variants={fadeIn} className="flex flex-wrap items-center justify-center gap-4">
@@ -261,10 +260,10 @@ export default function WhyJoinPage() {
             {/* Trust badges */}
             <motion.div variants={fadeIn} className="flex flex-wrap items-center justify-center gap-6 pt-2">
               {[
-                { emoji: "✅", text: "Completely Free" },
-                { emoji: "⚡", text: "2 min signup" },
-                { emoji: "🔒", text: "Secure & Private" },
-                { emoji: "📱", text: "Mobile friendly" },
+                { emoji: "✅", text: "Free to Join" },
+                { emoji: "🤖", text: "Gemini AI Powered" },
+                { emoji: "🔒", text: "SSL Encrypted" },
+                { emoji: "☁️", text: "Scales with Google Cloud" },
               ].map(b => (
                 <div key={b.text} className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--muted-text)" }}>
                   <span>{b.emoji}</span> {b.text}
@@ -371,7 +370,7 @@ export default function WhyJoinPage() {
               <motion.div variants={fadeIn}>
                 <span className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest mb-4"
                   style={{ borderColor: "var(--accent-border)", background: "var(--accent-pale)", color: "var(--accent)" }}>
-                  <span className="text-base">✨</span> AI-Powered Feature
+                  <span className="text-base">🤖</span> Powered by Gemini API
                 </span>
               </motion.div>
               <motion.h2 variants={fadeIn} className="text-3xl font-extrabold tracking-tight sm:text-5xl"
@@ -379,8 +378,7 @@ export default function WhyJoinPage() {
                 StudyMate AI — Your Personal Topper Companion
               </motion.h2>
               <motion.p variants={fadeIn} className="mt-4 text-lg max-w-2xl mx-auto" style={{ color: "var(--body-text)" }}>
-                UPSC, JEE, NEET, GATE, CAT, SSC — any exam. Ask doubts, upload photos, build a plan.
-                Available 24/7, never judgemental.
+                Gemini API answers your toughest UPSC, JEE, NEET, GATE, CAT, and SSC doubts — instantly, step by step, in Hindi or English. Upload a photo, type a question, or ask for a full study plan. Available 24/7.
               </motion.p>
             </div>
 

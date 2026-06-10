@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { format, eachDayOfInterval, startOfDay, endOfDay, isSameDay, subDays } from "date-fns";
 import { requireUser } from "@/lib/api-helpers";
 
+const PYTHON_URL    = process.env.PYTHON_SERVER_URL    ?? "http://localhost:8001";
+const PYTHON_SECRET = process.env.PYTHON_SERVER_SECRET ?? "";
+
 async function sumStudyHoursForRange(
   userId: string,
   rangeStart: Date,
@@ -99,6 +102,14 @@ export async function GET(req: NextRequest) {
     if (isNaN(startDate.getTime())) startDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
     if (isNaN(endDate.getTime())) endDate = new Date();
 
+    // Reversed range would make eachDayOfInterval throw
+    if (startDate > endDate) [startDate, endDate] = [endDate, startDate];
+
+    // Clamp span to 1 year — unbounded ranges build huge per-day arrays (DoS)
+    const MAX_DAYS = 366;
+    const spanDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000);
+    if (spanDays > MAX_DAYS) startDate = subDays(endDate, MAX_DAYS - 1);
+
     startDate = startOfDay(startDate);
     endDate = endOfDay(endDate);
 
@@ -173,12 +184,58 @@ export async function GET(req: NextRequest) {
     ];
 
     const currentTotal = Number(studyData.reduce((s, d) => s + d.hours, 0).toFixed(2));
+
     let insights: string[] = [];
+    let prevTotal = 0;
+
     if (days.length > 0) {
-      const prevEnd = endOfDay(subDays(startDate, 1));
+      const prevEnd   = endOfDay(subDays(startDate, 1));
       const prevStart = startOfDay(subDays(prevEnd, days.length - 1));
-      const prevTotal = await sumStudyHoursForRange(userId, prevStart, prevEnd);
-      insights = buildInsights(studyData, currentTotal, prevTotal);
+      prevTotal = await sumStudyHoursForRange(userId, prevStart, prevEnd);
+
+      // Find best study day for AI personalization
+      const bestIdx   = studyData.reduce((bi, d, i) => d.hours > studyData[bi].hours ? i : bi, 0);
+      const bestDay   = studyData[bestIdx]?.date ?? "";
+
+      // Fetch profile + AI key in parallel for AI-powered insights
+      const [profile, { batchGetAppSettings }] = await Promise.all([
+        prisma.profile.findUnique({
+          where:  { userId },
+          select: { targetExam: true, currentStreak: true },
+        }),
+        import("@/lib/app-settings"),
+      ]);
+      const settings = await batchGetAppSettings(["GEMINI_API_KEY"]);
+      const apiKey   = settings["GEMINI_API_KEY"] ?? "";
+
+      // Try AI insights (5s timeout — falls back to static if Python is slow)
+      try {
+        const pyRes = await fetch(`${PYTHON_URL}/analytics/insights`, {
+          method:  "POST",
+          headers: { "Authorization": `Bearer ${PYTHON_SECRET}`, "Content-Type": "application/json" },
+          body:    JSON.stringify({
+            studyHours: currentTotal,
+            prevHours:  prevTotal,
+            tasksDone:  completedTasks,
+            tasksTotal: tasks.length,
+            streak:     profile?.currentStreak ?? 0,
+            bestDay,
+            targetExam: profile?.targetExam ?? "",
+            apiKey,
+          }),
+          signal: AbortSignal.timeout(5_000),
+        });
+        if (pyRes.ok) {
+          const data = await pyRes.json() as { insights: string[] };
+          if (Array.isArray(data.insights) && data.insights.length > 0) {
+            insights = data.insights;
+          }
+        }
+      } catch { /* Python unavailable — fall through to static */ }
+
+      if (insights.length === 0) {
+        insights = buildInsights(studyData, currentTotal, prevTotal);
+      }
     }
 
     return NextResponse.json({

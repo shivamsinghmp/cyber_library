@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Pricing & Plans | Let's Study",
     description: "Affordable plans for unlimited access to live study rooms, Pomodoro sessions & accountability. Join 1000+ focused students.",
-    url: "https://cyberlib.in/pricing",
+    url: "https://lstudy.in/pricing",
     type: "website",
   },
   twitter: {

@@ -15,7 +15,7 @@ This folder contains the **deployment manifest** for the Virtual Library Google 
 2. Enable the **Google Meet Add-on API** (or follow [Meet add-on quickstart](https://developers.google.com/workspace/meet/add-ons/guides/quickstart)).
 3. Go to **APIs & Services → Meet Add-on** (or the deployment section for Meet add-ons).
 4. Create a new deployment and paste the contents of `deployment.json`.
-5. Replace `https://cyberlib.in` and logo URLs with your production domain if different.
+5. Replace `https://lstudy.in` and logo URLs with your production domain if different.
 6. The **sidePanelUrl** must be your live site, e.g. `https://yourdomain.com/meet-addon/panel`.
 
 ## Using the add-on in a meeting
