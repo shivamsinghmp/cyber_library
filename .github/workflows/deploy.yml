@@ -122,7 +122,7 @@ jobs:
 
       - name: Deploy Next.js to Cloud Run
         run: |
-          gcloud run deploy lstudy \
+          gcloud run deploy letstudy \
             --image      gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:${{ github.sha }} \
             --region     ${{ secrets.GCP_REGION }} \
             --platform   managed \
@@ -135,7 +135,7 @@ jobs:
             --env-vars-file /tmp/nextjs.env.yaml \
             --quiet
 
-          NEXTJS_URL=$(gcloud run services describe lstudy \
+          NEXTJS_URL=$(gcloud run services describe letstudy \
             --region ${{ secrets.GCP_REGION }} \
             --format 'value(status.url)')
           echo "NEXTJS_URL=$NEXTJS_URL" >> $GITHUB_ENV

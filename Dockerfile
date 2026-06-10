@@ -5,7 +5,8 @@ RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 
 # Install deps first — cached unless package-lock.json changes
-COPY package.json package-lock.json ./
+# .npmrc carries legacy-peer-deps=true (next-auth beta peer conflict with nodemailer 8)
+COPY package.json package-lock.json .npmrc ./
 COPY prisma ./prisma/
 RUN npm ci
 
