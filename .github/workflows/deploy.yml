@@ -97,6 +97,12 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
+          # Cloud SQL is private — tunnel via cloud-sql-proxy using the SA from the auth step.
+          # DATABASE_URL secret points at localhost:5432 (the proxy).
+          curl -sLo cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.2/cloud-sql-proxy.linux.amd64
+          chmod +x cloud-sql-proxy
+          ./cloud-sql-proxy ${{ secrets.GCP_PROJECT_ID }}:${{ secrets.GCP_REGION }}:letsstudy --port 5432 &
+          sleep 5
           npm ci
           npx prisma generate
           npx prisma migrate deploy
