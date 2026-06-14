@@ -163,7 +163,22 @@ jobs:
         run: |
           npm ci
           npx prisma generate
-          npx prisma migrate deploy
+
+          # Try normal deploy; if base schema is missing (fresh DB), push full schema first
+          if npx prisma migrate deploy 2>&1 | tee /tmp/migrate.log; then
+            echo "Migrations applied successfully."
+          elif grep -qE 'does not exist|relation.*does not exist' /tmp/migrate.log; then
+            echo "Fresh DB detected — pushing full schema via db push..."
+            npx prisma db push
+            # Mark the 3 pending migrations as applied (schema already matches)
+            npx prisma migrate resolve --applied 20260228120000_remove_shared_todo      || true
+            npx prisma migrate resolve --applied 20260328130000_drop_daily_task_user_date_unique || true
+            npx prisma migrate resolve --applied 20260328140000_meet_presence_session   || true
+            echo "Schema initialized and migrations baselined."
+          else
+            cat /tmp/migrate.log
+            exit 1
+          fi
 
       # ── Next.js: build + push ─────────────────────────────────────────────────
       - name: Build Next.js image
