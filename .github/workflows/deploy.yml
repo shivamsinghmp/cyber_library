@@ -48,6 +48,18 @@ jobs:
       # ── Create container services if they don't exist ─────────────────────────
       - name: Ensure Lightsail container services exist
         run: |
+          wait_ready() {
+            local SVC=$1
+            for i in $(seq 1 30); do
+              STATE=$(aws lightsail get-container-services --service-name "$SVC" \
+                --query 'containerServices[0].state' --output text)
+              echo "$SVC state: $STATE (attempt $i)"
+              [[ "$STATE" == "READY" || "$STATE" == "RUNNING" ]] && return 0
+              [ "$i" = "30" ] && echo "Timed out waiting for $SVC to be READY" && return 1
+              sleep 15
+            done
+          }
+
           for SVC in lstudy-python lstudy-nextjs; do
             STATE=$(aws lightsail get-container-services --service-name "$SVC" \
               --query 'containerServices[0].state' --output text 2>/dev/null || echo "NOTFOUND")
@@ -57,21 +69,12 @@ jobs:
                 --service-name "$SVC" \
                 --power        nano \
                 --scale        1
-              echo "$SVC creation initiated."
+              echo "$SVC creation initiated — waiting for READY..."
+              wait_ready "$SVC"
             else
               echo "$SVC already exists (state: $STATE)"
+              wait_ready "$SVC"
             fi
-          done
-          # Wait until both services are READY/RUNNING before pushing images
-          for SVC in lstudy-python lstudy-nextjs; do
-            for i in $(seq 1 30); do
-              STATE=$(aws lightsail get-container-services --service-name "$SVC" \
-                --query 'containerServices[0].state' --output text)
-              echo "$SVC state: $STATE (attempt $i)"
-              [[ "$STATE" == "READY" || "$STATE" == "RUNNING" ]] && break
-              [ "$i" = "30" ] && echo "Timed out waiting for $SVC to be READY" && exit 1
-              sleep 15
-            done
           done
 
       # ── Python: build + push ──────────────────────────────────────────────────
