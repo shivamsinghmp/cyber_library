@@ -258,14 +258,15 @@ jobs:
       # ── Wait for deployment to become active ──────────────────────────────────
       - name: Wait for lstudy-nextjs to reach RUNNING state
         run: |
-          for i in $(seq 1 20); do
+          for i in $(seq 1 40); do
             STATE=$(aws lightsail get-container-services \
               --service-name lstudy-nextjs \
               --query 'containerServices[0].state' \
               --output text)
-            echo "Attempt $i: lstudy-nextjs → $STATE"
+            echo "Attempt $i/40: lstudy-nextjs → $STATE"
             [ "$STATE" = "RUNNING" ] && echo "Deployment active." && break
-            [ "$i" = "20" ] && echo "Timed out waiting for RUNNING state." && exit 1
+            [ "$STATE" = "FAILED"  ] && echo "Deployment FAILED — check Lightsail console for container logs." && exit 1
+            [ "$i" = "40" ] && echo "Timed out after 10 min waiting for RUNNING state." && exit 1
             sleep 15
           done
 
