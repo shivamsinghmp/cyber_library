@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: Deploy to AWS Lightsail
 
 on:
   push:
@@ -7,25 +7,20 @@ on:
 
 # Required GitHub secrets (Settings → Secrets → Actions):
 #
-#   GCP_SA_KEY        — Service account JSON key (roles: Cloud Run Admin, Storage Admin, Artifact Registry Writer)
-#   GCP_PROJECT_ID    — GCP project ID (e.g. lstudy-prod)
-#   GCP_REGION        — Cloud Run region (e.g. asia-south1)
+#   AWS_ACCESS_KEY_ID     — IAM user with LightsailFullAccess policy
+#   AWS_SECRET_ACCESS_KEY — IAM user secret
+#   AWS_REGION            — e.g. ap-south-1
 #
-#   PYTHON_ENV_YAML   — Python service env vars in Cloud Run YAML format:
-#                         PYTHON_SERVER_SECRET: your-secret
-#                         NEXTJS_ORIGIN: https://lstudy.in
+#   DATABASE_URL          — Lightsail DB TCP connection string (used for prisma migrate):
+#                           postgresql://lstudyadmin:pass@<ls-db-endpoint>:5432/lstudy
 #
-#   NEXTJS_ENV_YAML   — Next.js service env vars in Cloud Run YAML format:
-#                         NODE_ENV: production
-#                         DATABASE_URL: postgresql://...
-#                         AUTH_SECRET: ...
-#                         NEXTAUTH_URL: https://lstudy.in
-#                         ENCRYPTION_KEY: ...
-#                         PYTHON_SERVER_SECRET: your-secret
-#                         ... (all your .env keys except PYTHON_SERVER_URL)
-#                       Note: PYTHON_SERVER_URL is added automatically at deploy time.
+#   PYTHON_DOTENV         — Python .env file content (KEY=VALUE per line):
+#                             PYTHON_SERVER_SECRET: your-secret
+#                             NEXTJS_ORIGIN: https://lstudy.in
 #
-#   DATABASE_URL      — Postgres connection string (used only for prisma migrate deploy)
+#   NEXTJS_DOTENV         — Next.js .env file content (KEY=VALUE per line).
+#                           DATABASE_URL must be the Lightsail TCP URL (NOT unix socket).
+#                           PYTHON_SERVER_URL is injected automatically at deploy time.
 
 jobs:
   deploy:
@@ -33,62 +28,92 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ── Google Cloud auth ────────────────────────────────────────────────────
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      # ── AWS auth ──────────────────────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker --quiet
-
-      # ── Python: build + push ─────────────────────────────────────────────────
+      # ── Python: build + push ──────────────────────────────────────────────────
       - name: Build Python image
-        run: |
-          docker build \
-            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:${{ github.sha }} \
-            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:latest \
-            ./python_server
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:${{ github.sha }}
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:latest
+        run: docker build -t lstudy-python:${{ github.sha }} ./python_server
 
-      # ── Python: deploy ───────────────────────────────────────────────────────
-      - name: Write Python env vars
+      - name: Push Python image to Lightsail registry
+        id: python_image
+        run: |
+          aws lightsail push-container-image \
+            --service-name lstudy-python \
+            --label        deploy-${{ github.sha }} \
+            --image        lstudy-python:${{ github.sha }}
+
+          IMAGE=$(aws lightsail get-container-images \
+            --service-name lstudy-python \
+            --query 'containerImages[0].image' \
+            --output text)
+          echo "ref=$IMAGE" >> $GITHUB_OUTPUT
+          echo "Python image: $IMAGE"
+
+      # ── Python: write deployment spec + deploy ────────────────────────────────
+      - name: Write Python deployment spec
         env:
-          PYTHON_ENV_YAML: ${{ secrets.PYTHON_ENV_YAML }}
-        run: printf '%s' "$PYTHON_ENV_YAML" > /tmp/python.env.yaml
-
-      - name: Deploy Python to Cloud Run
+          PYTHON_DOTENV: ${{ secrets.PYTHON_DOTENV }}
         run: |
-          gcloud run deploy lstudy-python \
-            --image      gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy-python:${{ github.sha }} \
-            --region     ${{ secrets.GCP_REGION }} \
-            --platform   managed \
-            --allow-unauthenticated \
-            --min-instances 1 \
-            --max-instances 4 \
-            --memory     512Mi \
-            --cpu        1 \
-            --concurrency 80 \
-            --env-vars-file /tmp/python.env.yaml \
-            --quiet
+          python3 - <<'EOF'
+          import os, json
 
-          # Capture stable service URL for Next.js
-          PYTHON_URL=$(gcloud run services describe lstudy-python \
-            --region ${{ secrets.GCP_REGION }} \
-            --format 'value(status.url)')
-          echo "PYTHON_URL=$PYTHON_URL" >> $GITHUB_ENV
-          echo "Python URL: $PYTHON_URL"
+          env = {}
+          for line in os.environ["PYTHON_DOTENV"].splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+              continue
+            k, _, v = line.partition("=")
+            env[k.strip()] = v.strip().strip('"').strip("'")
 
-      # ── DB Migration ─────────────────────────────────────────────────────────
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          spec = {
+            "serviceName": "lstudy-python",
+            "containers": {
+              "lstudy-python": {
+                "image": "${{ steps.python_image.outputs.ref }}",
+                "ports": {"8000": "HTTP"},
+                "environment": env
+              }
+            },
+            "publicEndpoint": {
+              "containerName": "lstudy-python",
+              "containerPort": 8000,
+              "healthCheck": {
+                "path": "/health",
+                "intervalSeconds": 10,
+                "timeoutSeconds": 5,
+                "successCodes": "200"
+              }
+            }
+          }
+
+          with open("/tmp/python-deploy.json", "w") as f:
+            json.dump(spec, f)
+          EOF
+
+      - name: Deploy Python to Lightsail
+        run: |
+          aws lightsail create-container-service-deployment \
+            --cli-input-json file:///tmp/python-deploy.json
+
+          PYTHON_URL=$(aws lightsail get-container-services \
+            --service-name lstudy-python \
+            --query 'containerServices[0].url' \
+            --output text)
+          PYTHON_URL="${PYTHON_URL%/}"
+          echo "PYTHON_URL=${PYTHON_URL}" >> $GITHUB_ENV
+          echo "Python URL: ${PYTHON_URL}"
+
+      # ── DB Migration ──────────────────────────────────────────────────────────
+      # No cloud-sql-proxy needed — Lightsail DB is a standard TCP connection.
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -97,83 +122,115 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          # Cloud SQL is private — tunnel via cloud-sql-proxy using the SA from the auth step.
-          # DATABASE_URL secret points at localhost:5432 (the proxy).
-          curl -sLo cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.2/cloud-sql-proxy.linux.amd64
-          chmod +x cloud-sql-proxy
-          ./cloud-sql-proxy ${{ secrets.GCP_PROJECT_ID }}:${{ secrets.GCP_REGION }}:letsstudy --port 5432 &
-          sleep 5
           npm ci
           npx prisma generate
           npx prisma migrate deploy
 
-      # ── Next.js: build + push ────────────────────────────────────────────────
+      # ── Next.js: build + push ─────────────────────────────────────────────────
       - name: Build Next.js image
-        run: |
-          docker build \
-            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:${{ github.sha }} \
-            -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:latest \
-            .
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:${{ github.sha }}
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:latest
+        run: docker build -t lstudy:${{ github.sha }} .
 
-      # ── Next.js: deploy ──────────────────────────────────────────────────────
-      - name: Write Next.js env vars
+      - name: Push Next.js image to Lightsail registry
+        id: nextjs_image
+        run: |
+          aws lightsail push-container-image \
+            --service-name lstudy-nextjs \
+            --label        deploy-${{ github.sha }} \
+            --image        lstudy:${{ github.sha }}
+
+          IMAGE=$(aws lightsail get-container-images \
+            --service-name lstudy-nextjs \
+            --query 'containerImages[0].image' \
+            --output text)
+          echo "ref=$IMAGE" >> $GITHUB_OUTPUT
+          echo "Next.js image: $IMAGE"
+
+      # ── Next.js: write deployment spec + deploy ───────────────────────────────
+      - name: Write Next.js deployment spec
         env:
-          NEXTJS_ENV_YAML: ${{ secrets.NEXTJS_ENV_YAML }}
+          NEXTJS_DOTENV: ${{ secrets.NEXTJS_DOTENV }}
+          PYTHON_URL:    ${{ env.PYTHON_URL }}
         run: |
-          printf '%s' "$NEXTJS_ENV_YAML" > /tmp/nextjs.env.yaml
-          # Append the Python URL captured from the deploy step above
-          printf '\nPYTHON_SERVER_URL: "%s"\n' "$PYTHON_URL" >> /tmp/nextjs.env.yaml
+          python3 - <<'EOF'
+          import os, json
 
-      - name: Deploy Next.js to Cloud Run
+          env = {}
+          for line in os.environ["NEXTJS_DOTENV"].splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+              continue
+            k, _, v = line.partition("=")
+            env[k.strip()] = v.strip().strip('"').strip("'")
+          env["PYTHON_SERVER_URL"] = os.environ["PYTHON_URL"]
+
+          spec = {
+            "serviceName": "lstudy-nextjs",
+            "containers": {
+              "lstudy-nextjs": {
+                "image": "${{ steps.nextjs_image.outputs.ref }}",
+                "ports": {"8080": "HTTP"},
+                "environment": env
+              }
+            },
+            "publicEndpoint": {
+              "containerName": "lstudy-nextjs",
+              "containerPort": 8080,
+              "healthCheck": {
+                "path": "/api/auth/session",
+                "intervalSeconds": 10,
+                "timeoutSeconds": 5,
+                "successCodes": "200"
+              }
+            }
+          }
+
+          with open("/tmp/nextjs-deploy.json", "w") as f:
+            json.dump(spec, f)
+          EOF
+
+      - name: Deploy Next.js to Lightsail
         run: |
-          gcloud run deploy letstudy \
-            --image      gcr.io/${{ secrets.GCP_PROJECT_ID }}/lstudy:${{ github.sha }} \
-            --region     ${{ secrets.GCP_REGION }} \
-            --platform   managed \
-            --allow-unauthenticated \
-            --min-instances 1 \
-            --max-instances 10 \
-            --memory     1Gi \
-            --cpu        2 \
-            --concurrency 100 \
-            --env-vars-file /tmp/nextjs.env.yaml \
-            --quiet
+          aws lightsail create-container-service-deployment \
+            --cli-input-json file:///tmp/nextjs-deploy.json
 
-          NEXTJS_URL=$(gcloud run services describe letstudy \
-            --region ${{ secrets.GCP_REGION }} \
-            --format 'value(status.url)')
-          echo "NEXTJS_URL=$NEXTJS_URL" >> $GITHUB_ENV
+          NEXTJS_URL=$(aws lightsail get-container-services \
+            --service-name lstudy-nextjs \
+            --query 'containerServices[0].url' \
+            --output text)
+          NEXTJS_URL="${NEXTJS_URL%/}"
+          echo "NEXTJS_URL=${NEXTJS_URL}" >> $GITHUB_ENV
+          echo "Next.js URL: ${NEXTJS_URL}"
 
-      # ── Health checks ────────────────────────────────────────────────────────
-      - name: Health check — Next.js
+      # ── Wait for deployment to become active ──────────────────────────────────
+      - name: Wait for lstudy-nextjs to reach RUNNING state
         run: |
-          echo "Waiting for Next.js to be ready..."
-          for i in $(seq 1 12); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 ${{ env.NEXTJS_URL }} || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "✅ Next.js is up (attempt $i)"
-              break
-            fi
-            echo "Attempt $i: got $STATUS, retrying in 10s..."
-            sleep 10
-            if [ "$i" = "12" ]; then
-              echo "❌ Next.js did not come up (last: $STATUS)"
-              exit 1
-            fi
+          for i in $(seq 1 20); do
+            STATE=$(aws lightsail get-container-services \
+              --service-name lstudy-nextjs \
+              --query 'containerServices[0].state' \
+              --output text)
+            echo "Attempt $i: lstudy-nextjs → $STATE"
+            [ "$STATE" = "RUNNING" ] && echo "Deployment active." && break
+            [ "$i" = "20" ] && echo "Timed out waiting for RUNNING state." && exit 1
+            sleep 15
           done
 
-          AUTH=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.NEXTJS_URL }}/api/auth/session)
-          [ "$AUTH" = "200" ] && echo "✅ Auth OK" || (echo "❌ Auth returned $AUTH" && exit 1)
+      # ── Health checks ─────────────────────────────────────────────────────────
+      - name: Health check — Next.js
+        run: |
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "${{ env.NEXTJS_URL }}" || echo "000")
+            [ "$STATUS" = "200" ] && echo "Next.js up (attempt $i)" && break
+            echo "Attempt $i: $STATUS — retrying in 10s..."
+            sleep 10
+            [ "$i" = "12" ] && echo "Next.js did not come up (last: $STATUS)" && exit 1
+          done
+
+          AUTH=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.NEXTJS_URL }}/api/auth/session")
+          [ "$AUTH" = "200" ] && echo "Auth OK" || (echo "Auth returned $AUTH" && exit 1)
 
       - name: Health check — Python server
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 ${{ env.PYTHON_URL }}/health || echo "000")
-          if [ "$STATUS" = "200" ]; then
-            echo "✅ Python server is up"
-          else
-            echo "❌ Python server health failed (status: $STATUS)"
-            exit 1
-          fi
-          echo "🚀 All health checks passed!"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "${{ env.PYTHON_URL }}/health" || echo "000")
+          [ "$STATUS" = "200" ] && echo "Python server up" || (echo "Python health failed: $STATUS" && exit 1)
+          echo "All health checks passed."
