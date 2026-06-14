@@ -45,6 +45,35 @@ jobs:
             "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl"
           sudo chmod +x /usr/local/bin/lightsailctl
 
+      # ── Create container services if they don't exist ─────────────────────────
+      - name: Ensure Lightsail container services exist
+        run: |
+          for SVC in lstudy-python lstudy-nextjs; do
+            STATE=$(aws lightsail get-container-services --service-name "$SVC" \
+              --query 'containerServices[0].state' --output text 2>/dev/null || echo "NOTFOUND")
+            if [ "$STATE" = "NOTFOUND" ] || [ "$STATE" = "None" ]; then
+              echo "Creating $SVC..."
+              aws lightsail create-container-service \
+                --service-name "$SVC" \
+                --power        nano \
+                --scale        1
+              echo "$SVC creation initiated."
+            else
+              echo "$SVC already exists (state: $STATE)"
+            fi
+          done
+          # Wait until both services are READY/RUNNING before pushing images
+          for SVC in lstudy-python lstudy-nextjs; do
+            for i in $(seq 1 30); do
+              STATE=$(aws lightsail get-container-services --service-name "$SVC" \
+                --query 'containerServices[0].state' --output text)
+              echo "$SVC state: $STATE (attempt $i)"
+              [[ "$STATE" == "READY" || "$STATE" == "RUNNING" ]] && break
+              [ "$i" = "30" ] && echo "Timed out waiting for $SVC to be READY" && exit 1
+              sleep 15
+            done
+          done
+
       # ── Python: build + push ──────────────────────────────────────────────────
       - name: Build Python image
         run: docker build -t lstudy-python:${{ github.sha }} ./python_server
