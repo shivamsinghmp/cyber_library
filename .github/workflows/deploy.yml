@@ -38,6 +38,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:            ${{ secrets.AWS_REGION }}
 
+      # ── Install lightsailctl plugin ───────────────────────────────────────────
+      - name: Install lightsailctl
+        run: |
+          sudo curl -Lo /usr/local/bin/lightsailctl \
+            "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl"
+          sudo chmod +x /usr/local/bin/lightsailctl
+
       # ── Python: build + push ──────────────────────────────────────────────────
       - name: Build Python image
         run: docker build -t lstudy-python:${{ github.sha }} ./python_server
