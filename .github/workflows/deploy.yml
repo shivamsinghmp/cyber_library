@@ -46,13 +46,19 @@ jobs:
           scp -i ~/.ssh/id_rsa /tmp/.env.nextjs root@${{ secrets.DO_DROPLET_IP }}:/opt/lstudy/.env.nextjs
           scp -i ~/.ssh/id_rsa /tmp/.env.python root@${{ secrets.DO_DROPLET_IP }}:/opt/lstudy/.env.python
 
-      # ── Pull code + rebuild containers ────────────────────────────────────────
+      # ── Pull code + run migrations + rebuild containers ──────────────────────
       - name: Deploy on Droplet
         run: |
           ssh -i ~/.ssh/id_rsa root@${{ secrets.DO_DROPLET_IP }} << 'ENDSSH'
             set -e
             cd /opt/lstudy
             git pull origin main
+
+            # Run Prisma migrations via Node (installed on host)
+            export $(grep -v '^#' .env.nextjs | xargs)
+            npm ci --omit=dev --ignore-scripts
+            npx prisma migrate deploy
+
             docker compose -f docker-compose.prod.yml build --pull
             docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
