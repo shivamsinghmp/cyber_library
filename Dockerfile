@@ -38,7 +38,8 @@ COPY --from=builder /app/.next/static     ./.next/static
 COPY --from=builder /app/public           ./public
 
 # Prisma CLI + engine + migrations — needed for entrypoint to run migrate deploy
-COPY --from=builder /app/node_modules/.bin/prisma  ./node_modules/.bin/prisma
+# prisma* glob picks up the CLI script + prisma_schema_build_bg.wasm alongside it
+COPY --from=builder /app/node_modules/.bin/prisma* ./node_modules/.bin/
 COPY --from=builder /app/node_modules/prisma       ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma      ./node_modules/@prisma
 COPY --from=builder /app/prisma                    ./prisma
