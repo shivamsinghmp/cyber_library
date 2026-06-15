@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/Modal";
 import { useAdminCRUD } from "@/hooks/useAdminCRUD";
 import {
@@ -16,6 +16,8 @@ import {
   FormCheckbox,
 } from "@/components/ui";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type CouponRow = {
   id: string;
   code: string;
@@ -28,15 +30,24 @@ type CouponRow = {
   isActive: boolean;
   isPublic: boolean;
   description: string | null;
+  ownerId: string | null;
+  commissionRate: number;
+  owner: { id: string; name: string | null; email: string } | null;
   createdAt: string;
   _count?: { redemptions: number };
 };
+
+type InfluencerOption = { id: string; name: string | null; email: string };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toDateOnly(d: string | Date | null): string {
   if (!d) return "";
   const date = typeof d === "string" ? new Date(d) : d;
   return date.toISOString().slice(0, 10);
 }
+
+// ─── Form State ───────────────────────────────────────────────────────────────
 
 const defaultForm = {
   code: "",
@@ -49,9 +60,13 @@ const defaultForm = {
   isActive: true,
   isPublic: false,
   description: "",
+  ownerId: "",
+  commissionRate: 0,
 };
 
 type FormState = typeof defaultForm;
+
+// ─── CouponForm ───────────────────────────────────────────────────────────────
 
 function CouponForm({
   form,
@@ -60,6 +75,7 @@ function CouponForm({
   onSubmit,
   onCancel,
   saving,
+  influencers,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
@@ -67,6 +83,7 @@ function CouponForm({
   onSubmit: () => Promise<unknown>;
   onCancel: () => void;
   saving: boolean;
+  influencers: InfluencerOption[];
 }) {
   return (
     <form
@@ -141,6 +158,41 @@ function CouponForm({
         onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
         placeholder="e.g. 10% off"
       />
+
+      {/* Owner (Influencer) field */}
+      <FormSelect
+        label="Owner (Influencer) — Optional"
+        value={form.ownerId}
+        onChange={(e) =>
+          setForm((p) => ({
+            ...p,
+            ownerId: e.target.value === "none" ? "" : e.target.value,
+            commissionRate: e.target.value === "none" ? 0 : p.commissionRate,
+          }))
+        }
+      >
+        <option value="none">None (General Coupon)</option>
+        {influencers.map((inf) => (
+          <option key={inf.id} value={inf.id}>
+            {inf.name ? `${inf.name} (${inf.email})` : inf.email}
+          </option>
+        ))}
+      </FormSelect>
+
+      {/* Commission Rate — only show if owner selected */}
+      {form.ownerId && (
+        <FormInput
+          label="Commission Rate (%)"
+          type="number"
+          min={0}
+          max={50}
+          value={form.commissionRate}
+          onChange={(e) =>
+            setForm((p) => ({ ...p, commissionRate: Number(e.target.value) }))
+          }
+        />
+      )}
+
       <div className="flex gap-6">
         <FormCheckbox
           id={`active-${isEdit ? "edit" : "create"}`}
@@ -160,6 +212,8 @@ function CouponForm({
   );
 }
 
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function AdminCouponsPage() {
   const crud = useAdminCRUD<CouponRow>({
     listUrl: "/api/admin/coupons",
@@ -169,6 +223,23 @@ export default function AdminCouponsPage() {
   });
 
   const [form, setForm] = useState(defaultForm);
+  const [influencers, setInfluencers] = useState<InfluencerOption[]>([]);
+
+  // Fetch influencers list on mount
+  const fetchInfluencers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/coupons?influencers=true");
+      if (!res.ok) return;
+      const json = (await res.json()) as { data: InfluencerOption[] };
+      setInfluencers(json.data ?? []);
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchInfluencers();
+  }, [fetchInfluencers]);
 
   function openCreate() {
     setForm(defaultForm);
@@ -187,6 +258,8 @@ export default function AdminCouponsPage() {
       isActive: c.isActive,
       isPublic: c.isPublic ?? false,
       description: c.description ?? "",
+      ownerId: c.ownerId ?? "",
+      commissionRate: c.commissionRate ?? 0,
     });
     crud.openEdit(c);
   }
@@ -203,6 +276,8 @@ export default function AdminCouponsPage() {
       isActive: form.isActive,
       isPublic: form.isPublic,
       description: form.description.trim() || null,
+      ownerId: form.ownerId.trim() || null,
+      commissionRate: form.ownerId.trim() ? form.commissionRate : 0,
     };
   }
 
@@ -228,6 +303,8 @@ export default function AdminCouponsPage() {
             <AdminTh>Min order</AdminTh>
             <AdminTh>Valid</AdminTh>
             <AdminTh>Uses</AdminTh>
+            <AdminTh>Owner</AdminTh>
+            <AdminTh>Commission</AdminTh>
             <AdminTh>Status</AdminTh>
             <AdminTh>Visibility</AdminTh>
             <AdminTh>Actions</AdminTh>
@@ -251,12 +328,33 @@ export default function AdminCouponsPage() {
                 {c.maxTotalUses != null ? ` / ${c.maxTotalUses}` : ""}
               </AdminTd>
               <AdminTd>
+                {c.owner ? (
+                  <div>
+                    <p className="text-xs font-medium text-gray-800">
+                      {c.owner.name ?? "—"}
+                    </p>
+                    <p className="text-[10px] text-gray-400">{c.owner.email}</p>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400">—</span>
+                )}
+              </AdminTd>
+              <AdminTd>
+                {c.ownerId ? (
+                  <span className="inline-flex rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
+                    {c.commissionRate}%
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400">—</span>
+                )}
+              </AdminTd>
+              <AdminTd>
                 <StatusBadge active={c.isActive} />
               </AdminTd>
               <AdminTd>
                 {c.isPublic ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
-                    🌐 Public
+                    Public
                   </span>
                 ) : (
                   <span className="text-xs text-gray-400">Private</span>
@@ -277,6 +375,7 @@ export default function AdminCouponsPage() {
           onSubmit={async () => crud.handleCreate(buildPayload())}
           onCancel={crud.closeModals}
           saving={crud.saving}
+          influencers={influencers}
         />
       </Modal>
 
@@ -288,6 +387,7 @@ export default function AdminCouponsPage() {
           onSubmit={async () => crud.handleUpdate(buildPayload())}
           onCancel={crud.closeModals}
           saving={crud.saving}
+          influencers={influencers}
         />
       </Modal>
     </div>

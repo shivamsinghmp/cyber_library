@@ -219,7 +219,7 @@ export async function fulfillOrder({
       await prisma.$transaction(async (tx) => {
         const coupon = await tx.coupon.findUnique({
           where: { code: couponCode },
-          select: { id: true, maxTotalUses: true },
+          select: { id: true, maxTotalUses: true, ownerId: true, commissionRate: true },
         });
         if (!coupon) return;
 
@@ -239,6 +239,20 @@ export async function fulfillOrder({
         }
 
         await tx.couponRedemption.create({ data: { couponId: coupon.id, userId } });
+
+        if (coupon.ownerId && coupon.commissionRate > 0 && amountRupees > 0) {
+          const commissionAmount = Math.round((amountRupees * coupon.commissionRate) / 100);
+          await tx.influencerEarning.create({
+            data: {
+              influencerId: coupon.ownerId,
+              couponId: coupon.id,
+              userId,
+              transactionAmount: amountRupees,
+              commissionAmount,
+              status: "PENDING",
+            },
+          });
+        }
       });
     } catch (e) {
       console.error("[fulfillOrder] Coupon redemption record failed:", e);

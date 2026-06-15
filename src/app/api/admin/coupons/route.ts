@@ -1,15 +1,31 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/api-helpers";
 import { couponSchema } from "@/lib/schemas";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const auth = await requireSuperAdmin();
     if (auth.error) return auth.error;
+
+    const { searchParams } = new URL(request.url);
+
+    // Return influencers list for coupon owner selector
+    if (searchParams.get("influencers") === "true") {
+      const influencers = await prisma.user.findMany({
+        where: { role: "INFLUENCER", deletedAt: null },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: "asc" },
+      });
+      return NextResponse.json({ data: influencers });
+    }
+
     const coupons = await prisma.coupon.findMany({
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { redemptions: true } } },
+      include: {
+        _count: { select: { redemptions: true } },
+        owner: { select: { id: true, name: true, email: true } },
+      },
     });
     return NextResponse.json(coupons);
   } catch (e) {
@@ -43,6 +59,18 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Validate owner if provided
+    const ownerId = typeof body.ownerId === "string" && body.ownerId.trim() ? body.ownerId.trim() : null;
+    const commissionRate = ownerId ? (typeof body.commissionRate === "number" ? body.commissionRate : 0) : 0;
+
+    if (ownerId) {
+      const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { id: true, role: true } });
+      if (!owner || owner.role !== "INFLUENCER") {
+        return NextResponse.json({ error: "Invalid influencer" }, { status: 400 });
+      }
+    }
+
     const existing = await prisma.coupon.findUnique({
       where: { code: data.code },
     });
@@ -64,6 +92,8 @@ export async function POST(request: Request) {
         isActive: data.isActive,
         isPublic: data.isPublic ?? false,
         description: data.description?.trim() || null,
+        ownerId,
+        commissionRate,
       },
     });
     return NextResponse.json(coupon, { status: 201 });

@@ -14,6 +14,8 @@ const updateCouponSchema = z.object({
   isActive: z.boolean().optional(),
   isPublic: z.boolean().optional(),
   description: z.string().max(200).nullable().optional(),
+  ownerId: z.string().nullable().optional(),
+  commissionRate: z.number().min(0).max(100).optional(),
 });
 
 export async function GET(
@@ -87,6 +89,19 @@ export async function PUT(
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.isPublic !== undefined) updateData.isPublic = data.isPublic;
     if (data.description !== undefined) updateData.description = data.description?.trim() || null;
+    if (data.ownerId !== undefined) {
+      const ownerId = data.ownerId && data.ownerId.trim() ? data.ownerId.trim() : null;
+      if (ownerId) {
+        const owner = await prisma.user.findUnique({ where: { id: ownerId }, select: { id: true, role: true } });
+        if (!owner || owner.role !== "INFLUENCER") {
+          return NextResponse.json({ error: "Invalid influencer" }, { status: 400 });
+        }
+      }
+      updateData.ownerId = ownerId;
+      updateData.commissionRate = ownerId ? (data.commissionRate ?? 0) : 0;
+    } else if (data.commissionRate !== undefined) {
+      updateData.commissionRate = data.commissionRate;
+    }
 
     const coupon = await prisma.coupon.update({
       where: { id },
