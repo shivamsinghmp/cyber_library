@@ -57,6 +57,7 @@ const adminNav: NavNode[] = [
       { href: "/admin/profile-fields", label: "Profile Fields" },
       { href: "/admin/authors", label: "Authors" },
       { href: "/admin/referrals", label: "Referrals" },
+      { href: "/admin/influencer-management", label: "Influencers" },
     ],
   },
   {
