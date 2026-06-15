@@ -8,6 +8,9 @@ import {
   Activity,
   ChevronDown,
   ChevronUp,
+  Plus,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   AdminPageHeader,
@@ -248,6 +251,165 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   );
 }
 
+// ─── Create Influencer Modal ──────────────────────────────────────────────────
+
+function CreateInfluencerModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [form, setForm] = useState({ name: "", email: "", password: "", commissionRate: "10" });
+  const [showPass, setShowPass] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ referralCode: string } | null>(null);
+
+  function generatePassword() {
+    const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789@#$!";
+    let p = "";
+    for (let i = 0; i < 12; i++) p += chars[Math.floor(Math.random() * chars.length)];
+    setForm((f) => ({ ...f, password: p }));
+    setShowPass(true);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/create-staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim() || undefined,
+          email: form.email.trim(),
+          password: form.password,
+          accountType: "INFLUENCER",
+          commissionRate: parseFloat(form.commissionRate) || 10,
+        }),
+      });
+      const data = (await res.json()) as { success?: boolean; referralCode?: string; error?: unknown };
+      if (!res.ok) {
+        const msg = typeof data.error === "string"
+          ? data.error
+          : typeof data.error === "object" && data.error !== null
+            ? Object.values(data.error as Record<string, string[]>).flat().join(", ")
+            : "Kuch galat hua";
+        setError(msg);
+        return;
+      }
+      setCreated({ referralCode: data.referralCode ?? "" });
+      onCreated();
+    } catch {
+      setError("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (created) {
+    const link = `https://lstudy.in/join?ref=${created.referralCode}`;
+    return (
+      <div className="space-y-4 text-center py-2">
+        <div className="text-4xl">🎉</div>
+        <p className="font-semibold text-gray-800">Influencer account ban gaya!</p>
+        <div className="rounded-xl bg-indigo-50 border border-indigo-200 p-4 text-left">
+          <p className="text-xs text-indigo-500 font-semibold mb-1">Referral Code</p>
+          <p className="font-mono font-bold text-indigo-700 text-lg">{created.referralCode}</p>
+          <p className="text-xs text-indigo-500 font-semibold mt-3 mb-1">Referral Link</p>
+          <p className="font-mono text-xs text-indigo-700 break-all">{link}</p>
+        </div>
+        <button
+          onClick={() => navigator.clipboard.writeText(link).catch(() => {})}
+          className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+        >
+          Copy Referral Link
+        </button>
+        <button onClick={onClose} className="w-full rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+          Close
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Name</label>
+        <input
+          type="text"
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          placeholder="Influencer ka naam"
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Email <span className="text-red-500">*</span></label>
+        <input
+          type="email"
+          required
+          value={form.email}
+          onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          placeholder="influencer@example.com"
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Password <span className="text-red-500">*</span></label>
+        <div className="relative flex gap-2">
+          <input
+            type={showPass ? "text" : "password"}
+            required
+            minLength={8}
+            value={form.password}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+            placeholder="Min 8 characters"
+            className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none pr-10"
+          />
+          <button type="button" onClick={() => setShowPass((v) => !v)}
+            className="absolute right-[4.5rem] top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+          <button type="button" onClick={generatePassword}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+            Auto
+          </button>
+        </div>
+        <p className="mt-1 text-[10px] text-gray-400">Influencer ko yeh password share karo login ke liye</p>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Commission Rate (%)</label>
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="0.5"
+          value={form.commissionRate}
+          onChange={(e) => setForm((f) => ({ ...f, commissionRate: e.target.value }))}
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+        />
+        <p className="mt-1 text-[10px] text-gray-400">Har paid plan purchase pe yeh % commission milega</p>
+      </div>
+
+      {error && <p className="rounded-xl bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">{error}</p>}
+
+      <div className="flex gap-3 pt-2">
+        <button type="button" onClick={onClose}
+          className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button type="submit" disabled={saving}
+          className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+          {saving ? "Creating..." : "Create Influencer"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function InfluencerManagementPage() {
@@ -256,6 +418,7 @@ export default function InfluencerManagementPage() {
   const [selectedInfluencer, setSelectedInfluencer] = useState<InfluencerRow | null>(null);
   const [paying, setPaying] = useState(false);
   const [expandedCoupons, setExpandedCoupons] = useState<Record<string, boolean>>({});
+  const [showCreate, setShowCreate] = useState(false);
 
   const fetchInfluencers = useCallback(async () => {
     setLoading(true);
@@ -318,10 +481,19 @@ export default function InfluencerManagementPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      <AdminPageHeader
-        title="Influencer Management"
-        description="Track influencer coupons, conversions, and process payouts."
-      />
+      <div className="flex items-start justify-between gap-4">
+        <AdminPageHeader
+          title="Influencer Management"
+          description="Track influencer coupons, conversions, and process payouts."
+        />
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition mt-1"
+        >
+          <Plus className="h-4 w-4" />
+          New Influencer
+        </button>
+      </div>
 
       {/* Top stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -481,6 +653,19 @@ export default function InfluencerManagementPage() {
             paying={paying}
           />
         )}
+      </Modal>
+
+      {/* Create Influencer Modal */}
+      <Modal
+        isOpen={showCreate}
+        title="New Influencer Account"
+        onClose={() => setShowCreate(false)}
+        className="max-w-md"
+      >
+        <CreateInfluencerModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { void fetchInfluencers(); }}
+        />
       </Modal>
     </div>
   );

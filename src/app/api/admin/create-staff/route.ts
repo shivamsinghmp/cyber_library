@@ -9,7 +9,16 @@ const createStaffSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().optional(),
   accountType: z.enum(["EMPLOYEE", "INFLUENCER"]).optional(),
+  commissionRate: z.number().min(0).max(100).optional(),
 });
+
+function generateReferralCode(name?: string | null): string {
+  const prefix = name
+    ? name.replace(/\s+/g, "").toUpperCase().slice(0, 4)
+    : "INF";
+  const suffix = Math.random().toString(36).toUpperCase().slice(2, 7);
+  return `${prefix}${suffix}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -38,7 +47,7 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    const { email, password, name, accountType } = parsed.data;
+    const { email, password, name, accountType, commissionRate } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -49,6 +58,42 @@ export async function POST(request: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+
+    if (accountType === "INFLUENCER") {
+      // Generate unique referral code
+      let referralCode = generateReferralCode(name);
+      let attempts = 0;
+      while (attempts < 5) {
+        const taken = await prisma.user.findUnique({ where: { referralCode } });
+        if (!taken) break;
+        referralCode = generateReferralCode(name);
+        attempts++;
+      }
+
+      const user = await prisma.user.create({
+        data: {
+          email,
+          name: name ?? null,
+          password: hashedPassword,
+          role: "INFLUENCER",
+          emailVerified: new Date(),
+          referralCode,
+        },
+      });
+
+      await prisma.influencerProfile.create({
+        data: {
+          userId: user.id,
+          commissionRate: commissionRate ?? 10,
+        },
+      });
+
+      return NextResponse.json(
+        { success: true, message: "Influencer account created.", referralCode },
+        { status: 201 }
+      );
+    }
+
     await prisma.user.create({
       data: {
         email,
@@ -60,13 +105,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      {
-        success: true,
-        message:
-          accountType === "INFLUENCER"
-            ? "Influencer account created."
-            : "Staff account created.",
-      },
+      { success: true, message: "Staff account created." },
       { status: 201 }
     );
   } catch (e) {
