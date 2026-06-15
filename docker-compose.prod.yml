@@ -1,0 +1,21 @@
+services:
+
+  python:
+    build: ./python_server
+    restart: unless-stopped
+    env_file: .env.python
+    environment:
+      PORT: "8000"
+    expose:
+      - "8000"
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env.nextjs
+    environment:
+      PYTHON_SERVER_URL: http://python:8000
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - python

@@ -1,4 +1,4 @@
-name: Deploy to AWS Lightsail
+name: Deploy to DigitalOcean
 
 on:
   push:
@@ -7,20 +7,17 @@ on:
 
 # Required GitHub secrets (Settings → Secrets → Actions):
 #
-#   AWS_ACCESS_KEY_ID     — IAM user with LightsailFullAccess policy
-#   AWS_SECRET_ACCESS_KEY — IAM user secret
-#   AWS_REGION            — e.g. ap-south-1
+#   DO_DROPLET_IP      — public IP of the DigitalOcean Droplet
+#   DO_SSH_PRIVATE_KEY — private SSH key that has access to the Droplet
 #
-#   DATABASE_URL          — Lightsail DB TCP connection string (used for prisma migrate):
-#                           postgresql://lstudyadmin:pass@<ls-db-endpoint>:5432/lstudy
+#   NEXTJS_DOTENV      — Next.js .env file content (KEY=VALUE per line).
+#                        Must include: DATABASE_URL, AUTH_SECRET, ENCRYPTION_KEY,
+#                        NEXTAUTH_URL=https://lstudy.in, and all other app vars.
+#                        PYTHON_SERVER_URL is injected automatically.
 #
-#   PYTHON_DOTENV         — Python .env file content (KEY=VALUE per line):
-#                             PYTHON_SERVER_SECRET: your-secret
-#                             NEXTJS_ORIGIN: https://lstudy.in
-#
-#   NEXTJS_DOTENV         — Next.js .env file content (KEY=VALUE per line).
-#                           DATABASE_URL must be the Lightsail TCP URL (NOT unix socket).
-#                           PYTHON_SERVER_URL is injected automatically at deploy time.
+#   PYTHON_DOTENV      — Python .env file content (KEY=VALUE per line):
+#                          PYTHON_SERVER_SECRET=your-secret
+#                          NEXTJS_ORIGIN=https://lstudy.in
 
 jobs:
   deploy:
@@ -30,262 +27,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── AWS auth ──────────────────────────────────────────────────────────────
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ secrets.AWS_REGION }}
-
-      # ── Install lightsailctl plugin ───────────────────────────────────────────
-      - name: Install lightsailctl
+      # ── SSH setup ─────────────────────────────────────────────────────────────
+      - name: Setup SSH
         run: |
-          sudo curl -Lo /usr/local/bin/lightsailctl \
-            "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl"
-          sudo chmod +x /usr/local/bin/lightsailctl
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DO_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.DO_DROPLET_IP }}" >> ~/.ssh/known_hosts
 
-      # ── Create container services if they don't exist ─────────────────────────
-      - name: Ensure Lightsail container services exist
+      # ── Write env files locally, then SCP to Droplet ─────────────────────────
+      - name: Write env files
         run: |
-          wait_ready() {
-            local SVC=$1
-            for i in $(seq 1 30); do
-              STATE=$(aws lightsail get-container-services --service-name "$SVC" \
-                --query 'containerServices[0].state' --output text)
-              echo "$SVC state: $STATE (attempt $i)"
-              [[ "$STATE" == "READY" || "$STATE" == "RUNNING" ]] && return 0
-              [ "$i" = "30" ] && echo "Timed out waiting for $SVC to be READY" && return 1
-              sleep 15
-            done
-          }
+          printf '%s\n' "${{ secrets.NEXTJS_DOTENV }}" > /tmp/.env.nextjs
+          printf '%s\n' "${{ secrets.PYTHON_DOTENV }}" > /tmp/.env.python
 
-          for SVC in lstudy-python lstudy-nextjs; do
-            STATE=$(aws lightsail get-container-services --service-name "$SVC" \
-              --query 'containerServices[0].state' --output text 2>/dev/null || echo "NOTFOUND")
-            if [ "$STATE" = "NOTFOUND" ] || [ "$STATE" = "None" ]; then
-              echo "Creating $SVC..."
-              aws lightsail create-container-service \
-                --service-name "$SVC" \
-                --power        nano \
-                --scale        1
-              echo "$SVC creation initiated — waiting for READY..."
-              wait_ready "$SVC"
-            else
-              echo "$SVC already exists (state: $STATE)"
-              wait_ready "$SVC"
-            fi
-          done
-
-      # ── Python: build + push ──────────────────────────────────────────────────
-      - name: Build Python image
-        run: docker build -t lstudy-python:${{ github.sha }} ./python_server
-
-      - name: Push Python image to Lightsail registry
-        id: python_image
+      - name: Copy env files to Droplet
         run: |
-          aws lightsail push-container-image \
-            --service-name lstudy-python \
-            --label        deploy-${{ github.sha }} \
-            --image        lstudy-python:${{ github.sha }}
+          scp -i ~/.ssh/id_rsa /tmp/.env.nextjs root@${{ secrets.DO_DROPLET_IP }}:/opt/lstudy/.env.nextjs
+          scp -i ~/.ssh/id_rsa /tmp/.env.python root@${{ secrets.DO_DROPLET_IP }}:/opt/lstudy/.env.python
 
-          IMAGE=$(aws lightsail get-container-images \
-            --service-name lstudy-python \
-            --query 'containerImages[0].image' \
-            --output text)
-          echo "ref=$IMAGE" >> $GITHUB_OUTPUT
-          echo "Python image: $IMAGE"
-
-      # ── Python: write deployment spec + deploy ────────────────────────────────
-      - name: Write Python deployment spec
-        env:
-          PYTHON_DOTENV: ${{ secrets.PYTHON_DOTENV }}
+      # ── Pull code + rebuild containers ────────────────────────────────────────
+      - name: Deploy on Droplet
         run: |
-          python3 - <<'EOF'
-          import os, json
+          ssh -i ~/.ssh/id_rsa root@${{ secrets.DO_DROPLET_IP }} << 'ENDSSH'
+            set -e
+            cd /opt/lstudy
+            git pull origin main
+            docker compose -f docker-compose.prod.yml build --pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
+          ENDSSH
 
-          env = {}
-          for line in os.environ["PYTHON_DOTENV"].splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-              continue
-            k, _, v = line.partition("=")
-            env[k.strip()] = v.strip().strip('"').strip("'")
-
-          spec = {
-            "serviceName": "lstudy-python",
-            "containers": {
-              "lstudy-python": {
-                "image": "${{ steps.python_image.outputs.ref }}",
-                "ports": {"8000": "HTTP"},
-                "environment": env
-              }
-            },
-            "publicEndpoint": {
-              "containerName": "lstudy-python",
-              "containerPort": 8000,
-              "healthCheck": {
-                "path": "/health",
-                "intervalSeconds": 10,
-                "timeoutSeconds": 5,
-                "successCodes": "200"
-              }
-            }
-          }
-
-          with open("/tmp/python-deploy.json", "w") as f:
-            json.dump(spec, f)
-          EOF
-
-      - name: Deploy Python to Lightsail
+      # ── Update Nginx config + reload ──────────────────────────────────────────
+      - name: Update Nginx config
         run: |
-          aws lightsail create-container-service-deployment \
-            --cli-input-json file:///tmp/python-deploy.json
+          ssh -i ~/.ssh/id_rsa root@${{ secrets.DO_DROPLET_IP }} << 'ENDSSH'
+            cp /opt/lstudy/nginx/lstudy.conf /etc/nginx/sites-available/lstudy.in
+            ln -sf /etc/nginx/sites-available/lstudy.in /etc/nginx/sites-enabled/lstudy.in
+            nginx -t && nginx -s reload
+          ENDSSH
 
-          PYTHON_URL=$(aws lightsail get-container-services \
-            --service-name lstudy-python \
-            --query 'containerServices[0].url' \
-            --output text)
-          PYTHON_URL="${PYTHON_URL%/}"
-          echo "PYTHON_URL=${PYTHON_URL}" >> $GITHUB_ENV
-          echo "Python URL: ${PYTHON_URL}"
-
-      # ── DB Migration ──────────────────────────────────────────────────────────
-      # No cloud-sql-proxy needed — Lightsail DB is a standard TCP connection.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Run Prisma migration
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # ── Health check ──────────────────────────────────────────────────────────
+      - name: Health check
         run: |
-          npm ci
-          npx prisma generate
-
-          # Try normal deploy; if base schema is missing (fresh DB), push full schema first
-          if npx prisma migrate deploy 2>&1 | tee /tmp/migrate.log; then
-            echo "Migrations applied successfully."
-          elif grep -qE 'does not exist|relation.*does not exist' /tmp/migrate.log; then
-            echo "Fresh DB detected — pushing full schema via db push..."
-            npx prisma db push
-            # Mark the 3 pending migrations as applied (schema already matches)
-            npx prisma migrate resolve --applied 20260228120000_remove_shared_todo      || true
-            npx prisma migrate resolve --applied 20260328130000_drop_daily_task_user_date_unique || true
-            npx prisma migrate resolve --applied 20260328140000_meet_presence_session   || true
-            echo "Schema initialized and migrations baselined."
-          else
-            cat /tmp/migrate.log
-            exit 1
-          fi
-
-      # ── Next.js: build + push ─────────────────────────────────────────────────
-      - name: Build Next.js image
-        run: docker build -t lstudy:${{ github.sha }} .
-
-      - name: Push Next.js image to Lightsail registry
-        id: nextjs_image
-        run: |
-          aws lightsail push-container-image \
-            --service-name lstudy-nextjs \
-            --label        deploy-${{ github.sha }} \
-            --image        lstudy:${{ github.sha }}
-
-          IMAGE=$(aws lightsail get-container-images \
-            --service-name lstudy-nextjs \
-            --query 'containerImages[0].image' \
-            --output text)
-          echo "ref=$IMAGE" >> $GITHUB_OUTPUT
-          echo "Next.js image: $IMAGE"
-
-      # ── Next.js: write deployment spec + deploy ───────────────────────────────
-      - name: Write Next.js deployment spec
-        env:
-          NEXTJS_DOTENV: ${{ secrets.NEXTJS_DOTENV }}
-          PYTHON_URL:    ${{ env.PYTHON_URL }}
-        run: |
-          python3 - <<'EOF'
-          import os, json
-
-          env = {}
-          for line in os.environ["NEXTJS_DOTENV"].splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-              continue
-            k, _, v = line.partition("=")
-            env[k.strip()] = v.strip().strip('"').strip("'")
-          env["PYTHON_SERVER_URL"] = os.environ["PYTHON_URL"]
-
-          spec = {
-            "serviceName": "lstudy-nextjs",
-            "containers": {
-              "lstudy-nextjs": {
-                "image": "${{ steps.nextjs_image.outputs.ref }}",
-                "ports": {"8080": "HTTP"},
-                "environment": env
-              }
-            },
-            "publicEndpoint": {
-              "containerName": "lstudy-nextjs",
-              "containerPort": 8080,
-              "healthCheck": {
-                "path": "/api/auth/session",
-                "intervalSeconds": 10,
-                "timeoutSeconds": 5,
-                "successCodes": "200"
-              }
-            }
-          }
-
-          with open("/tmp/nextjs-deploy.json", "w") as f:
-            json.dump(spec, f)
-          EOF
-
-      - name: Deploy Next.js to Lightsail
-        run: |
-          aws lightsail create-container-service-deployment \
-            --cli-input-json file:///tmp/nextjs-deploy.json
-
-          NEXTJS_URL=$(aws lightsail get-container-services \
-            --service-name lstudy-nextjs \
-            --query 'containerServices[0].url' \
-            --output text)
-          NEXTJS_URL="${NEXTJS_URL%/}"
-          echo "NEXTJS_URL=${NEXTJS_URL}" >> $GITHUB_ENV
-          echo "Next.js URL: ${NEXTJS_URL}"
-
-      # ── Wait for deployment to become active ──────────────────────────────────
-      - name: Wait for lstudy-nextjs to reach RUNNING state
-        run: |
-          for i in $(seq 1 40); do
-            STATE=$(aws lightsail get-container-services \
-              --service-name lstudy-nextjs \
-              --query 'containerServices[0].state' \
-              --output text)
-            echo "Attempt $i/40: lstudy-nextjs → $STATE"
-            [ "$STATE" = "RUNNING" ] && echo "Deployment active." && break
-            [ "$STATE" = "FAILED"  ] && echo "Deployment FAILED — check Lightsail console for container logs." && exit 1
-            [ "$i" = "40" ] && echo "Timed out after 10 min waiting for RUNNING state." && exit 1
-            sleep 15
-          done
-
-      # ── Health checks ─────────────────────────────────────────────────────────
-      - name: Health check — Next.js
-        run: |
+          echo "Waiting 40s for containers to start..."
+          sleep 40
           for i in $(seq 1 12); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "${{ env.NEXTJS_URL }}" || echo "000")
-            [ "$STATUS" = "200" ] && echo "Next.js up (attempt $i)" && break
-            echo "Attempt $i: $STATUS — retrying in 10s..."
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 \
+              https://lstudy.in/api/auth/session || echo "000")
+            echo "Attempt $i: $STATUS"
+            [ "$STATUS" = "200" ] && echo "Health check passed." && exit 0
             sleep 10
-            [ "$i" = "12" ] && echo "Next.js did not come up (last: $STATUS)" && exit 1
           done
-
-          AUTH=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.NEXTJS_URL }}/api/auth/session")
-          [ "$AUTH" = "200" ] && echo "Auth OK" || (echo "Auth returned $AUTH" && exit 1)
-
-      - name: Health check — Python server
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "${{ env.PYTHON_URL }}/health" || echo "000")
-          [ "$STATUS" = "200" ] && echo "Python server up" || (echo "Python health failed: $STATUS" && exit 1)
-          echo "All health checks passed."
+          echo "Health check failed after 2 minutes." && exit 1
