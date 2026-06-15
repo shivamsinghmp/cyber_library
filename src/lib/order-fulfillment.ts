@@ -214,6 +214,7 @@ export async function fulfillOrder({
   // 3. Record coupon redemption (now that payment is confirmed).
   // Wrap in a transaction so the maxTotalUses count-check and the insert are atomic,
   // preventing concurrent requests from both passing the check and over-redeeming.
+  let couponCommissionEarned = false;
   if (couponCode) {
     try {
       await prisma.$transaction(async (tx) => {
@@ -252,10 +253,56 @@ export async function fulfillOrder({
               status: "PENDING",
             },
           });
+          couponCommissionEarned = true;
         }
       });
     } catch (e) {
       console.error("[fulfillOrder] Coupon redemption record failed:", e);
+    }
+  }
+
+  // Link-based influencer commission (only if no coupon commission earned)
+  if (!couponCommissionEarned && amountRupees > 0) {
+    try {
+      await prisma.$transaction(async (tx2) => {
+        const userData = await tx2.user.findUnique({
+          where: { id: userId },
+          select: { referredByInfluencer: true },
+        });
+
+        if (userData?.referredByInfluencer) {
+          const influencerProfile = await tx2.influencerProfile.findUnique({
+            where: { userId: userData.referredByInfluencer },
+            select: { commissionRate: true },
+          });
+          const commissionRate = influencerProfile?.commissionRate ?? 10;
+          const commissionAmount = Math.round(
+            (amountRupees * commissionRate) / 100
+          );
+
+          await tx2.influencerEarning.create({
+            data: {
+              influencerId: userData.referredByInfluencer,
+              couponId: null,
+              userId,
+              transactionAmount: amountRupees,
+              commissionAmount,
+              status: "PENDING",
+            },
+          });
+
+          await tx2.influencerLinkClick.updateMany({
+            where: {
+              influencerId: userData.referredByInfluencer,
+              userId,
+              convertedAt: null,
+            },
+            data: { convertedAt: new Date() },
+          });
+        }
+      });
+    } catch (e) {
+      console.error("[fulfillOrder] Link commission failed:", e);
     }
   }
 

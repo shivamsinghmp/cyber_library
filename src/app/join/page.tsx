@@ -46,6 +46,26 @@ function JoinPageContent() {
     load();
   }, []);
 
+  // Influencer referral link tracking
+  useEffect(() => {
+    const ref = searchParams?.get("ref");
+    if (!ref) return;
+
+    let visitorId = document.cookie.match(/inf_vid=([^;]+)/)?.[1];
+    if (!visitorId) {
+      visitorId =
+        Math.random().toString(36).slice(2) + Date.now().toString(36);
+      document.cookie = `inf_vid=${visitorId}; max-age=${60 * 60 * 24 * 30}; path=/; SameSite=Lax`;
+    }
+    document.cookie = `inf_ref=${ref}; max-age=${60 * 60 * 24 * 30}; path=/; SameSite=Lax`;
+
+    fetch("/api/influencer/track-click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referralCode: ref, visitorId }),
+    }).catch(() => {});
+  }, [searchParams]);
+
   // Light "alive" counter for students in focus
   useEffect(() => {
     const id = setInterval(() => {

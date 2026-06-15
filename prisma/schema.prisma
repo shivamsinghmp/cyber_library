@@ -69,6 +69,12 @@ model User {
   ownedCoupons       Coupon[]            @relation("CouponOwner")
   influencerProfile  InfluencerProfile?
   influencerEarnings InfluencerEarning[] @relation("InfluencerEarnings")
+
+  referredByInfluencer    String?
+  influencerRef           User?                @relation("InfluencerReferredUsers", fields: [referredByInfluencer], references: [id], onDelete: SetNull)
+  influencerReferredUsers User[]               @relation("InfluencerReferredUsers")
+  clicksAsInfluencer      InfluencerLinkClick[] @relation("InfluencerClicks")
+  clicksAsUser            InfluencerLinkClick[] @relation("ClickedUser")
 }
 
 // Plan-based membership subscription (monthly / yearly)
@@ -1070,6 +1076,7 @@ model InfluencerProfile {
   website         String?
   niche           String?
   followerCount   Int?
+  commissionRate  Float    @default(10)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1079,7 +1086,7 @@ model InfluencerProfile {
 model InfluencerEarning {
   id                String    @id @default(cuid())
   influencerId      String
-  couponId          String
+  couponId          String?
   userId            String
   transactionAmount Int
   commissionAmount  Int
@@ -1087,9 +1094,25 @@ model InfluencerEarning {
   paidAt            DateTime?
   createdAt         DateTime  @default(now())
 
-  influencer User   @relation("InfluencerEarnings", fields: [influencerId], references: [id])
-  coupon     Coupon @relation(fields: [couponId], references: [id])
+  influencer User    @relation("InfluencerEarnings", fields: [influencerId], references: [id])
+  coupon     Coupon? @relation(fields: [couponId], references: [id])
 
   @@index([influencerId])
   @@index([couponId])
+}
+
+model InfluencerLinkClick {
+  id           String    @id @default(cuid())
+  influencerId String
+  visitorIp    String?
+  visitorId    String?
+  userId       String?
+  convertedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  influencer User  @relation("InfluencerClicks", fields: [influencerId], references: [id], onDelete: Cascade)
+  user       User? @relation("ClickedUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([influencerId])
+  @@index([userId])
 }

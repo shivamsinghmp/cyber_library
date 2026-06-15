@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -18,7 +18,7 @@ const signupSchema = z.object({
   whatsappMarketing: z.boolean().optional().default(true),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
     const rl = rateLimit(`signup_ip:${ip}`, 5, 3600); // 5 signups per IP per hour
@@ -104,6 +104,36 @@ export async function POST(request: Request) {
 
     // Auto-generate referral code at registration (non-blocking — never fails signup)
     generateStudentReferralCode(newUser.id).catch(() => {});
+
+    // Influencer attribution via inf_ref cookie
+    try {
+      const infRef = request.cookies.get("inf_ref")?.value;
+      const visitorId = request.cookies.get("inf_vid")?.value;
+      if (infRef && newUser?.id) {
+        const influencer = await prisma.user.findFirst({
+          where: { referralCode: infRef, role: "INFLUENCER", deletedAt: null },
+          select: { id: true },
+        });
+        if (influencer) {
+          await prisma.user.update({
+            where: { id: newUser.id },
+            data: { referredByInfluencer: influencer.id },
+          });
+          if (visitorId) {
+            await prisma.influencerLinkClick.updateMany({
+              where: {
+                influencerId: influencer.id,
+                visitorId,
+                userId: null,
+              },
+              data: { userId: newUser.id },
+            });
+          }
+        }
+      }
+    } catch (attrErr) {
+      console.error("[signup] influencer attribution:", attrErr);
+    }
 
     // Security audit log (fire-and-forget)
     auditLog("signup", request, { userId: newUser.id, goal });

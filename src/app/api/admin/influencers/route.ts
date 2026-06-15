@@ -19,6 +19,7 @@ export async function GET() {
           },
         },
         influencerEarnings: true,
+        clicksAsInfluencer: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -44,6 +45,7 @@ export async function GET() {
         id: inf.id,
         name: inf.name,
         email: inf.email,
+        referralCode: inf.referralCode,
         createdAt: inf.createdAt,
         profile: inf.profile,
         influencerProfile: inf.influencerProfile,
@@ -63,6 +65,10 @@ export async function GET() {
         totalEarnings,
         pendingEarnings,
         paidEarnings,
+        linkClicks: inf.clicksAsInfluencer.length,
+        registrationsViaLink: inf.clicksAsInfluencer.filter((c: { userId: string | null }) => c.userId !== null).length,
+        conversionsViaLink: inf.clicksAsInfluencer.filter((c: { convertedAt: Date | null }) => c.convertedAt !== null).length,
+        referralLink: inf.referralCode ? `https://lstudy.in/join?ref=${inf.referralCode}` : null,
       };
     });
 

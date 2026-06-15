@@ -13,6 +13,11 @@ export async function GET() {
 
     const userId = auth.user.id;
 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { referralCode: true },
+    });
+
     const [coupons, earnings] = await Promise.all([
       prisma.coupon.findMany({
         where: { ownerId: userId },
@@ -63,7 +68,7 @@ export async function GET() {
 
     const earningDetails = earnings.map((e) => ({
       id: e.id,
-      couponCode: e.coupon.code,
+      couponCode: e.coupon?.code ?? null,
       transactionAmount: e.transactionAmount,
       commissionAmount: e.commissionAmount,
       status: e.status,
@@ -71,6 +76,23 @@ export async function GET() {
       createdAt: e.createdAt,
       buyerEmail: buyerEmailMap.get(e.userId) ?? null,
     }));
+
+    const linkClicks = await prisma.influencerLinkClick.count({
+      where: { influencerId: userId },
+    });
+    const registrations = await prisma.influencerLinkClick.count({
+      where: { influencerId: userId, userId: { not: null } },
+    });
+    const conversions = await prisma.influencerLinkClick.count({
+      where: { influencerId: userId, convertedAt: { not: null } },
+    });
+    const conversionRate =
+      linkClicks > 0
+        ? ((conversions / linkClicks) * 100).toFixed(1)
+        : "0";
+    const referralLink = user?.referralCode
+      ? `https://lstudy.in/join?ref=${user.referralCode}`
+      : null;
 
     return NextResponse.json({
       totalRedemptions,
@@ -80,6 +102,11 @@ export async function GET() {
       paidEarnings,
       coupons: couponStats,
       earnings: earningDetails,
+      linkClicks,
+      registrations,
+      conversions,
+      conversionRate,
+      referralLink,
     });
   } catch (e) {
     console.error("GET /api/influencer/stats:", e);

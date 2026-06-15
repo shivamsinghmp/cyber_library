@@ -28,7 +28,7 @@ type CouponStat = {
 
 type EarningDetail = {
   id: string;
-  couponCode: string;
+  couponCode: string | null;
   transactionAmount: number;
   commissionAmount: number;
   status: string;
@@ -45,6 +45,11 @@ type Stats = {
   paidEarnings: number;
   coupons: CouponStat[];
   earnings: EarningDetail[];
+  linkClicks: number;
+  registrations: number;
+  conversions: number;
+  conversionRate: string;
+  referralLink: string | null;
 };
 
 type InfluencerProfile = {
@@ -157,12 +162,24 @@ function EarningStatusBadge({ status }: { status: string }) {
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 
-type TabId = "overview" | "coupons" | "conversions" | "payout";
+type TabId = "overview" | "coupons" | "conversions" | "referred" | "payout";
+
+type ReferredUser = {
+  clickId: string;
+  joinedAt: string;
+  convertedAt: string | null;
+  name: string;
+  email: string;
+  trialUsed: boolean;
+  activePlan: string | null;
+  planStartDate: string | null;
+};
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "coupons", label: "My Coupons" },
   { id: "conversions", label: "Conversions" },
+  { id: "referred", label: "Referred Users" },
   { id: "payout", label: "Payout Details" },
 ];
 
@@ -202,6 +219,9 @@ function PayoutInput({
 export default function AffiliatePage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [stats, setStats] = useState<Stats | null>(null);
+  const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([]);
+  const [loadingReferred, setLoadingReferred] = useState(false);
+  const [referredFetched, setReferredFetched] = useState(false);
   const [profile, setProfile] = useState<InfluencerProfile>({
     bankAccountName: null,
     bankAccountNo: null,
@@ -254,10 +274,32 @@ export default function AffiliatePage() {
     }
   }, []);
 
+  const fetchReferredUsers = useCallback(async () => {
+    if (referredFetched) return;
+    setLoadingReferred(true);
+    try {
+      const res = await fetch("/api/influencer/referred-users");
+      if (!res.ok) return;
+      const data = (await res.json()) as ReferredUser[];
+      setReferredUsers(data);
+      setReferredFetched(true);
+    } catch {
+      // silently ignore
+    } finally {
+      setLoadingReferred(false);
+    }
+  }, [referredFetched]);
+
   useEffect(() => {
     void fetchStats();
     void fetchProfile();
   }, [fetchStats, fetchProfile]);
+
+  useEffect(() => {
+    if (activeTab === "referred") {
+      void fetchReferredUsers();
+    }
+  }, [activeTab, fetchReferredUsers]);
 
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -342,9 +384,27 @@ export default function AffiliatePage() {
       {/* Tab: Overview */}
       {activeTab === "overview" && (
         <div className="space-y-6">
+          {/* Referral Link Card */}
+          {stats?.referralLink && (
+            <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-2">Your Referral Link</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate rounded-lg bg-black/30 border border-indigo-500/30 px-3 py-2 text-sm text-indigo-200 font-mono">
+                  {stats.referralLink}
+                </code>
+                <button
+                  onClick={() => navigator.clipboard.writeText(stats.referralLink!).catch(() => {})}
+                  className="shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
+
           {loadingStats ? (
             <div className="grid gap-4 md:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div
                   key={i}
                   className="h-28 animate-pulse rounded-2xl border border-white/10 bg-black/30"
@@ -352,33 +412,64 @@ export default function AffiliatePage() {
               ))}
             </div>
           ) : stats ? (
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-              <StatCard
-                icon={Users}
-                label="Total Registrations"
-                value={String(stats.totalRedemptions)}
-                sub="Coupon use karke sign up kiye"
-              />
-              <StatCard
-                icon={Activity}
-                label="Paid Conversions"
-                value={String(stats.totalPaidConversions)}
-                sub="Jinse earning aayi"
-                accent
-              />
-              <StatCard
-                icon={IndianRupee}
-                label="Total Earnings"
-                value={formatCurrency(stats.totalEarnings)}
-                sub={`Paid: ${formatCurrency(stats.paidEarnings)}`}
-              />
-              <StatCard
-                icon={Clock}
-                label="Pending Payout"
-                value={formatCurrency(stats.pendingEarnings)}
-                sub="Admin se request karo"
-              />
-            </div>
+            <>
+              {/* Coupon stats */}
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                <StatCard
+                  icon={Users}
+                  label="Coupon Registrations"
+                  value={String(stats.totalRedemptions)}
+                  sub="Coupon use karke sign up kiye"
+                />
+                <StatCard
+                  icon={Activity}
+                  label="Paid Conversions"
+                  value={String(stats.totalPaidConversions)}
+                  sub="Jinse earning aayi"
+                  accent
+                />
+                <StatCard
+                  icon={IndianRupee}
+                  label="Total Earnings"
+                  value={formatCurrency(stats.totalEarnings)}
+                  sub={`Paid: ${formatCurrency(stats.paidEarnings)}`}
+                />
+                <StatCard
+                  icon={Clock}
+                  label="Pending Payout"
+                  value={formatCurrency(stats.pendingEarnings)}
+                  sub="Admin se request karo"
+                />
+              </div>
+              {/* Link tracking stats */}
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                <StatCard
+                  icon={Activity}
+                  label="Link Clicks"
+                  value={String(stats.linkClicks)}
+                  sub="Referral link pe clicks"
+                />
+                <StatCard
+                  icon={Users}
+                  label="Registrations"
+                  value={String(stats.registrations)}
+                  sub="Link se signup kiye"
+                />
+                <StatCard
+                  icon={IndianRupee}
+                  label="Conversions"
+                  value={String(stats.conversions)}
+                  sub="Link se paid plan liye"
+                  accent
+                />
+                <StatCard
+                  icon={TrendingUp}
+                  label="Conversion Rate"
+                  value={`${stats.conversionRate}%`}
+                  sub="Clicks se conversions"
+                />
+              </div>
+            </>
           ) : null}
         </div>
       )}
@@ -497,7 +588,7 @@ export default function AffiliatePage() {
                         {e.buyerEmail ? maskEmail(e.buyerEmail) : "—"}
                       </td>
                       <td className="px-4 py-3 font-mono font-medium text-[var(--cream)]">
-                        {e.couponCode}
+                        {e.couponCode ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-[var(--cream)]">
                         {formatCurrency(e.transactionAmount)}
@@ -507,6 +598,63 @@ export default function AffiliatePage() {
                       </td>
                       <td className="px-4 py-3">
                         <EarningStatusBadge status={e.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Referred Users */}
+      {activeTab === "referred" && (
+        <div className="rounded-2xl border border-white/10 bg-black/30">
+          {loadingReferred ? (
+            <div className="p-6">
+              <div className="h-32 animate-pulse rounded-xl bg-white/5" />
+            </div>
+          ) : referredUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <Users className="h-10 w-10 text-[var(--cream-muted)]" />
+              <p className="text-[var(--cream)] font-medium">Koi referred user nahi abhi tak</p>
+              <p className="text-sm text-[var(--cream-muted)]">
+                Jab koi tumhare referral link se sign up karega, woh yahan dikhega.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 text-left text-[11px] uppercase tracking-wide text-[var(--cream-muted)]">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Joined</th>
+                    <th className="px-4 py-3">Trial Used</th>
+                    <th className="px-4 py-3">Plan</th>
+                    <th className="px-4 py-3">Commission</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {referredUsers.map((u) => (
+                    <tr
+                      key={u.clickId}
+                      className="border-b border-white/5 hover:bg-white/[0.02]"
+                    >
+                      <td className="px-4 py-3 font-medium text-[var(--cream)]">{u.name}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-[var(--cream-muted)]">{u.email}</td>
+                      <td className="px-4 py-3 text-[var(--cream-muted)]">{formatDate(u.joinedAt)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${u.trialUsed ? "bg-emerald-500/15 text-emerald-300" : "bg-gray-500/20 text-gray-400"}`}>
+                          {u.trialUsed ? "Yes" : "No"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[var(--cream)]">{u.activePlan ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${u.convertedAt ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/10 text-amber-200"}`}>
+                          {u.convertedAt ? "Earned" : "Pending"}
+                        </span>
                       </td>
                     </tr>
                   ))}

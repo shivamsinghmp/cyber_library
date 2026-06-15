@@ -31,8 +31,8 @@ type CouponRow = {
 
 type EarningRow = {
   id: string;
-  couponCode: string;
-  couponId: string;
+  couponCode: string | null;
+  couponId: string | null;
   transactionAmount: number;
   commissionAmount: number;
   status: string;
@@ -58,6 +58,7 @@ type InfluencerRow = {
   id: string;
   name: string | null;
   email: string;
+  referralCode: string | null;
   createdAt: string;
   influencerProfile: InfluencerProfileData;
   coupons: CouponRow[];
@@ -67,6 +68,10 @@ type InfluencerRow = {
   totalEarnings: number;
   pendingEarnings: number;
   paidEarnings: number;
+  linkClicks: number;
+  registrationsViaLink: number;
+  conversionsViaLink: number;
+  referralLink: string | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -191,7 +196,7 @@ function InfluencerDetailModal({
                 {influencer.earnings.map((e) => (
                   <tr key={e.id} className="border-b border-gray-50">
                     <td className="px-3 py-1.5 text-gray-500">{formatDate(e.createdAt)}</td>
-                    <td className="px-3 py-1.5 font-mono text-gray-700">{e.couponCode}</td>
+                    <td className="px-3 py-1.5 font-mono text-gray-700">{e.couponCode ?? "—"}</td>
                     <td className="px-3 py-1.5 text-gray-700">
                       {formatCurrency(e.transactionAmount)}
                     </td>
@@ -353,6 +358,10 @@ export default function InfluencerManagementPage() {
             <AdminTh>Conversions</AdminTh>
             <AdminTh>Pending</AdminTh>
             <AdminTh>Paid</AdminTh>
+            <AdminTh>Link Clicks</AdminTh>
+            <AdminTh>Registrations</AdminTh>
+            <AdminTh>Conversions</AdminTh>
+            <AdminTh>Referral Link</AdminTh>
             <AdminTh>Actions</AdminTh>
           </tr>
         </thead>
@@ -416,6 +425,21 @@ export default function InfluencerManagementPage() {
                   <span className="text-emerald-600 font-semibold">
                     {formatCurrency(inf.paidEarnings)}
                   </span>
+                </AdminTd>
+                <AdminTd>{inf.linkClicks}</AdminTd>
+                <AdminTd>{inf.registrationsViaLink}</AdminTd>
+                <AdminTd>{inf.conversionsViaLink}</AdminTd>
+                <AdminTd>
+                  {inf.referralLink ? (
+                    <button
+                      onClick={() => navigator.clipboard.writeText(inf.referralLink!).catch(() => {})}
+                      className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition"
+                    >
+                      Copy Link
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-400">No code</span>
+                  )}
                 </AdminTd>
                 <AdminTd>
                   <div className="flex items-center gap-2">
