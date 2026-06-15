@@ -59,6 +59,9 @@ function JoinPageContent() {
     }
     document.cookie = `inf_ref=${ref}; max-age=${60 * 60 * 24 * 30}; path=/; SameSite=Lax`;
 
+    localStorage.setItem("inf_ref", ref);
+    localStorage.setItem("inf_ts", Date.now().toString());
+
     fetch("/api/influencer/track-click", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

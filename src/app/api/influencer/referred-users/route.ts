@@ -1,65 +1,67 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auth } from "@/auth";
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { auth } from "@/auth"
 
 function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!local || !domain) return email;
-  const masked = local.slice(0, 2) + "***";
-  return `${masked}@${domain}`;
+  const [local, domain] = email.split("@")
+  if (!local || !domain) return email
+  return `${local.slice(0, 2)}***@${domain}`
 }
 
 export async function GET() {
-  try {
-    const session = await auth();
-    const userId = (session?.user as { id?: string })?.id;
-    if (!userId)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    if (user?.role !== "INFLUENCER")
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-    const clicks = await prisma.influencerLinkClick.findMany({
-      where: { influencerId: userId, userId: { not: null } },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            createdAt: true,
-            trialUsed: true,
-            userSubscriptions: {
-              where: { status: "ACTIVE" },
-              select: { planType: true, startDate: true },
-              take: 1,
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const result = clicks
-      .filter((c) => c.user != null)
-      .map((c) => ({
-        clickId: c.id,
-        joinedAt: c.user!.createdAt,
-        convertedAt: c.convertedAt,
-        name: c.user!.name ?? "—",
-        email: maskEmail(c.user!.email),
-        trialUsed: c.user!.trialUsed,
-        activePlan: c.user!.userSubscriptions[0]?.planType ?? null,
-        planStartDate: c.user!.userSubscriptions[0]?.startDate ?? null,
-      }));
-
-    return NextResponse.json(result);
-  } catch (e) {
-    console.error("referred-users:", e);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  const session = await auth()
+  const userId = (session?.user as { id?: string })?.id
+  const role = (session?.user as { role?: string })?.role
+  if (!userId || (role !== "INFLUENCER" && role !== "ADMIN")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
+
+  const users = await prisma.user.findMany({
+    where: { referredByInfluencer: userId, deletedAt: null },
+    include: {
+      userSubscriptions: { orderBy: { createdAt: "desc" } },
+      influencerEarnings: { where: { influencerId: userId } },
+      transactions: { where: { status: "SUCCESS" }, select: { amount: true } },
+      couponRedemptions: { include: { coupon: { select: { ownerId: true } } } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+
+  const now = new Date()
+
+  const result = users.map((u) => {
+    const activePlan = u.userSubscriptions.find(
+      (s) => s.status === "ACTIVE" && s.endDate > now && s.planType !== "TRIAL"
+    )
+    const trialSub = u.userSubscriptions.find((s) => s.planType === "TRIAL")
+    const trialActive = trialSub && trialSub.status === "ACTIVE" && trialSub.endDate > now
+
+    const totalPurchaseAmount = u.transactions.reduce((s, t) => s + t.amount, 0)
+    const commissionEarned = u.influencerEarnings.reduce((s, e) => s + e.commissionAmount, 0)
+    const pendingCommission = u.influencerEarnings.filter(e => e.status === "PENDING").reduce((s, e) => s + e.commissionAmount, 0)
+    const paidCommission = u.influencerEarnings.filter(e => e.status === "PAID").reduce((s, e) => s + e.commissionAmount, 0)
+
+    const usedCouponFromInfluencer = u.couponRedemptions.some(
+      (r) => r.coupon.ownerId === userId
+    )
+
+    return {
+      id: u.id,
+      name: u.name,
+      email: maskEmail(u.email),
+      joinedAt: u.createdAt.toISOString(),
+      trialStatus: trialActive ? "ACTIVE" : trialSub ? "EXPIRED" : "NONE",
+      trialEndDate: trialSub?.endDate?.toISOString() ?? null,
+      planStatus: activePlan ? "ACTIVE" : u.userSubscriptions.some(s => s.planType !== "TRIAL") ? "EXPIRED" : "NONE",
+      planType: activePlan?.planType ?? null,
+      planEndDate: activePlan?.endDate?.toISOString() ?? null,
+      totalPurchaseAmount,
+      commissionEarned,
+      pendingCommission,
+      paidCommission,
+      attributionMethod: usedCouponFromInfluencer ? "COUPON" : "LINK",
+    }
+  })
+
+  return NextResponse.json(result)
 }

@@ -165,14 +165,20 @@ function EarningStatusBadge({ status }: { status: string }) {
 type TabId = "overview" | "coupons" | "conversions" | "referred" | "payout";
 
 type ReferredUser = {
-  clickId: string;
-  joinedAt: string;
-  convertedAt: string | null;
-  name: string;
+  id: string;
+  name: string | null;
   email: string;
-  trialUsed: boolean;
-  activePlan: string | null;
-  planStartDate: string | null;
+  joinedAt: string;
+  trialStatus: "ACTIVE" | "EXPIRED" | "NONE";
+  trialEndDate: string | null;
+  planStatus: "ACTIVE" | "EXPIRED" | "NONE";
+  planType: string | null;
+  planEndDate: string | null;
+  totalPurchaseAmount: number;
+  commissionEarned: number;
+  pendingCommission: number;
+  paidCommission: number;
+  attributionMethod: "COUPON" | "LINK";
 };
 
 const TABS: { id: TabId; label: string }[] = [
@@ -618,9 +624,9 @@ export default function AffiliatePage() {
           ) : referredUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
               <Users className="h-10 w-10 text-[var(--cream-muted)]" />
-              <p className="text-[var(--cream)] font-medium">Koi referred user nahi abhi tak</p>
+              <p className="text-[var(--cream)] font-medium">Abhi koi user nahi aaya aapke link se</p>
               <p className="text-sm text-[var(--cream-muted)]">
-                Jab koi tumhare referral link se sign up karega, woh yahan dikhega.
+                Apna referral link share karo!
               </p>
             </div>
           ) : (
@@ -631,29 +637,69 @@ export default function AffiliatePage() {
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Email</th>
                     <th className="px-4 py-3">Joined</th>
-                    <th className="px-4 py-3">Trial Used</th>
+                    <th className="px-4 py-3">Trial</th>
                     <th className="px-4 py-3">Plan</th>
-                    <th className="px-4 py-3">Commission</th>
+                    <th className="px-4 py-3">Total Purchases</th>
+                    <th className="px-4 py-3">Your Earnings</th>
+                    <th className="px-4 py-3">Source</th>
                   </tr>
                 </thead>
                 <tbody>
                   {referredUsers.map((u) => (
                     <tr
-                      key={u.clickId}
+                      key={u.id}
                       className="border-b border-white/5 hover:bg-white/[0.02]"
                     >
-                      <td className="px-4 py-3 font-medium text-[var(--cream)]">{u.name}</td>
+                      <td className="px-4 py-3 font-medium text-[var(--cream)]">{u.name ?? "—"}</td>
                       <td className="px-4 py-3 font-mono text-xs text-[var(--cream-muted)]">{u.email}</td>
                       <td className="px-4 py-3 text-[var(--cream-muted)]">{formatDate(u.joinedAt)}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${u.trialUsed ? "bg-emerald-500/15 text-emerald-300" : "bg-gray-500/20 text-gray-400"}`}>
-                          {u.trialUsed ? "Yes" : "No"}
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          u.trialStatus === "ACTIVE"
+                            ? "bg-emerald-500/15 text-emerald-300"
+                            : u.trialStatus === "EXPIRED"
+                            ? "bg-red-500/15 text-red-300"
+                            : "bg-gray-500/20 text-gray-400"
+                        }`}>
+                          {u.trialStatus === "ACTIVE" ? "Active" : u.trialStatus === "EXPIRED" ? "Expired" : "None"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[var(--cream)]">{u.activePlan ?? "—"}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${u.convertedAt ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/10 text-amber-200"}`}>
-                          {u.convertedAt ? "Earned" : "Pending"}
+                        {u.planType ? (
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            u.planType === "MONTHLY"
+                              ? "bg-indigo-500/15 text-indigo-300"
+                              : "bg-purple-500/15 text-purple-300"
+                          }`}>
+                            {u.planType === "MONTHLY" ? "Monthly" : u.planType === "YEARLY" ? "Yearly" : u.planType}
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-gray-500/20 px-2 py-0.5 text-[10px] font-bold text-gray-400">None</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--cream)]">{formatCurrency(u.totalPurchaseAmount)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium text-emerald-300">{formatCurrency(u.commissionEarned)}</span>
+                          {u.pendingCommission > 0 && (
+                            <span className="inline-flex rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-200">
+                              ₹{u.pendingCommission} PENDING
+                            </span>
+                          )}
+                          {u.paidCommission > 0 && (
+                            <span className="inline-flex rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-300">
+                              ₹{u.paidCommission} PAID
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          u.attributionMethod === "COUPON"
+                            ? "bg-amber-500/10 text-amber-200"
+                            : "bg-blue-500/15 text-blue-300"
+                        }`}>
+                          {u.attributionMethod === "COUPON" ? "Coupon" : "Link"}
                         </span>
                       </td>
                     </tr>

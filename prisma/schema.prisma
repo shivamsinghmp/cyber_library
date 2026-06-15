@@ -1093,6 +1093,7 @@ model InfluencerEarning {
   status            String    @default("PENDING") // PENDING | PAID
   paidAt            DateTime?
   createdAt         DateTime  @default(now())
+  transactionId     String?   @unique
 
   influencer User    @relation("InfluencerEarnings", fields: [influencerId], references: [id])
   coupon     Coupon? @relation(fields: [couponId], references: [id])

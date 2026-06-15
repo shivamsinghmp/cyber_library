@@ -16,6 +16,7 @@ const signupSchema = z.object({
   whatsappNumber: z.string().min(10, "Valid WhatsApp number is required").max(20),
   otp: z.string().length(6, "OTP must be 6 digits"),
   whatsappMarketing: z.boolean().optional().default(true),
+  infRef: z.string().max(20).regex(/^[a-zA-Z0-9_-]+$/).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { name, email, password, goal, whatsappNumber, otp, whatsappMarketing } = parsed.data;
+    const { name, email, password, goal, whatsappNumber, otp, whatsappMarketing, infRef: bodyInfRef } = parsed.data;
     const rawRef = typeof body.ref === "string" ? body.ref.trim() : "";
     const refCode = rawRef.length > 0 && rawRef.length <= 20 && /^[a-zA-Z0-9_-]+$/.test(rawRef)
       ? rawRef
@@ -105,13 +106,15 @@ export async function POST(request: NextRequest) {
     // Auto-generate referral code at registration (non-blocking — never fails signup)
     generateStudentReferralCode(newUser.id).catch(() => {});
 
-    // Influencer attribution via inf_ref cookie
+    // Influencer attribution — first-touch only (cookie takes priority, body infRef is localStorage fallback)
     try {
-      const infRef = request.cookies.get("inf_ref")?.value;
+      const cookieInfRef = request.cookies.get("inf_ref")?.value;
       const visitorId = request.cookies.get("inf_vid")?.value;
-      if (infRef && newUser?.id) {
+      // Priority: 1) cookie, 2) body infRef (localStorage fallback)
+      const effectiveInfRef = cookieInfRef || bodyInfRef;
+      if (effectiveInfRef && newUser?.id) {
         const influencer = await prisma.user.findFirst({
-          where: { referralCode: infRef, role: "INFLUENCER", deletedAt: null },
+          where: { referralCode: effectiveInfRef, role: "INFLUENCER", deletedAt: null },
           select: { id: true },
         });
         if (influencer) {

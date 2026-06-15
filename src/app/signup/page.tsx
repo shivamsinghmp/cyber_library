@@ -129,9 +129,19 @@ function SignupContent() {
     if (!otpVerified) { setSubmitError("Please verify your mobile number first."); return; }
     setSubmitError(null);
     try {
+      // Read localStorage infRef as fallback (cookie takes priority on server)
+      // Only send if cookie is not already set (server uses cookie first anyway)
+      const hasCookieRef = document.cookie.includes("inf_ref=");
+      let localStorageInfRef: string | null = null;
+      if (!hasCookieRef) {
+        const storedTs = localStorage.getItem("inf_ts");
+        const isValid = storedTs && Date.now() - parseInt(storedTs) < 30 * 24 * 3600 * 1000;
+        localStorageInfRef = isValid ? localStorage.getItem("inf_ref") : null;
+      }
+
       const res  = await fetch("/api/auth/signup", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, whatsappNumber: formatNumber(data.whatsappNumber), otp: otpValue, whatsappMarketing, ref: refCode || undefined }),
+        body: JSON.stringify({ ...data, whatsappNumber: formatNumber(data.whatsappNumber), otp: otpValue, whatsappMarketing, ref: refCode || undefined, ...(localStorageInfRef ? { infRef: localStorageInfRef } : {}) }),
       });
       const json = await res.json();
       if (!res.ok) {

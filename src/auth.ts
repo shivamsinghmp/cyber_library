@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -153,6 +154,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as { isSuperAdmin?: boolean }).isSuperAdmin = !!token.isSuperAdmin;
       }
       return session;
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      if (!user?.id || user.id === ENV_SUPERADMIN_ID) return;
+      try {
+        const cookieStore = await cookies();
+        const infVid = cookieStore.get("inf_vid")?.value;
+        const infRef = cookieStore.get("inf_ref")?.value;
+
+        // 1. Link existing InfluencerLinkClicks to this user by visitorId
+        if (infVid) {
+          await prisma.influencerLinkClick.updateMany({
+            where: { visitorId: infVid, userId: null },
+            data: { userId: user.id },
+          });
+        }
+
+        // 2. Late attribution: if referredByInfluencer is null AND inf_ref cookie exists, set it now
+        if (infRef) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { referredByInfluencer: true },
+          });
+          if (dbUser && !dbUser.referredByInfluencer) {
+            const influencer = await prisma.user.findFirst({
+              where: { referralCode: infRef, role: "INFLUENCER", deletedAt: null },
+              select: { id: true },
+            });
+            if (influencer) {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { referredByInfluencer: influencer.id },
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[auth] signIn event influencer linking failed:", err);
+      }
     },
   },
   providers: [

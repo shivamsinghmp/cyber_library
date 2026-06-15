@@ -243,16 +243,24 @@ export async function fulfillOrder({
 
         if (coupon.ownerId && coupon.commissionRate > 0 && amountRupees > 0) {
           const commissionAmount = Math.round((amountRupees * coupon.commissionRate) / 100);
-          await tx.influencerEarning.create({
-            data: {
-              influencerId: coupon.ownerId,
-              couponId: coupon.id,
-              userId,
-              transactionAmount: amountRupees,
-              commissionAmount,
-              status: "PENDING",
-            },
-          });
+          try {
+            await tx.influencerEarning.create({
+              data: {
+                influencerId: coupon.ownerId,
+                couponId: coupon.id,
+                userId,
+                transactionAmount: amountRupees,
+                commissionAmount,
+                status: "PENDING",
+                transactionId: transactionId,
+              },
+            });
+          } catch (dupErr: unknown) {
+            // Unique constraint violation = duplicate transactionId — skip silently
+            const errMsg = dupErr instanceof Error ? dupErr.message : String(dupErr);
+            if (!errMsg.includes("Unique constraint")) throw dupErr;
+            console.warn("[fulfillOrder] Duplicate coupon commission transactionId:", transactionId);
+          }
           couponCommissionEarned = true;
         }
       });
@@ -280,16 +288,24 @@ export async function fulfillOrder({
             (amountRupees * commissionRate) / 100
           );
 
-          await tx2.influencerEarning.create({
-            data: {
-              influencerId: userData.referredByInfluencer,
-              couponId: null,
-              userId,
-              transactionAmount: amountRupees,
-              commissionAmount,
-              status: "PENDING",
-            },
-          });
+          try {
+            await tx2.influencerEarning.create({
+              data: {
+                influencerId: userData.referredByInfluencer,
+                couponId: null,
+                userId,
+                transactionAmount: amountRupees,
+                commissionAmount,
+                status: "PENDING",
+                transactionId: transactionId,
+              },
+            });
+          } catch (dupErr: unknown) {
+            // Unique constraint violation = duplicate transactionId — skip silently
+            const errMsg = dupErr instanceof Error ? dupErr.message : String(dupErr);
+            if (!errMsg.includes("Unique constraint")) throw dupErr;
+            console.warn("[fulfillOrder] Duplicate link commission transactionId:", transactionId);
+          }
 
           await tx2.influencerLinkClick.updateMany({
             where: {

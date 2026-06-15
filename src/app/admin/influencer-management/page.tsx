@@ -57,6 +57,23 @@ type InfluencerProfileData = {
   followerCount: number | null;
 } | null;
 
+type ReferredUserRow = {
+  id: string;
+  name: string | null;
+  email: string;
+  joinedAt: string;
+  trialStatus: "ACTIVE" | "EXPIRED" | "NONE";
+  trialEndDate: string | null;
+  planStatus: "ACTIVE" | "EXPIRED" | "NONE";
+  planType: string | null;
+  planEndDate: string | null;
+  totalPurchaseAmount: number;
+  commissionEarned: number;
+  pendingCommission: number;
+  paidCommission: number;
+  attributionMethod: "COUPON" | "LINK";
+};
+
 type InfluencerRow = {
   id: string;
   name: string | null;
@@ -75,6 +92,7 @@ type InfluencerRow = {
   registrationsViaLink: number;
   conversionsViaLink: number;
   referralLink: string | null;
+  referredUsers: ReferredUserRow[];
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -217,6 +235,65 @@ function InfluencerDetailModal({
                         {e.status}
                       </span>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Referred Users */}
+      {influencer.referredUsers && influencer.referredUsers.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Referred Users ({influencer.referredUsers.length})
+          </h3>
+          <div className="overflow-x-auto rounded-xl border border-gray-100">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50 text-left text-[10px] uppercase tracking-wide text-gray-400">
+                  <th className="px-3 py-2">Name</th>
+                  <th className="px-3 py-2">Email</th>
+                  <th className="px-3 py-2">Joined</th>
+                  <th className="px-3 py-2">Trial</th>
+                  <th className="px-3 py-2">Plan</th>
+                  <th className="px-3 py-2">Purchases</th>
+                  <th className="px-3 py-2">Commission</th>
+                </tr>
+              </thead>
+              <tbody>
+                {influencer.referredUsers.map((u) => (
+                  <tr key={u.id} className="border-b border-gray-50">
+                    <td className="px-3 py-1.5 text-gray-700">{u.name ?? "—"}</td>
+                    <td className="px-3 py-1.5 font-mono text-gray-500">{u.email}</td>
+                    <td className="px-3 py-1.5 text-gray-500">{formatDate(u.joinedAt)}</td>
+                    <td className="px-3 py-1.5">
+                      <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                        u.trialStatus === "ACTIVE"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : u.trialStatus === "EXPIRED"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {u.trialStatus === "ACTIVE" ? "Active" : u.trialStatus === "EXPIRED" ? "Expired" : "None"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      {u.planType ? (
+                        <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                          u.planType === "MONTHLY"
+                            ? "bg-indigo-100 text-indigo-700"
+                            : "bg-purple-100 text-purple-700"
+                        }`}>
+                          {u.planType === "MONTHLY" ? "Monthly" : u.planType === "YEARLY" ? "Yearly" : u.planType}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 text-gray-700">{formatCurrency(u.totalPurchaseAmount)}</td>
+                    <td className="px-3 py-1.5 font-semibold text-indigo-600">{formatCurrency(u.commissionEarned)}</td>
                   </tr>
                 ))}
               </tbody>
