@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/api-helpers";
+import { invalidatePermissionCache } from "@/lib/permissions";
 
 const updateSchema = z.object({
   name: z.string().optional(),
@@ -81,6 +82,7 @@ export async function PUT(
       data,
       select: { id: true, name: true, email: true, role: true, employeeStatus: true, createdAt: true },
     });
+    await invalidatePermissionCache(id);
     return NextResponse.json(updated);
   } catch (e) {
     console.error("PUT /api/admin/staff/[id]:", e);
@@ -107,6 +109,7 @@ export async function DELETE(
     if (!existing) return NextResponse.json({ error: "Staff not found" }, { status: 404 });
 
     await prisma.user.delete({ where: { id } });
+    await invalidatePermissionCache(id);
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("DELETE /api/admin/staff/[id]:", e);

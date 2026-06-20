@@ -154,21 +154,27 @@ export function createAuth(appPrefix: string) {
           }
         }
 
-        // Periodically refresh role/isSuperAdmin from the DB — without this, a
-        // demotion (role change or isSuperAdmin revoke) would have no effect until
-        // the JWT's 24h maxAge naturally expires, since the JWT's claims otherwise
-        // never get re-checked once set at login.
+        // Periodically refresh role/isSuperAdmin/employeeStatus from the DB —
+        // without this, a demotion (role change or isSuperAdmin revoke) would
+        // have no effect until the JWT's 24h maxAge naturally expires, since
+        // the JWT's claims otherwise never get re-checked once set at login.
         if (token.id && token.id !== ENV_SUPERADMIN_ID) {
           const checkedAt = (token.roleCheckedAt as number) ?? 0;
           if (Date.now() - checkedAt > ROLE_REFRESH_INTERVAL_MS) {
             const u = await prisma.user.findUnique({
               where: { id: token.id as string },
-              select: { role: true, isSuperAdmin: true },
+              select: { role: true, isSuperAdmin: true, employeeStatus: true },
             });
-            if (u) {
-              token.role = u.role ?? "STUDENT";
-              token.isSuperAdmin = !!u.isSuperAdmin;
+            if (!u) {
+              return {} as typeof token;
             }
+            // Admin revoked this employee's access mid-session — force re-login
+            // instead of waiting out the rest of the 24h JWT.
+            if (u.role === "EMPLOYEE" && u.employeeStatus !== "APPROVED") {
+              return {} as typeof token;
+            }
+            token.role = u.role ?? "STUDENT";
+            token.isSuperAdmin = !!u.isSuperAdmin;
             token.roleCheckedAt = Date.now();
           }
         }
