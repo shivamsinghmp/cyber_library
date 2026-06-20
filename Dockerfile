@@ -6,8 +6,12 @@ WORKDIR /app
 
 # Install deps first — cached unless package-lock.json changes
 # .npmrc carries legacy-peer-deps=true (next-auth beta peer conflict with nodemailer 8)
+# Workspace member package.jsons must be present before `npm ci` —
+# root package.json declares "workspaces": ["packages/*","letstudy/*"]
 COPY package.json package-lock.json .npmrc ./
 COPY prisma ./prisma/
+COPY packages ./packages/
+COPY letstudy ./letstudy/
 RUN npm ci
 
 # Dummy build-time vars — prisma generate needs a DSN format but no live DB.

@@ -1,0 +1,196 @@
+import { prisma } from "./prisma";
+import { decrypt, encrypt } from "./encrypt";
+
+export const APP_SETTING_KEYS = {
+  WHATSAPP_PHONE_NUMBER_ID:       { label: "WhatsApp Phone Number ID (legacy fallback)",         secret: false },
+  WHATSAPP_ACCESS_TOKEN:          { label: "WhatsApp Access Token (legacy fallback)",            secret: true  },
+  WHATSAPP_AUTH_PHONE_NUMBER_ID:  { label: "WhatsApp Phone Number ID — Auth/Support line",       secret: false },
+  WHATSAPP_AUTH_ACCESS_TOKEN:     { label: "WhatsApp Access Token — Auth/Support line",          secret: true  },
+  WHATSAPP_REPORTS_PHONE_NUMBER_ID: { label: "WhatsApp Phone Number ID — Reports line",          secret: false },
+  WHATSAPP_REPORTS_ACCESS_TOKEN:    { label: "WhatsApp Access Token — Reports line",             secret: true  },
+  CRON_SECRET:                    { label: "Cron Secret (for /api/cron/*)",                      secret: true  },
+  GOOGLE_SERVICE_ACCOUNT_EMAIL:   { label: "Google Service Account Email",                       secret: false },
+  GOOGLE_PRIVATE_KEY:             { label: "Google Private Key (PEM)",                           secret: true  },
+  GOOGLE_CALENDAR_ID:             { label: "Google Calendar ID",                                 secret: false },
+  GOOGLE_CALENDAR_OWNER_EMAIL:    { label: "Google Calendar Owner Email (Workspace user to impersonate)", secret: false },
+  NEXTAUTH_URL:                   { label: "NextAuth URL (optional)",                            secret: false },
+  ANNOUNCEMENT:                   { label: "Announcement banner (site-wide)",                    secret: false },
+  SUPPORT_WHATSAPP_NUMBER:        { label: "Support WhatsApp number (e.g. 919876543210)",        secret: false },
+  SUPPORT_EMAIL:                  { label: "Support email",                                      secret: false },
+  WHATSAPP_GROUP_LINK:            { label: "WhatsApp group join link",                           secret: false },
+  WHATSAPP_CHANNEL_LINK:          { label: "WhatsApp channel join link",                         secret: false },
+  TELEGRAM_CHANNEL_LINK:          { label: "Telegram channel join link",                         secret: false },
+  GOOGLE_MEET_APP_LINK:           { label: "Install Google Meet app link (Play Store / App Store)", secret: false },
+  SITE_LOGO_URL:                  { label: "Site logo URL (leave empty for default /logo.png)",  secret: false },
+  SITE_FAVICON_URL:               { label: "Favicon URL (browser tab icon)",                     secret: false },
+  SITE_TITLE:                     { label: "Site title (browser tab, SEO)",                      secret: false },
+  SITE_TAGLINE:                   { label: "Site tagline",                                       secret: false },
+  SITE_HEADLINE:                  { label: "Main headline (homepage hero text)",                 secret: false },
+  FOOTER_TEXT:                    { label: "Footer text",                                        secret: false },
+  MEET_ADDON_REALTIME_ENABLED:    { label: "Enable Meet add-on realtime messaging features",     secret: false },
+  MEET_ADDON_FOCUS_GUARD_ENABLED: { label: "Enable Meet add-on focus guard alerts",              secret: false },
+  MEET_ADDON_GAMIFICATION_ENABLED:{ label: "Enable Meet add-on coins and leaderboard",           secret: false },
+  GOOGLE_ANALYTICS_ID:            { label: "Google Analytics ID (e.g. G-XXXXXXX)",              secret: false },
+  GOOGLE_TAG_MANAGER_ID:          { label: "Google Tag Manager ID (e.g. GTM-XXXXXX)",           secret: false },
+  GOOGLE_ADSENSE_ID:              { label: "Google AdSense ID (e.g. pub-XXXXXXX)",              secret: false },
+  FB_PIXEL_ID:                    { label: "Facebook Pixel ID",                                  secret: false },
+  CUSTOM_HEAD_HTML:               { label: "Custom Head HTML (Scripts, tags, etc.)",             secret: false },
+  FOOTER_CONFIG_JSON:             { label: "Structured JSON for Footer",                         secret: false },
+  FAST2SMS_API_KEY:               { label: "Fast2SMS API Key (for SMS OTP)",                     secret: true  },
+  PRICING_DATA:                   { label: "Pricing page data (JSON)",                            secret: false },
+  RESEND_API_KEY:                 { label: "Resend API Key (for transactional emails)",           secret: true  },
+  RESEND_FROM:                    { label: "Resend sender address (e.g. no-reply@lstudy.in)",   secret: false },
+  CHECKIN_COINS:                  { label: "Daily Check-in Coins (default: 5)",                   secret: false },
+  TRIAL_DAYS:                     { label: "Free trial duration in days (default: 7)",              secret: false },
+  TRIAL_WARNING_DAYS:             { label: "Days before trial expiry to send warning (default: 3)", secret: false },
+  GEMINI_API_KEY:                 { label: "Google Gemini API Key (AI Studio — aistudio.google.com/apikey)", secret: true  },
+  VERTEX_PROJECT_ID:              { label: "Vertex AI — Google Cloud Project ID (legacy)",           secret: false },
+  VERTEX_LOCATION:                { label: "Vertex AI — Region (legacy)",                            secret: false },
+  VERTEX_API_KEY:                 { label: "Vertex AI — API Key (legacy)",                           secret: true  },
+  ANTHROPIC_API_KEY:              { label: "Anthropic API Key (Claude AI)",                        secret: true  },
+  OPENAI_API_KEY:                 { label: "OpenAI API Key",                                       secret: true  },
+  YOUTUBE_API_KEY:                { label: "YouTube Data API v3 Key (for music search)",            secret: true  },
+  YOUTUBE_COOKIES:                { label: "YouTube Cookies (for music player bot-detection bypass)", secret: true  },
+  WA_BOT_ENABLED:                 { label: "WhatsApp bot enabled (global kill switch)",          secret: false },
+  WA_BOT_SYSTEM_PROMPT:           { label: "WhatsApp bot — extra system prompt instructions",     secret: false },
+  WA_BOT_DEFAULT_MODEL:           { label: "WhatsApp bot — default/ceiling AI model",             secret: false },
+  WA_BOT_BUDGET_MODE:             { label: "WhatsApp bot — budget mode (strict/balanced/quality)", secret: false },
+  WA_BOT_RATE_LIMIT_PER_MIN:      { label: "WhatsApp bot — max replies per user per minute",       secret: false },
+} as const;
+
+const SECRET_KEYS = new Set(
+  Object.entries(APP_SETTING_KEYS).filter(([, v]) => v.secret).map(([k]) => k)
+);
+
+// ── In-process cache (TTL: 5 minutes) ────────────────────────────────────────
+// Prevents DB hit on every WhatsApp send, layout render, etc.
+const _cache = new Map<string, { value: string | null; expiresAt: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+function cacheGet(key: string): string | null | undefined {
+  const entry = _cache.get(key);
+  if (!entry) return undefined;           // cache miss
+  if (Date.now() > entry.expiresAt) { _cache.delete(key); return undefined; }
+  return entry.value;                     // cache hit
+}
+
+function cacheSet(key: string, value: string | null) {
+  _cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+export function invalidateAppSettingCache(key?: keyof typeof APP_SETTING_KEYS) {
+  if (key) _cache.delete(key);
+  else _cache.clear();
+}
+
+/** Get value for a key: in-process cache first, then DB. (env is intentionally ignored — DB is source of truth) */
+export async function getAppSetting(key: keyof typeof APP_SETTING_KEYS): Promise<string | null> {
+  // 1. In-process cache
+  const cached = cacheGet(key);
+  if (cached !== undefined) return cached;
+
+  // 2. DB
+  try {
+    const row = await prisma.appSetting.findUnique({
+      where: { key },
+      select: { valueEncrypted: true, iv: true },
+    });
+    if (!row?.valueEncrypted) { cacheSet(key, null); return null; }
+    const value = row.iv ? decrypt(row.valueEncrypted, row.iv) : row.valueEncrypted;
+    cacheSet(key, value);
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+/** Sync get — reads env only. For non-async contexts. */
+export function getAppSettingSync(key: keyof typeof APP_SETTING_KEYS): string | null {
+  const v = process.env[key];
+  return v != null && v.trim() !== "" ? v.trim() : null;
+}
+
+/**
+ * Batch-load multiple keys in a single DB query.
+ * Falls back to env → in-process cache → DB for each key.
+ * Much cheaper than N separate getAppSetting() calls.
+ */
+export async function batchGetAppSettings(
+  keys: Array<keyof typeof APP_SETTING_KEYS>
+): Promise<Record<string, string | null>> {
+  const result: Record<string, string | null> = {};
+  const dbKeys: Array<keyof typeof APP_SETTING_KEYS> = [];
+
+  for (const key of keys) {
+    const cached = cacheGet(key);
+    if (cached !== undefined) {
+      result[key] = cached;
+      continue;
+    }
+    dbKeys.push(key);
+  }
+
+  if (dbKeys.length > 0) {
+    try {
+      const rows = await prisma.appSetting.findMany({
+        where: { key: { in: dbKeys as string[] } },
+        select: { key: true, valueEncrypted: true, iv: true },
+      });
+
+      const found = new Set<string>();
+      for (const row of rows) {
+        const value: string | null = row.valueEncrypted
+          ? (row.iv ? decrypt(row.valueEncrypted, row.iv) : row.valueEncrypted)
+          : null;
+        result[row.key] = value;
+        cacheSet(row.key as keyof typeof APP_SETTING_KEYS, value);
+        found.add(row.key);
+      }
+
+      for (const key of dbKeys) {
+        if (!found.has(key)) {
+          result[key] = null;
+          cacheSet(key, null);
+        }
+      }
+    } catch {
+      for (const key of dbKeys) result[key] = null;
+    }
+  }
+
+  return result;
+}
+
+/** Save setting to DB and invalidate cache. */
+export async function setAppSetting(
+  key: keyof typeof APP_SETTING_KEYS,
+  value: string | null
+): Promise<void> {
+  const trimmed = value?.trim() || null;
+
+  if (trimmed === null) {
+    await prisma.appSetting.deleteMany({ where: { key } });
+    invalidateAppSettingCache(key);
+    return;
+  }
+
+  const isSecret = SECRET_KEYS.has(key);
+  let valueEncrypted: string;
+  let iv: string | null = null;
+
+  if (isSecret) {
+    const { encrypted, iv: newIv } = encrypt(trimmed);
+    valueEncrypted = encrypted;
+    iv = newIv;
+  } else {
+    valueEncrypted = trimmed;
+  }
+
+  await prisma.appSetting.upsert({
+    where: { key },
+    create: { key, valueEncrypted, iv },
+    update: { valueEncrypted, iv },
+  });
+
+  invalidateAppSettingCache(key);
+}

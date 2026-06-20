@@ -1,0 +1,155 @@
+﻿import { NextResponse } from "next/server";
+import bcrypt from "bcrypt";
+import { prisma } from "@/lib/prisma";
+import { generateStudentId } from "@/lib/studentId";
+import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/api-helpers";
+
+const createStudentSchema = z.object({
+  email: z.string().email("Invalid email").max(255),
+  // Password bounded to 72 bytes to prevent Bcrypt processing DOS
+  password: z.string().min(8, "Password must be at least 8 characters").max(72, "Password too long"),
+  name: z.string().max(100).optional(),
+  goal: z.string().max(100).optional(),
+});
+
+export async function GET(request: Request) {
+  try {
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user: adminUser } = auth;
+
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim() || "";
+    // Vulnerability Fix: Enforce pagination offset limit to prevent Denial of Service Memory Spikes
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const take = 50; 
+    const skip = (page - 1) * take;
+
+    const whereClause = {
+      role: "STUDENT" as const,
+      deletedAt: null as null,
+      ...(search
+        ? {
+            OR: [
+              { studentId: { contains: search, mode: "insensitive" as const } },
+              { id:        { contains: search, mode: "insensitive" as const } },
+              { email:     { contains: search, mode: "insensitive" as const } },
+              { name:      { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    };
+
+    const [students, total] = await Promise.all([
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          studentId: true,
+          name: true,
+          email: true,
+          goal: true,
+          createdAt: true,
+          profile: {
+            select: {
+              phone: true,
+              whatsappNumber: true,
+              whatsappMarketing: true,
+              studyGoal: true,
+              targetExam: true,
+              totalStudyHours: true,
+              coinBalance: true,
+              position: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take,
+        skip,
+      }),
+      prisma.user.count({ where: whereClause }),
+    ]);
+
+    const hasMore = skip + students.length < total;
+
+    // Generate IDs for students missing one — parallel, not sequential
+    const missing = students.filter(s => !s.studentId);
+    let finalStudents = students;
+    if (missing.length > 0) {
+      const ids = await Promise.all(missing.map(() => generateStudentId()));
+      await Promise.all(
+        missing.map((s, i) =>
+          prisma.user.update({ where: { id: s.id }, data: { studentId: ids[i] } })
+        )
+      );
+      const idMap = Object.fromEntries(missing.map((s, i) => [s.id, ids[i]]));
+      finalStudents = students.map(s => s.studentId ? s : { ...s, studentId: idMap[s.id] });
+    }
+
+    return NextResponse.json({ data: finalStudents, total, page, hasMore });
+  } catch (e) {
+    console.error("GET /api/admin/students:", e);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
+/** POST: Create a new student account (admin only) */
+export async function POST(request: Request) {
+  try {
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+    const { user: adminUser } = auth;
+
+    const body = await request.json();
+    const parsed = createStudentSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
+    const { email, password, name, goal } = parsed.data;
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return NextResponse.json(
+        { error: "An account with this email already exists." },
+        { status: 409 }
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const studentId = await generateStudentId();
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: name ?? null,
+        password: hashedPassword,
+        goal: goal ?? null,
+        role: "STUDENT",
+        studentId,
+        profile: {
+          create: {
+            fullName: name ?? null,
+            studyGoal: goal ?? null,
+            coinBalance: 0,
+          },
+        },
+      },
+      select: {
+        id: true,
+        studentId: true,
+        name: true,
+        email: true,
+        goal: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json(user, { status: 201 });
+  } catch (e) {
+    console.error("POST /api/admin/students:", e);
+    return NextResponse.json({ error: "Failed to create student." }, { status: 500 });
+  }
+}

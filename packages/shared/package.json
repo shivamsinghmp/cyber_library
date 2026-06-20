@@ -1,0 +1,39 @@
+{
+  "name": "@cyberlib/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    "./prisma": "./src/prisma.ts",
+    "./redis": "./src/redis.ts",
+    "./rate-limit": "./src/rate-limit.ts",
+    "./audit-logger": "./src/audit-logger.ts",
+    "./permissions": "./src/permissions.ts",
+    "./permissions-client": "./src/permissions-client.ts",
+    "./api-helpers": "./src/api-helpers.ts",
+    "./auth": "./src/auth.ts",
+    "./auth.config": "./src/auth.config.ts",
+    "./encrypt": "./src/encrypt.ts",
+    "./coins": "./src/coins.ts",
+    "./invoicePdf": "./src/invoicePdf.ts",
+    "./plan-features": "./src/plan-features.ts",
+    "./app-settings": "./src/app-settings.ts",
+    "./email": "./src/email.ts",
+    "./google-calendar": "./src/google-calendar.ts"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
+    "@prisma/client": "^6.19.2",
+    "@upstash/redis": "^1.37.0",
+    "bcrypt": "^6.0.0",
+    "googleapis": "^171.4.0",
+    "jspdf": "^4.2.0",
+    "next-auth": "5.0.0-beta.30",
+    "resend": "^6.12.3"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "typescript": "^5"
+  }
+}

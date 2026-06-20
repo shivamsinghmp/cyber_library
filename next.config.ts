@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // Fix the workspace root detection warning from multiple lockfiles
   outputFileTracingRoot: path.join(__dirname),
+  // @cyberlib/shared ships TS source (no build step) — Next.js must
+  // transpile it itself rather than treating it as pre-built node_modules code
+  transpilePackages: ["@cyberlib/shared"],
 
   // Remove X-Powered-By header (security + saves a few bytes)
   poweredByHeader: false,

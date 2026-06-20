@@ -1,0 +1,551 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import {
+  Brain, ChevronLeft, CheckCircle, AlertCircle,
+  Eye, EyeOff, Save, Loader2, ExternalLink, FlaskConical, Music2,
+} from "lucide-react";
+import toast from "react-hot-toast";
+
+type KeyStatus = { hasValue: boolean };
+type AllStatus = Record<string, KeyStatus>;
+
+type ProviderConfig = {
+  id: "ANTHROPIC_API_KEY" | "OPENAI_API_KEY" | "YOUTUBE_API_KEY";
+  label: string;
+  provider: string;
+  color: string;
+  bg: string;
+  border: string;
+  placeholder: string;
+  docsUrl: string;
+  docsLabel: string;
+  hint: string;
+};
+
+const PROVIDERS: ProviderConfig[] = [
+  {
+    id: "ANTHROPIC_API_KEY",
+    label: "Anthropic Claude",
+    provider: "Anthropic Console",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    placeholder: "sk-ant-...",
+    docsUrl: "https://console.anthropic.com/account/keys",
+    docsLabel: "Get Anthropic key",
+    hint: "Claude Haiku, Sonnet, Opus — mid to premium tier",
+  },
+  {
+    id: "OPENAI_API_KEY",
+    label: "OpenAI",
+    provider: "OpenAI Platform",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    placeholder: "sk-...",
+    docsUrl: "https://platform.openai.com/api-keys",
+    docsLabel: "Get OpenAI key",
+    hint: "GPT-4o mini, GPT-4.1, GPT-4o, o1 — wide range of tiers",
+  },
+  {
+    id: "YOUTUBE_API_KEY",
+    label: "YouTube Data API v3",
+    provider: "Google Cloud Console",
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    placeholder: "AIza...",
+    docsUrl: "https://console.cloud.google.com/apis/credentials",
+    docsLabel: "Get YouTube key",
+    hint: "Required for the search feature in the Meet Add-on music player — YouTube Data API v3",
+  },
+];
+
+export default function AiSettingsPage() {
+  const [status, setStatus] = useState<AllStatus>({});
+  const [loading, setLoading] = useState(true);
+  const [values, setValues] = useState<Record<string, string>>({
+    ANTHROPIC_API_KEY: "",
+    OPENAI_API_KEY: "",
+    YOUTUBE_API_KEY: "",
+  });
+  const [show,    setShow]    = useState<Record<string, boolean>>({});
+  const [saving,  setSaving]  = useState<Record<string, boolean>>({});
+  const [testing, setTesting] = useState<Record<string, boolean>>({});
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
+
+  // Gemini AI Studio fields
+  const [geminiKey,        setGeminiKey]        = useState("");
+  const [geminiSaving,     setGeminiSaving]     = useState(false);
+  const [geminiTesting,    setGeminiTesting]    = useState(false);
+  const [geminiShowKey,    setGeminiShowKey]    = useState(false);
+  const [geminiTestResult, setGeminiTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  // YouTube cookies (for music player bot-detection bypass)
+  const [ytCookies,      setYtCookies]      = useState("");
+  const [ytCookiesSaved, setYtCookiesSaved] = useState(false);
+  const [ytCookiesSaving, setYtCookiesSaving] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/settings", { credentials: "include" });
+      if (!res.ok) return;
+      const data: AllStatus = await res.json();
+      setStatus(data);
+      setYtCookiesSaved(!!data["YOUTUBE_COOKIES"]?.hasValue);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  async function handleSaveYtCookies() {
+    setYtCookiesSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: "YOUTUBE_COOKIES", value: ytCookies.trim() || null }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(d.error ?? "Save failed"); return; }
+      toast.success(ytCookies.trim() ? "YouTube cookies saved" : "YouTube cookies removed");
+      setYtCookies("");
+      await fetchStatus();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setYtCookiesSaving(false);
+    }
+  }
+
+  async function handleTestGemini() {
+    setGeminiTesting(true);
+    setGeminiTestResult(null);
+    try {
+      const res = await fetch("/api/admin/ai-settings/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          provider: "gemini",
+          ...(geminiKey.trim() ? { value: geminiKey.trim() } : {}),
+        }),
+      });
+      const d = await res.json() as { ok: boolean; message?: string; error?: string };
+      setGeminiTestResult({ ok: d.ok, msg: d.ok ? (d.message ?? "Valid ✓") : (d.error ?? "Failed") });
+    } catch {
+      setGeminiTestResult({ ok: false, msg: "Network error" });
+    } finally {
+      setGeminiTesting(false);
+    }
+  }
+
+  async function handleSaveGemini() {
+    const value = geminiKey.trim();
+    if (!value) { toast.error("Please enter an API key"); return; }
+    setGeminiSaving(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: "GEMINI_API_KEY", value }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error(d.error ?? "Save failed"); return; }
+      toast.success("Gemini API key saved");
+      setGeminiKey("");
+      await fetchStatus();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setGeminiSaving(false);
+    }
+  }
+
+  async function handleRemoveGemini() {
+    if (!confirm("Remove the Gemini API key? Google models will become unavailable.")) return;
+    setGeminiSaving(true);
+    try {
+      await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: "GEMINI_API_KEY", value: null }),
+      });
+      toast.success("Gemini API key removed");
+      await fetchStatus();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setGeminiSaving(false);
+    }
+  }
+
+  async function handleTest(id: ProviderConfig["id"]) {
+    const providerMap: Record<string, string> = {
+      ANTHROPIC_API_KEY: "anthropic", OPENAI_API_KEY: "openai",
+    };
+    const provider = providerMap[id];
+    if (!provider) { toast.error("Test not supported for this key"); return; }
+    setTesting(t => ({ ...t, [id]: true }));
+    setTestResult(r => ({ ...r, [id]: { ok: false, msg: "" } }));
+    try {
+      const value = values[id].trim() || undefined;
+      const res = await fetch("/api/admin/ai-settings/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ provider, ...(value ? { value } : {}) }),
+      });
+      const d = await res.json() as { ok: boolean; message?: string; error?: string };
+      setTestResult(r => ({ ...r, [id]: { ok: d.ok, msg: d.ok ? (d.message ?? "Valid ✓") : (d.error ?? "Failed") } }));
+    } catch {
+      setTestResult(r => ({ ...r, [id]: { ok: false, msg: "Network error" } }));
+    } finally {
+      setTesting(t => ({ ...t, [id]: false }));
+    }
+  }
+
+  async function handleSave(id: ProviderConfig["id"]) {
+    const value = values[id].trim();
+    setSaving(s => ({ ...s, [id]: true }));
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: id, value: value || null }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(d.error ?? "Save failed");
+        return;
+      }
+      toast.success(value ? "API key saved" : "API key removed");
+      setValues(v => ({ ...v, [id]: "" }));
+      await fetchStatus();
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setSaving(s => ({ ...s, [id]: false }));
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
+      {/* Header */}
+      <div>
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-1 text-sm font-medium text-[var(--cream-muted)] hover:text-[var(--accent)]"
+        >
+          <ChevronLeft className="h-4 w-4" /> Back to Admin
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold text-[var(--cream)] flex items-center gap-2">
+          <Brain className="h-7 w-7 text-[var(--accent)]" />
+          AI API Keys
+        </h1>
+        <p className="mt-1 text-sm text-[var(--cream-muted)]">
+          Configure AI provider keys for StudyMate. Keys are stored encrypted in the database.
+          <br />
+          <span className="text-xs">An env variable, if set, will always override the database value.</span>
+        </p>
+      </div>
+
+      {/* Gemini AI Studio card */}
+      {(() => {
+        const configured = !!status["GEMINI_API_KEY"]?.hasValue;
+        return (
+          <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3 bg-blue-50">
+              <h2 className="flex items-center gap-2 text-sm font-bold text-blue-600">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-blue-200 bg-white text-xs font-black text-blue-600">G</span>
+                Google Gemini (AI Studio)
+              </h2>
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline">
+                Get API Key <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            <div className="p-5 space-y-4">
+              {loading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-400"><Loader2 className="h-4 w-4 animate-spin" /> Checking…</div>
+              ) : configured ? (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span className="text-sm font-semibold text-emerald-700">Configured — Gemini is active</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                  <span className="text-sm font-semibold text-amber-700">Not configured — Gemini models unavailable</span>
+                </div>
+              )}
+              <p className="text-xs text-gray-500">
+                Gemini 2.5 Flash, 2.0 Flash, 1.5 Pro, 2.5 Pro — Google AI Studio via API key.
+                <br />Go to aistudio.google.com/apikey → <strong>Create API key</strong> → paste it here.
+              </p>
+
+              {/* API Key */}
+              <div className="relative">
+                <input
+                  type={geminiShowKey ? "text" : "password"}
+                  value={geminiKey}
+                  onChange={e => setGeminiKey(e.target.value)}
+                  placeholder={configured ? "••••••••••••••••••••• (type to change)" : "AIza..."}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 text-sm font-mono text-gray-900 outline-none focus:border-blue-400 focus:bg-white transition"
+                  onKeyDown={e => { if (e.key === "Enter" && geminiKey.trim()) handleSaveGemini(); }}
+                />
+                <button type="button" onClick={() => setGeminiShowKey(s => !s)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {geminiShowKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button onClick={handleTestGemini} disabled={geminiTesting || geminiSaving}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-gray-100 text-gray-600 border border-gray-200 hover:opacity-80">
+                  {geminiTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
+                  Test
+                </button>
+                <button onClick={handleSaveGemini} disabled={geminiSaving}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-blue-50 text-blue-600 border border-blue-200 hover:opacity-80">
+                  {geminiSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save
+                </button>
+              </div>
+
+              {/* Test result */}
+              {geminiTestResult?.msg && (
+                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${
+                  geminiTestResult.ok ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"
+                }`}>
+                  {geminiTestResult.ok ? <CheckCircle className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+                  {geminiTestResult.msg}
+                </div>
+              )}
+
+              {configured && (
+                <button type="button" onClick={handleRemoveGemini} className="text-xs text-red-500 hover:underline">
+                  Remove Gemini API key
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Provider cards (Anthropic + OpenAI + YouTube) */}
+      {PROVIDERS.map((p) => {
+        const configured  = status[p.id]?.hasValue ?? false;
+        const isSaving    = saving[p.id]  ?? false;
+        const isTesting   = testing[p.id] ?? false;
+        const isShown     = show[p.id]    ?? false;
+        const val         = values[p.id]  ?? "";
+        const testRes     = testResult[p.id];
+        const canTest     = p.id !== "YOUTUBE_API_KEY";
+
+        return (
+          <div key={p.id} className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden shadow-sm">
+            {/* Card header */}
+            <div className={`flex items-center justify-between border-b border-[var(--border)] px-5 py-3 ${p.bg}`}>
+              <h2 className={`flex items-center gap-2 text-sm font-bold ${p.color}`}>
+                <span className={`flex h-6 w-6 items-center justify-center rounded-lg border ${p.border} bg-white text-xs font-black ${p.color}`}>
+                  {p.label[0]}
+                </span>
+                {p.label}
+              </h2>
+              <a
+                href={p.docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-1 text-xs font-semibold ${p.color} hover:underline`}
+              >
+                {p.docsLabel} <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Status */}
+              {loading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Checking…
+                </div>
+              ) : configured ? (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+                  <span className="text-sm font-semibold text-emerald-700">Configured — key is active</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                  <span className="text-sm font-semibold text-amber-700">Not configured — this provider&apos;s models are unavailable</span>
+                </div>
+              )}
+
+              {/* Hint */}
+              <p className="text-xs text-gray-500">{p.hint}</p>
+
+              {/* Input */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={isShown ? "text" : "password"}
+                    value={val}
+                    onChange={e => setValues(v => ({ ...v, [p.id]: e.target.value }))}
+                    placeholder={configured ? "••••••••••••••••••••• (type to change)" : p.placeholder}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-3 pr-10 text-sm font-mono text-gray-900 outline-none focus:border-[var(--accent)] focus:bg-white transition"
+                    onKeyDown={e => { if (e.key === "Enter" && val.trim()) handleSave(p.id); }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShow(s => ({ ...s, [p.id]: !isShown }))}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {isShown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {canTest && (
+                  <button
+                    onClick={() => handleTest(p.id)}
+                    disabled={isTesting || isSaving}
+                    title="Test key validity"
+                    className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-gray-100 text-gray-600 border border-gray-200 hover:opacity-80"
+                  >
+                    {isTesting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FlaskConical className="h-4 w-4" />
+                    )}
+                    Test
+                  </button>
+                )}
+                <button
+                  onClick={() => handleSave(p.id)}
+                  disabled={isSaving}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all disabled:opacity-60 ${p.bg} ${p.color} border ${p.border} hover:opacity-80`}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save
+                </button>
+              </div>
+
+              {/* Test result */}
+              {testRes?.msg && (
+                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium ${
+                  testRes.ok
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}>
+                  {testRes.ok
+                    ? <CheckCircle className="h-4 w-4 shrink-0" />
+                    : <AlertCircle className="h-4 w-4 shrink-0" />}
+                  {testRes.msg}
+                </div>
+              )}
+
+              {/* Remove link */}
+              {configured && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!confirm("Remove this API key? This provider's models will become unavailable.")) return;
+                    setValues(v => ({ ...v, [p.id]: "" }));
+                    handleSave(p.id);
+                  }}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Remove key
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* YouTube Cookies card */}
+      <div className="rounded-2xl border border-[var(--border)] bg-white overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3 bg-red-50">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-red-600">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg border border-red-200 bg-white text-xs font-black text-red-600">
+              <Music2 className="h-3.5 w-3.5" />
+            </span>
+            YouTube Cookies (Music Player)
+          </h2>
+        </div>
+        <div className="p-5 space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin" /> Checking…
+            </div>
+          ) : ytCookiesSaved ? (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+              <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span className="text-sm font-semibold text-emerald-700">Cookies configured — music player bot-detection bypass active</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+              <span className="text-sm font-semibold text-amber-700">No cookies — music may fail due to YouTube bot-detection</span>
+            </div>
+          )}
+          <p className="text-xs text-gray-500">
+            The Meet Add-on music player streams audio from YouTube. YouTube&apos;s bot-detection can block server requests.
+            Fix: Open YouTube in Chrome → F12 → Application → Cookies → https://www.youtube.com →
+            copy all cookies (name=value; format) and paste them here.
+          </p>
+          <textarea
+            rows={4}
+            value={ytCookies}
+            onChange={e => setYtCookies(e.target.value)}
+            placeholder={ytCookiesSaved ? "Paste new cookies (will replace existing ones)" : "VISITOR_INFO1_LIVE=xxx; YSC=yyy; CONSENT=YES+...; ..."}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-xs font-mono text-gray-900 outline-none focus:border-red-400 focus:bg-white transition resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleSaveYtCookies}
+              disabled={ytCookiesSaving}
+              className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all disabled:opacity-60 bg-red-50 text-red-600 border border-red-200 hover:opacity-80"
+            >
+              {ytCookiesSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Cookies
+            </button>
+            {ytCookiesSaved && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!confirm("Remove YouTube cookies? The music player may fail.")) return;
+                  setYtCookies("");
+                  handleSaveYtCookies();
+                }}
+                className="text-xs text-red-500 hover:underline"
+              >
+                Remove cookies
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Info note */}
+      <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 text-xs text-gray-500 space-y-1">
+        <p className="font-semibold text-gray-700">Important notes:</p>
+        <p>• A key set in an env variable (`.env`) always overrides the database value.</p>
+        <p>• Keys are AES-256 encrypted in the database — <code className="font-mono bg-white px-1 rounded">ENCRYPTION_KEY</code> in `.env` is required.</p>
+        <p>• After saving a key, StudyMate starts using it immediately — no server restart needed.</p>
+        <p>• If no provider is configured, StudyMate will not work. Vertex AI (Gemini) is recommended (most cost-effective).</p>
+      </div>
+    </div>
+  );
+}

@@ -20,6 +20,7 @@ model User {
   password         String? // hashed; null for OAuth-only users
   goal             String? // e.g. UPSC, JEE, etc.
   role             String    @default("STUDENT") // ADMIN | EMPLOYEE | STUDENT | INFLUENCER | AUTHOR
+  employeeStatus   String    @default("APPROVED") // PENDING | APPROVED | REJECTED — only meaningful for role=EMPLOYEE; admin-created staff default to APPROVED, self-registered staff start PENDING
   referralCode     String?   @unique // for influencers/referrals (e.g. INV-ABC123)
   referredById     String? // user who referred this account (typically an INFLUENCER)
   referralRewarded Boolean   @default(false) // has first-purchase referral reward been granted
@@ -128,6 +129,9 @@ model Profile {
   totalPoints         Int       @default(0)
   coinBalance         Int       @default(0) // materialized coin balance — updated atomically on earn/spend
   whatsappMarketing   Boolean   @default(true) // user opted in to WhatsApp marketing messages at signup
+  whatsappBotBlocked  Boolean   @default(false) // admin-set: blocks the interactive AI bot only (orthogonal to whatsappMarketing)
+  whatsappBotState    String    @default("IDLE") // IDLE | AWAITING_REGISTRATION_NAME | AWAITING_TOPUP_AMOUNT | AWAITING_PAYMENT
+  whatsappBotPending  Json?     // bot-internal transient state machine payload (pending message, razorpay txn id, sent-at) — distinct from customFields
   dailyCoinLimit      Int?                    // admin-set daily spend cap in coins (null = unlimited)
   dailyMantra         String?   @db.Text
   position            String?
@@ -294,6 +298,7 @@ model WhatsAppMessage {
   content     String   @db.Text // AES-256-GCM encrypted (base64url)
   contentIv   String?  // Encryption IV — null = legacy plain text row
   status      String   @default("SENT") // SENT | DELIVERED | READ | FAILED
+  line        String?  // "AI_CHAT" | "AUTH" | "REPORTS" — which of our 3 numbers; null = legacy row
   createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -394,7 +399,7 @@ model Transaction {
 
   @@index([userId])
   @@index([createdAt])
-  @@index([paymentGatewayId]) // payment dedup: findFirst({ where: { paymentGatewayId } })
+  @@unique([paymentGatewayId]) // idempotency guard — see /api/razorpay/verify P2002 handling
 }
 
 // Digital products for store (PDFs, courses, etc.)
@@ -435,6 +440,40 @@ model LeadSubmission {
   data      Json // dynamic key -> value pairs from landing form
   source    String? // optional source/utm or notes
   createdAt DateTime @default(now())
+}
+
+// CRM: student admissions pipeline (crm.lstudy.in) — tracks prospects from
+// first contact through conversion. Plain string refs to User/LeadSubmission
+// (no FK) so this stays additive and never touches those existing models.
+model CrmContact {
+  id           String   @id @default(cuid())
+  name         String?
+  email        String?
+  phone        String?
+  stage        String   @default("NEW") // NEW | CONTACTED | TRIAL | CONVERTED | LOST
+  source       String   // LEAD_SUBMISSION | SIGNUP | MANUAL
+  sourceLeadId String?  // LeadSubmission.id, when source = LEAD_SUBMISSION
+  sourceUserId String?  // User.id, when source = SIGNUP
+  assignedToId String?  // User.id (admin or staff who owns this contact)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  activities   CrmActivity[]
+
+  @@index([stage])
+  @@index([assignedToId])
+}
+
+model CrmActivity {
+  id        String     @id @default(cuid())
+  contactId String
+  contact   CrmContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  authorId  String?    // User.id (who logged this)
+  type      String     // NOTE | STAGE_CHANGE
+  content   String     @db.Text
+  createdAt DateTime   @default(now())
+
+  @@index([contactId])
 }
 
 // Meet add-on: today's tasks (multiple per day; shown in Meet side panel + dashboard)

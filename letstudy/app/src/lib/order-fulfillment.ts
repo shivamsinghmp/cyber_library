@@ -1,0 +1,373 @@
+import { prisma } from "@/lib/prisma";
+import { awardCoins } from "@/lib/coins";
+import { generateTransactionId } from "@/lib/transactionId";
+import { addStudentToCalendarEvent } from "@/lib/google-calendar";
+import { sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { sendPurchaseReceipt } from "@/lib/email";
+
+const COIN_PACKS: Record<string, { coins: number; priceRupees: number; label: string }> = {
+  COINS_100:  { coins: 100,  priceRupees: 50,  label: "Starter Pack"  },
+  COINS_350:  { coins: 350,  priceRupees: 150, label: "Study Pack"    },
+  COINS_700:  { coins: 700,  priceRupees: 275, label: "Power Pack"    },
+  COINS_1500: { coins: 1500, priceRupees: 499, label: "Pro Pack"      },
+};
+
+export async function fulfillOrder({
+  userId,
+  type,
+  ids,
+  amountRupees,
+  paymentGatewayId,
+  couponCode,
+}: {
+  userId: string;
+  type: "CART" | "PRODUCT" | "REWARD" | "SUBSCRIPTION" | "COIN_PACK";
+  ids: string[];
+  amountRupees: number;
+  paymentGatewayId?: string;
+  couponCode?: string;
+}) {
+  const transactionId = await generateTransactionId();
+  const fulfillMeta: { planType?: "MONTHLY" | "YEARLY"; membershipStart?: Date; membershipEnd?: Date } = {};
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, referredById: true, referralRewarded: true, profile: { select: { phone: true, whatsappNumber: true, fullName: true } } },
+  });
+
+  const userPhone = user?.profile?.whatsappNumber || user?.profile?.phone;
+  const userName = user?.profile?.fullName ? user.profile.fullName.split(' ')[0] : 'Student';
+
+  // 1. Generate OrderDetails metadata for the transaction
+  let orderDetails: Array<{ slotId?: string; productId?: string; name: string; price: number }> = [];
+  let cartSlots: { id: string; name: string; price: number; timeLabel: string; meetLink: string | null; calendarEventId: string | null }[] = [];
+
+  if (type === "CART") {
+    const slots = await prisma.studySlot.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, price: true, timeLabel: true, meetLink: true, calendarEventId: true },
+    });
+    cartSlots = slots;
+    orderDetails = slots.map(s => ({ slotId: s.id, name: `${s.name} (${s.timeLabel})`, price: s.price }));
+
+    // Grant Room Subscriptions atomically — skip already enrolled, createMany for the rest
+    const existingSubs = await prisma.roomSubscription.findMany({
+      where: { userId, studySlotId: { in: slots.map(s => s.id) } },
+      select: { studySlotId: true },
+    });
+    const alreadyEnrolled = new Set(existingSubs.map(s => s.studySlotId));
+    const newSlots = slots.filter(s => !alreadyEnrolled.has(s.id));
+
+    if (newSlots.length > 0) {
+      await prisma.roomSubscription.createMany({
+        data: newSlots.map(s => ({ userId, studySlotId: s.id })),
+        skipDuplicates: true,
+      });
+
+      for (const slot of newSlots) {
+        if (slot.calendarEventId && user?.email) {
+          addStudentToCalendarEvent(slot.calendarEventId, user.email).catch(err => {
+            console.error(`[fulfillOrder] Calendar invite failed for userId=${userId} slotId=${slot.id}:`, err);
+          });
+        }
+        if (userPhone) {
+          sendWhatsAppTemplate(userPhone, "room_subscription_confirmation", "en", [userName, slot.name, slot.timeLabel]).catch(err => console.error("WA Temp Err:", err));
+        }
+      }
+    }
+  } else if (type === "PRODUCT") {
+    const product = await prisma.digitalProduct.findUnique({ where: { id: ids[0] } });
+    if (product) {
+      orderDetails = [{ productId: product.id, name: product.name, price: product.price }];
+      const alreadyPurchased = await prisma.digitalPurchase.findFirst({
+        where: { userId, productId: product.id },
+      });
+      if (!alreadyPurchased) {
+        await prisma.digitalPurchase.create({
+          data: { userId, productId: product.id, transactionId },
+        });
+      }
+    }
+  } else if (type === "REWARD") {
+    const reward = await prisma.reward.findUnique({ where: { id: ids[0] } });
+    if (reward) {
+      orderDetails = [{ name: `Reward: ${reward.name}`, price: reward.enrollmentAmount }];
+
+      const existing = await prisma.rewardWinner.findUnique({ where: { userId_rewardId: { userId, rewardId: reward.id } } });
+      if (!existing) {
+        await prisma.rewardWinner.create({
+          data: { userId, rewardId: reward.id, status: "PENDING" },
+        });
+      }
+    }
+  } else if (type === "COIN_PACK") {
+    const packId = ids[0];
+    let coinsToCredit = 0;
+    let packLabel = "";
+    if (packId.startsWith("COINS_CUSTOM_")) {
+      const rupees = parseInt(packId.replace("COINS_CUSTOM_", ""), 10);
+      coinsToCredit = rupees * 2;
+      packLabel = `Custom Pack (${coinsToCredit} coins)`;
+    } else {
+      const pack = COIN_PACKS[packId];
+      if (pack) { coinsToCredit = pack.coins; packLabel = `${pack.label} (${pack.coins} coins)`; }
+    }
+    if (coinsToCredit > 0) {
+      orderDetails = [{ name: packLabel, price: amountRupees }];
+      await awardCoins(userId, coinsToCredit, `COIN_PACK_${packId}`, undefined, undefined, {
+        sourceCategory: "coin_pack",
+        sourceLabel:    `Coin Pack: ${packLabel}`,
+        referenceType:  "payment",
+        referenceId:    paymentGatewayId ?? packId,
+        referenceName:  packLabel,
+        deviceType:     "web_browser",
+      });
+    }
+  } else if (type === "SUBSCRIPTION") {
+    // ids[0] = planType ("MONTHLY" | "YEARLY")
+    const planType = ids[0] as "MONTHLY" | "YEARLY";
+    const now = new Date();
+
+    orderDetails = [{ name: `${planType === "MONTHLY" ? "Monthly" : "Yearly"} Membership`, price: amountRupees }];
+
+    // Wrap the find + create/update in a serializable transaction to prevent
+    // concurrent free-order requests from both slipping through the existence
+    // check and creating duplicate subscriptions/transactions.
+    const subResult = await prisma.$transaction(async (tx) => {
+      const existingActive = await tx.userSubscription.findFirst({
+        where: { userId, status: "ACTIVE", endDate: { gt: now } },
+        select: { id: true, planType: true, endDate: true },
+      });
+
+      let membershipStart: Date;
+      let membershipEnd: Date;
+
+      if (existingActive) {
+        const isUpgrade = existingActive.planType === "MONTHLY" && planType === "YEARLY";
+        if (isUpgrade) {
+          // Monthly → Yearly upgrade: cancel old sub, start fresh yearly from now
+          await tx.userSubscription.update({
+            where: { id: existingActive.id },
+            data: { status: "CANCELLED" },
+          });
+          membershipStart = now;
+          membershipEnd = new Date(now);
+          membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+          await tx.userSubscription.create({
+            data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
+          });
+        } else {
+          // Same plan re-purchase: extend from current endDate
+          membershipStart = existingActive.endDate;
+          membershipEnd = new Date(existingActive.endDate);
+          if (planType === "MONTHLY") membershipEnd.setMonth(membershipEnd.getMonth() + 1);
+          else membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+          await tx.userSubscription.update({
+            where: { id: existingActive.id },
+            data: { endDate: membershipEnd },
+          });
+        }
+      } else {
+        // No active subscription — fresh enrollment
+        membershipStart = now;
+        membershipEnd = new Date(now);
+        if (planType === "MONTHLY") membershipEnd.setMonth(membershipEnd.getMonth() + 1);
+        else membershipEnd.setFullYear(membershipEnd.getFullYear() + 1);
+        await tx.userSubscription.create({
+          data: { userId, planType, startDate: membershipStart, endDate: membershipEnd, status: "ACTIVE", amountPaid: amountRupees, transactionId, paymentGatewayId: paymentGatewayId ?? null },
+        });
+      }
+
+      return { membershipStart, membershipEnd };
+    }, { isolationLevel: "Serializable" });
+
+    fulfillMeta.planType        = planType;
+    fulfillMeta.membershipStart = subResult.membershipStart;
+    fulfillMeta.membershipEnd   = subResult.membershipEnd;
+
+    // Log trial→paid conversion (fire-and-forget)
+    const { logTrialEvent } = await import("@/lib/trial-logger");
+    const trialSub = await prisma.userSubscription.findFirst({
+      where:  { userId, planType: "TRIAL" },
+      select: { startDate: true },
+      orderBy: { startDate: "desc" },
+    });
+    const daysUsed = trialSub
+      ? Math.ceil((now.getTime() - trialSub.startDate.getTime()) / 86_400_000)
+      : undefined;
+    logTrialEvent({ userId, event: "converted", planBought: planType, daysUsed });
+  }
+
+  // 2. Create the unified Transaction
+  const txn = await prisma.transaction.create({
+    data: {
+      transactionId,
+      userId,
+      amount: amountRupees,
+      currency: "INR",
+      status: "SUCCESS",
+      paymentGatewayId: paymentGatewayId ?? null,
+      orderDetails: orderDetails,
+    },
+  });
+
+  // 3. Record coupon redemption (now that payment is confirmed).
+  // Wrap in a transaction so the maxTotalUses count-check and the insert are atomic,
+  // preventing concurrent requests from both passing the check and over-redeeming.
+  let couponCommissionEarned = false;
+  if (couponCode) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const coupon = await tx.coupon.findUnique({
+          where: { code: couponCode },
+          select: { id: true, maxTotalUses: true, ownerId: true, commissionRate: true },
+        });
+        if (!coupon) return;
+
+        // Per-user uniqueness check
+        const alreadyUsed = await tx.couponRedemption.findUnique({
+          where: { couponId_userId: { couponId: coupon.id, userId } },
+        });
+        if (alreadyUsed) return;
+
+        // Atomic total-uses check — concurrent transactions see each other's inserts
+        if (coupon.maxTotalUses !== null) {
+          const currentCount = await tx.couponRedemption.count({ where: { couponId: coupon.id } });
+          if (currentCount >= coupon.maxTotalUses) {
+            console.warn(`[fulfillOrder] Coupon ${couponCode} maxTotalUses (${coupon.maxTotalUses}) reached for user ${userId}`);
+            return;
+          }
+        }
+
+        await tx.couponRedemption.create({ data: { couponId: coupon.id, userId } });
+
+        if (coupon.ownerId && coupon.commissionRate > 0 && amountRupees > 0) {
+          const commissionAmount = Math.round((amountRupees * coupon.commissionRate) / 100);
+          try {
+            await tx.influencerEarning.create({
+              data: {
+                influencerId: coupon.ownerId,
+                couponId: coupon.id,
+                userId,
+                transactionAmount: amountRupees,
+                commissionAmount,
+                status: "PENDING",
+                transactionId: transactionId,
+              },
+            });
+          } catch (dupErr: unknown) {
+            // Unique constraint violation = duplicate transactionId — skip silently
+            const errMsg = dupErr instanceof Error ? dupErr.message : String(dupErr);
+            if (!errMsg.includes("Unique constraint")) throw dupErr;
+            console.warn("[fulfillOrder] Duplicate coupon commission transactionId:", transactionId);
+          }
+          couponCommissionEarned = true;
+        }
+      });
+    } catch (e) {
+      console.error("[fulfillOrder] Coupon redemption record failed:", e);
+    }
+  }
+
+  // Link-based influencer commission (only if no coupon commission earned)
+  if (!couponCommissionEarned && amountRupees > 0) {
+    try {
+      await prisma.$transaction(async (tx2) => {
+        const userData = await tx2.user.findUnique({
+          where: { id: userId },
+          select: { referredByInfluencer: true },
+        });
+
+        if (userData?.referredByInfluencer) {
+          const influencerProfile = await tx2.influencerProfile.findUnique({
+            where: { userId: userData.referredByInfluencer },
+            select: { commissionRate: true },
+          });
+          const commissionRate = influencerProfile?.commissionRate ?? 10;
+          const commissionAmount = Math.round(
+            (amountRupees * commissionRate) / 100
+          );
+
+          try {
+            await tx2.influencerEarning.create({
+              data: {
+                influencerId: userData.referredByInfluencer,
+                couponId: null,
+                userId,
+                transactionAmount: amountRupees,
+                commissionAmount,
+                status: "PENDING",
+                transactionId: transactionId,
+              },
+            });
+          } catch (dupErr: unknown) {
+            // Unique constraint violation = duplicate transactionId — skip silently
+            const errMsg = dupErr instanceof Error ? dupErr.message : String(dupErr);
+            if (!errMsg.includes("Unique constraint")) throw dupErr;
+            console.warn("[fulfillOrder] Duplicate link commission transactionId:", transactionId);
+          }
+
+          await tx2.influencerLinkClick.updateMany({
+            where: {
+              influencerId: userData.referredByInfluencer,
+              userId,
+              convertedAt: null,
+            },
+            data: { convertedAt: new Date() },
+          });
+        }
+      });
+    } catch (e) {
+      console.error("[fulfillOrder] Link commission failed:", e);
+    }
+  }
+
+  // 4. Send purchase receipt email (fire-and-forget)
+  if (user?.email) {
+    // For CART enrollments, include meet links so student can join even if calendar invite is delayed
+    // Reuse already-fetched cartSlots — no extra DB query needed
+    const enrolledRoomsForEmail = type === "CART" && cartSlots.length > 0
+      ? cartSlots.map(s => ({ name: s.name, timeLabel: s.timeLabel, meetLink: s.meetLink ?? null }))
+      : null;
+
+    sendPurchaseReceipt({
+      to: user.email,
+      customerName: user.profile?.fullName ?? null,
+      transactionId,
+      items: orderDetails.map((i) => ({ name: i.name, price: i.price })),
+      totalAmount: amountRupees,
+      paymentId: paymentGatewayId ?? null,
+      planType:        fulfillMeta.planType        ?? null,
+      membershipStart: fulfillMeta.membershipStart ?? null,
+      membershipEnd:   fulfillMeta.membershipEnd   ?? null,
+      enrolledRooms:   enrolledRoomsForEmail,
+    }).catch((e) => console.error("[fulfillOrder] Receipt email failed:", e));
+  }
+
+  // 5. Process Referral First-Transaction logic
+  if (user && user.referredById && !user.referralRewarded) {
+    try {
+      const reward = await prisma.reward.findFirst({ where: { type: "REFERRAL", isActive: true }, orderBy: { createdAt: "desc" } });
+      if (reward) {
+        await prisma.$transaction([
+          prisma.rewardWinner.upsert({
+            where: { userId_rewardId: { userId, rewardId: reward.id } },
+            create: { userId: userId, rewardId: reward.id, status: "PENDING" }, update: {}
+          }),
+          prisma.rewardWinner.upsert({
+            where: { userId_rewardId: { userId: user.referredById, rewardId: reward.id } },
+            create: { userId: user.referredById, rewardId: reward.id, status: "PENDING" }, update: {}
+          }),
+          prisma.user.update({
+            where: { id: userId },
+            data: { referralRewarded: true },
+          }),
+        ]);
+      }
+    } catch (e) {
+      console.error("Referral process error:", e);
+    }
+  }
+
+  return txn;
+}

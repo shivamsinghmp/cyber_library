@@ -1,0 +1,90 @@
+export interface RateLimitResult {
+  success: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+}
+
+// In PM2 cluster mode each worker has its own in-process Map, so an attacker
+// who hits all workers effectively gets limit × workers.  Dividing the stored
+// limit by the worker count keeps the *effective* limit at the intended value.
+// PM2_INSTANCES is set in ecosystem.config.js and defaults to 1 in dev.
+const WORKER_COUNT = Math.max(1, parseInt(process.env.PM2_INSTANCES ?? "1", 10));
+
+const rateLimiterCache = new Map<string, { count: number; resetTime: number }>();
+const MAX_RATE_LIMIT_ENTRIES = 50_000;
+
+function evictIfOverLimit() {
+  if (rateLimiterCache.size < MAX_RATE_LIMIT_ENTRIES) return;
+  const now = Date.now();
+  // First pass: remove already-expired entries
+  for (const [key, record] of rateLimiterCache) {
+    if (now > record.resetTime) rateLimiterCache.delete(key);
+    if (rateLimiterCache.size < MAX_RATE_LIMIT_ENTRIES * 0.8) return;
+  }
+  // Second pass: evict oldest 20% by insertion order (DoS mitigation)
+  const toDelete = Math.ceil(rateLimiterCache.size * 0.2);
+  let deleted = 0;
+  for (const key of rateLimiterCache.keys()) {
+    if (deleted >= toDelete) break;
+    rateLimiterCache.delete(key);
+    deleted++;
+  }
+}
+
+// Prune expired entries every 5 minutes to prevent unbounded memory growth.
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of rateLimiterCache) {
+      if (now > record.resetTime) rateLimiterCache.delete(key);
+    }
+  }, 5 * 60 * 1000);
+}
+
+export function rateLimit(identifier: string, limit: number, windowInSeconds: number): RateLimitResult {
+  const now = Date.now();
+  const windowMs = windowInSeconds * 1000;
+  // Per-worker limit: divide by cluster size so effective limit across all workers
+  // matches the caller's intent (e.g. limit=5 workers=3 → 2 per worker ≈ 6 effective).
+  const perWorkerLimit = Math.max(1, Math.ceil(limit / WORKER_COUNT));
+
+  const record = rateLimiterCache.get(identifier);
+
+  if (!record) {
+    evictIfOverLimit();
+    rateLimiterCache.set(identifier, { count: 1, resetTime: now + windowMs });
+    return { success: true, limit, remaining: perWorkerLimit - 1, reset: now + windowMs };
+  }
+
+  if (now > record.resetTime) {
+    record.count = 1;
+    record.resetTime = now + windowMs;
+    return { success: true, limit, remaining: perWorkerLimit - 1, reset: record.resetTime };
+  }
+
+  if (record.count >= perWorkerLimit) {
+    return { success: false, limit, remaining: 0, reset: record.resetTime };
+  }
+
+  record.count++;
+  return { success: true, limit, remaining: perWorkerLimit - record.count, reset: record.resetTime };
+}
+
+/**
+ * Same windowing as {@link rateLimit}, but window is in milliseconds and result uses `ok`.
+ */
+export function checkRateLimit(
+  identifier: string,
+  limit: number,
+  windowMs: number
+): { ok: boolean; limit: number; remaining: number; reset: number } {
+  const windowSeconds = Math.max(1, Math.ceil(windowMs / 1000));
+  const r = rateLimit(identifier, limit, windowSeconds);
+  return {
+    ok: r.success,
+    limit: r.limit,
+    remaining: r.remaining,
+    reset: r.reset,
+  };
+}

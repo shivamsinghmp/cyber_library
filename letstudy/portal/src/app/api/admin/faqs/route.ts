@@ -1,0 +1,40 @@
+﻿import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { invalidateCache } from "@/lib/redis";
+import { requireSuperAdmin } from "@/lib/api-helpers";
+
+export async function GET() {
+  try {
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+
+    const faqs = await prisma.faq.findMany({ orderBy: { order: "asc" } });
+    await invalidateCache("public:faqs");
+    return NextResponse.json(faqs);
+  } catch (error) {
+    console.error("GET /api/admin/faqs:", error);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const auth = await requireSuperAdmin();
+    if (auth.error) return auth.error;
+
+    const data = await request.json();
+    const faq = await prisma.faq.create({
+      data: {
+        question: data.question,
+        answer: data.answer,
+        order: data.order ?? 0,
+        isActive: data.isActive ?? true,
+      },
+    });
+    await invalidateCache("public:faqs");
+    return NextResponse.json(faq);
+  } catch (error) {
+    console.error("POST /api/admin/faqs:", error);
+    return NextResponse.json({ error: "Failed to create FAQ" }, { status: 500 });
+  }
+}

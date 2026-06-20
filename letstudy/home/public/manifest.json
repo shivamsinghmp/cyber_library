@@ -1,0 +1,13 @@
+{
+  "name": "Let's Study",
+  "short_name": "Let's Study",
+  "description": "Live 24/7 Focus Hub & Study Rooms",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A1628",
+  "theme_color": "#3B82F6",
+  "icons": [
+    { "src": "/favicon-32.png",  "sizes": "32x32",   "type": "image/png" },
+    { "src": "/icon-512.png",    "sizes": "512x512",  "type": "image/png" }
+  ]
+}
