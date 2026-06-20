@@ -1,0 +1,34 @@
+client_max_body_size  100M;
+client_body_timeout    10s;
+client_header_timeout  10s;
+send_timeout            10s;
+keepalive_timeout       65s;
+limit_conn ls_conn_limit 20;
+
+location ~ /\. {
+  deny all;
+  return 404;
+}
+location ~* \.(git|env|sql|bak|swp|orig|log|conf|ini)$ {
+  deny all;
+  return 404;
+}
+
+location ~ ^/api/auth/(signin|signup|forgot-password|verify-email|whatsapp-otp|record-login|record-logout|check-email) {
+  limit_req zone=ls_login_limit burst=5 nodelay;
+  limit_req_status 429;
+  proxy_pass http://$ls_upstream;
+  include /etc/nginx/proxy_params;
+}
+
+location /api/ {
+  limit_req zone=ls_api_limit burst=60 nodelay;
+  limit_req_status 429;
+  proxy_pass http://$ls_upstream;
+  include /etc/nginx/proxy_params;
+}
+
+location / {
+  proxy_pass http://$ls_upstream;
+  include /etc/nginx/proxy_params;
+}

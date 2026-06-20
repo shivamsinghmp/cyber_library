@@ -19,3 +19,75 @@ services:
       - "127.0.0.1:8080:8080"
     depends_on:
       - python
+
+  ls-home:
+    build:
+      context: .
+      dockerfile: letstudy/Dockerfile
+      args:
+        APP_DIR: home
+        NEXTAUTH_URL: https://home.lstudy.in
+    restart: unless-stopped
+    env_file: .env.home
+    ports:
+      - "127.0.0.1:8081:8080"
+
+  ls-app:
+    build:
+      context: .
+      dockerfile: letstudy/Dockerfile
+      args:
+        APP_DIR: app
+        NEXTAUTH_URL: https://app.lstudy.in
+    restart: unless-stopped
+    env_file: .env.app
+    ports:
+      - "127.0.0.1:8082:8080"
+
+  ls-portal:
+    build:
+      context: .
+      dockerfile: letstudy/Dockerfile
+      args:
+        APP_DIR: portal
+        NEXTAUTH_URL: https://portal.lstudy.in
+    restart: unless-stopped
+    env_file: .env.portal
+    ports:
+      - "127.0.0.1:8083:8080"
+
+  ls-staff:
+    build:
+      context: .
+      dockerfile: letstudy/Dockerfile
+      args:
+        APP_DIR: staff
+        NEXTAUTH_URL: https://staff.lstudy.in
+    restart: unless-stopped
+    env_file: .env.staff
+    ports:
+      - "127.0.0.1:8084:8080"
+
+  ls-py:
+    build:
+      context: .
+      dockerfile: letstudy/Dockerfile
+      args:
+        APP_DIR: py
+        NEXTAUTH_URL: https://py.lstudy.in
+    restart: unless-stopped
+    env_file: .env.py
+    ports:
+      - "127.0.0.1:8085:8080"
+
+  ls-crm:
+    build:
+      context: .
+      dockerfile: letstudy/Dockerfile
+      args:
+        APP_DIR: crm
+        NEXTAUTH_URL: https://crm.lstudy.in
+    restart: unless-stopped
+    env_file: .env.crm
+    ports:
+      - "127.0.0.1:8086:8080"
