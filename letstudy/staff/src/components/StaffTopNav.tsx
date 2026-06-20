@@ -5,9 +5,33 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, MessageCircle, UserCircle, LogOut, Menu, X } from "lucide-react";
+import {
+  LayoutDashboard, MessageCircle, UserCircle, LogOut, Menu, X,
+  Users, Wallet, FileText, BookOpenCheck,
+} from "lucide-react";
+import type { AdminModuleIds } from "@/lib/permissions";
 
-export function StaffTopNav({ canSeeWhatsApp }: { canSeeWhatsApp: boolean }) {
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  moduleId?: AdminModuleIds;
+};
+
+// `moduleId` omitted = always visible (Dashboard, Profile). Order here is
+// the order they render in — Dashboard first, Profile last, regardless of
+// which modules a given staff member has.
+const NAV_ITEMS: NavItem[] = [
+  { href: "/staff",          label: "Dashboard", icon: LayoutDashboard },
+  { href: "/staff/whatsapp", label: "WhatsApp",  icon: MessageCircle, moduleId: "ENGAGEMENT" },
+  { href: "/staff/students", label: "Students",  icon: Users,         moduleId: "STUDENT_MGMT" },
+  { href: "/staff/finance",  label: "Finance",    icon: Wallet,        moduleId: "FINANCE" },
+  { href: "/staff/blog",     label: "Blog",       icon: FileText,      moduleId: "CONTENT" },
+  { href: "/staff/library",  label: "Library",    icon: BookOpenCheck, moduleId: "VIRTUAL_LIBRARY" },
+  { href: "/staff/profile",  label: "Profile",    icon: UserCircle },
+];
+
+export function StaffTopNav({ allowedModules }: { allowedModules: string[] }) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -23,11 +47,7 @@ export function StaffTopNav({ canSeeWhatsApp }: { canSeeWhatsApp: boolean }) {
       }).catch(() => {});
   }, []);
 
-  const links = [
-    { href: "/staff", label: "Dashboard", icon: LayoutDashboard },
-    ...(canSeeWhatsApp ? [{ href: "/staff/whatsapp", label: "WhatsApp", icon: MessageCircle }] : []),
-    { href: "/staff/profile", label: "Profile", icon: UserCircle },
-  ];
+  const links = NAV_ITEMS.filter(item => !item.moduleId || allowedModules.includes(item.moduleId));
 
   const logoSrc = logoUrl?.trim() || "/logo.png";
   const isExternalLogo = logoSrc.startsWith("http");

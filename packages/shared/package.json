@@ -20,7 +20,8 @@
     "./plan-features": "./src/plan-features.ts",
     "./app-settings": "./src/app-settings.ts",
     "./email": "./src/email.ts",
-    "./google-calendar": "./src/google-calendar.ts"
+    "./google-calendar": "./src/google-calendar.ts",
+    "./roomId": "./src/roomId.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

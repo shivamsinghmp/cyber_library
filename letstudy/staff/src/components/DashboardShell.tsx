@@ -36,11 +36,9 @@ export async function DashboardShell({
     if (p) allowedModules = p.modules;
   } catch {}
 
-  const canSeeWhatsApp = allowedModules.includes("ENGAGEMENT");
-
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <StaffTopNav canSeeWhatsApp={canSeeWhatsApp} />
+      <StaffTopNav allowedModules={allowedModules} />
       <main className="flex-1 w-full overflow-y-auto px-4 py-5 md:px-6 lg:px-8">
         {children}
       </main>

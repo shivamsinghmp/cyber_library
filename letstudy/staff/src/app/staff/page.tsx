@@ -1,14 +1,21 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { StaffStudentLookup } from "@/components/StaffStudentLookup";
-import { Calendar, MessageSquare, Ticket } from "lucide-react";
+import { Calendar, MessageSquare, Ticket, IndianRupee, Receipt, Users } from "lucide-react";
 import Link from "next/link";
 
 export default async function StaffDashboardPage() {
   const session = await auth();
   if (!session?.user) return null;
+  const userId = (session.user as { id?: string }).id;
   const displayName = session.user.name ?? session.user.email ?? "Staff";
-  const [activeSessions, tickets] = await Promise.all([
+
+  const perm = userId
+    ? await prisma.employeePermission.findUnique({ where: { userId } })
+    : null;
+  const hasOverview = !!perm?.modules.includes("SYSTEM_OVERVIEW");
+
+  const [activeSessions, tickets, overviewStats] = await Promise.all([
     prisma.studySession.findMany({
       where: { endedAt: null },
       take: 10,
@@ -18,7 +25,34 @@ export default async function StaffDashboardPage() {
       },
     }),
     [],
+    hasOverview
+      ? Promise.all([
+          prisma.transaction.aggregate({ where: { status: "SUCCESS" }, _sum: { amount: true } }),
+          prisma.transaction.count({ where: { status: "SUCCESS" } }),
+          prisma.user.count({ where: { role: { in: ["EMPLOYEE", "ADMIN"] } } }),
+        ])
+      : null,
   ]);
+
+  const overviewCards = overviewStats
+    ? [
+        {
+          label: "Total Revenue",
+          value: `₹${(overviewStats[0]._sum.amount ?? 0).toLocaleString("en-IN")}`,
+          icon: IndianRupee,
+        },
+        {
+          label: "Transactions",
+          value: overviewStats[1].toLocaleString(),
+          icon: Receipt,
+        },
+        {
+          label: "Team Size",
+          value: overviewStats[2].toLocaleString(),
+          icon: Users,
+        },
+      ]
+    : [];
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -30,6 +64,20 @@ export default async function StaffDashboardPage() {
           Staff Dashboard — student lookup, active sessions, and support
         </p>
       </div>
+
+      {overviewCards.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {overviewCards.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="rounded-2xl border border-white/10 bg-black/30 p-5 shadow-xl">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--cream-muted)]">{label}</p>
+                <Icon className="h-4 w-4 text-[var(--accent)]" />
+              </div>
+              <p className="mt-1 text-2xl font-bold text-[var(--cream)]">{value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <StaffStudentLookup />
 
