@@ -108,7 +108,7 @@ export default async function BlogPage() {
             <p className="mb-4 text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--accent)" }}>
               ✨ Latest Post
             </p>
-            <Link href={`/blog/${featured.slug}`}
+            <Link href={`/post/${featured.slug}`}
               className="group block overflow-hidden rounded-[2rem] border bg-white transition-all hover:shadow-[var(--shadow-lg)] hover:-translate-y-1"
               style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-md)" }}>
 
@@ -168,7 +168,7 @@ export default async function BlogPage() {
               {rest.map((post, idx) => {
                 const color = CARD_COLORS[idx % CARD_COLORS.length];
                 return (
-                  <Link key={post.slug} href={`/blog/${post.slug}`}
+                  <Link key={post.slug} href={`/post/${post.slug}`}
                     className="group flex flex-col overflow-hidden rounded-[1.75rem] border bg-white transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
                     style={{ borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
 

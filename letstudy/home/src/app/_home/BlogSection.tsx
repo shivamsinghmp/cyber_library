@@ -60,7 +60,7 @@ export function BlogSection({ blogs }: { blogs: Blog[] }) {
                   <p className="line-clamp-3 text-sm leading-relaxed" style={{ color: "var(--body-text)" }}>{blog.excerpt || "Read more about this topic..."}</p>
                 </div>
                 <div className="border-t p-5" style={{ borderColor: "var(--border)" }}>
-                  <Link href={`/blog/${blog.slug}`} className="inline-flex items-center gap-2 text-sm font-bold transition-colors" style={{ color: "var(--accent)" }}>
+                  <Link href={`/post/${blog.slug}`} className="inline-flex items-center gap-2 text-sm font-bold transition-colors" style={{ color: "var(--accent)" }}>
                     Read Article
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
                   </Link>
