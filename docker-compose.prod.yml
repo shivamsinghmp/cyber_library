@@ -9,17 +9,6 @@ services:
     expose:
       - "8000"
 
-  app:
-    build: .
-    restart: unless-stopped
-    env_file: .env.nextjs
-    environment:
-      PYTHON_SERVER_URL: http://python:8000
-    ports:
-      - "127.0.0.1:8080:8080"
-    depends_on:
-      - python
-
   ls-home:
     build:
       context: .
@@ -41,8 +30,12 @@ services:
         NEXTAUTH_URL: https://app.lstudy.in
     restart: unless-stopped
     env_file: .env.app
+    environment:
+      PYTHON_SERVER_URL: http://python:8000
     ports:
       - "127.0.0.1:8082:8080"
+    depends_on:
+      - python
 
   ls-portal:
     build:
@@ -77,8 +70,12 @@ services:
         NEXTAUTH_URL: https://py.lstudy.in
     restart: unless-stopped
     env_file: .env.py
+    environment:
+      PYTHON_SERVER_URL: http://python:8000
     ports:
       - "127.0.0.1:8085:8080"
+    depends_on:
+      - python
 
   ls-crm:
     build:
