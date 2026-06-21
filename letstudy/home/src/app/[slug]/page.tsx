@@ -100,11 +100,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title,
       description,
-      alternates: { canonical: `/post/${slug}` },
+      alternates: { canonical: `/${slug}` },
       openGraph: {
         title,
         description,
-        url: `${siteUrl}/post/${slug}`,
+        url: `${siteUrl}/${slug}`,
         type: "article",
         publishedTime: post.publishedAt?.toISOString(),
         authors: ["Let's Study"],
@@ -166,7 +166,7 @@ export default async function BlogPostPage({ params }: Props) {
       url: siteUrl,
       logo: { "@type": "ImageObject", url: `${siteUrl}/icon-512.png` },
     },
-    mainEntityOfPage: { "@type": "WebPage", "@id": `${siteUrl}/post/${post.slug}` },
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${siteUrl}/${post.slug}` },
   };
 
   return (
@@ -375,7 +375,7 @@ export default async function BlogPostPage({ params }: Props) {
                       {morePosts.map((p) => (
                         <li key={p.id}>
                           <Link
-                            href={`/post/${p.slug}`}
+                            href={`/${p.slug}`}
                             className="group flex gap-3 items-start"
                           >
                             {/* Thumbnail */}
@@ -452,7 +452,7 @@ export default async function BlogPostPage({ params }: Props) {
                   return (
                     <Link
                       key={p.id}
-                      href={`/post/${p.slug}`}
+                      href={`/${p.slug}`}
                       className="group flex flex-col overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                       style={{ borderColor: "var(--border)", boxShadow: "0 2px 12px rgba(99,102,241,0.07)" }}
                     >
