@@ -1,7 +1,10 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 
-export const revalidate = 3600; // regenerate every 1 hour — picks up new posts automatically
+// No caching — a freshly published blog post must appear here instantly,
+// not after waiting out a revalidate window. Sitemap.xml is fetched rarely
+// (mostly by crawlers), so the extra DB read on every request is cheap.
+export const dynamic = "force-dynamic";
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lstudy.in";
 
